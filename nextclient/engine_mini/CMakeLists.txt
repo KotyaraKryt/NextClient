@@ -2,6 +2,12 @@ cmake_minimum_required(VERSION 3.21)
 project(engine_mini)
 set(OUTPUT_NAME "next_engine_mini")
 
+# The real engine (graphics, SDL2 windowing, resource loading, etc.) is still
+# Windows-only; only its header-only export target is built on other platforms
+# (see the bottom of this file), so other Linux modules can at least see its
+# public interface while the engine itself gets ported.
+if (WIN32)
+
 find_package(concurrencpp CONFIG REQUIRED)
 find_package(optic REQUIRED)
 find_package(SDL2 REQUIRED)
@@ -119,6 +125,8 @@ if (NOT NEXTCLIENT_BUILD_TESTS)
     )
 endif ()
 
+endif () # WIN32
+
 #-----------------------------------------------------------------
 # Export library headers
 #-----------------------------------------------------------------
@@ -129,6 +137,6 @@ target_include_directories(engine_mini_export INTERFACE
         include
 )
 
-if (NEXTCLIENT_BUILD_TESTS)
+if (NEXTCLIENT_BUILD_TESTS AND WIN32)
     add_subdirectory(tests)
 endif ()
