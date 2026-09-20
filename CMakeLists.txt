@@ -84,10 +84,11 @@ endif ()
 
 # NextClient sub-projects
 add_subdirectory(nextclient/packages)
+add_subdirectory(dep/NclNitroApi)
 
-# The engine hook layer, launcher and game modules are still Windows-only; they are
-# being ported to Linux incrementally, module by module. Their external dependencies
-# are only needed once those modules are built, so they're gated the same way.
+# The launcher and game modules are still Windows-only; they are being ported to
+# Linux incrementally, module by module. Their external dependencies are only
+# needed once those modules are built, so they're gated the same way.
 if (WIN32)
     # external dependencies
     add_subdirectory(dep/cpr)
@@ -95,8 +96,6 @@ if (WIN32)
     add_subdirectory(dep/bzip2)
     add_subdirectory(dep/glad)
     add_subdirectory(dep/stb)
-
-    add_subdirectory(dep/NclNitroApi)
     add_subdirectory(nextclient/launcher)
     add_subdirectory(nextclient/engine_mini)
     add_subdirectory(nextclient/filesystem_proxy)
