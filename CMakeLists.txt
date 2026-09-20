@@ -86,6 +86,7 @@ endif ()
 add_subdirectory(nextclient/packages)
 add_subdirectory(dep/NclNitroApi)
 add_subdirectory(nextclient/engine_mini)
+add_subdirectory(nextclient/gameui)
 
 # The launcher and remaining game modules are still Windows-only; they are being
 # ported to Linux incrementally, module by module. Their external dependencies
@@ -100,7 +101,6 @@ if (WIN32)
     add_subdirectory(nextclient/launcher)
     add_subdirectory(nextclient/filesystem_proxy)
     add_subdirectory(nextclient/client_mini)
-    add_subdirectory(nextclient/gameui)
     add_subdirectory(nextclient/steam_api_proxy)
 endif ()
 
