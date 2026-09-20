@@ -82,22 +82,28 @@ if (MSVC)
     )
 endif ()
 
-# external dependencies
-add_subdirectory(dep/cpr)
-add_subdirectory(dep/easyloggingpp)
-add_subdirectory(dep/bzip2)
-add_subdirectory(dep/glad)
-add_subdirectory(dep/stb)
-
 # NextClient sub-projects
-add_subdirectory(dep/NclNitroApi)
 add_subdirectory(nextclient/packages)
-add_subdirectory(nextclient/launcher)
-add_subdirectory(nextclient/engine_mini)
-add_subdirectory(nextclient/filesystem_proxy)
-add_subdirectory(nextclient/client_mini)
-add_subdirectory(nextclient/gameui)
-add_subdirectory(nextclient/steam_api_proxy)
+
+# The engine hook layer, launcher and game modules are still Windows-only; they are
+# being ported to Linux incrementally, module by module. Their external dependencies
+# are only needed once those modules are built, so they're gated the same way.
+if (WIN32)
+    # external dependencies
+    add_subdirectory(dep/cpr)
+    add_subdirectory(dep/easyloggingpp)
+    add_subdirectory(dep/bzip2)
+    add_subdirectory(dep/glad)
+    add_subdirectory(dep/stb)
+
+    add_subdirectory(dep/NclNitroApi)
+    add_subdirectory(nextclient/launcher)
+    add_subdirectory(nextclient/engine_mini)
+    add_subdirectory(nextclient/filesystem_proxy)
+    add_subdirectory(nextclient/client_mini)
+    add_subdirectory(nextclient/gameui)
+    add_subdirectory(nextclient/steam_api_proxy)
+endif ()
 
 # Windows 7 compatibility
 if (MSVC)
@@ -125,18 +131,21 @@ endif ()
 # custom build target
 if (NOT NEXTCLIENT_BUILD_TESTS)
     add_custom_target(BUILD_ALL ALL)
-    add_dependencies(BUILD_ALL
-            next_launcher
-            engine_mini
-            filesystem_proxy
-            client_mini
-            gameui
-            steam_api_proxy
-            nitro_api
-            vgui2
-    )
 
-    if (NEXTCLIENT_INSTALL_DIR)
+    if (WIN32)
+        add_dependencies(BUILD_ALL
+                next_launcher
+                engine_mini
+                filesystem_proxy
+                client_mini
+                gameui
+                steam_api_proxy
+                nitro_api
+                vgui2
+        )
+    endif ()
+
+    if (WIN32 AND NEXTCLIENT_INSTALL_DIR)
         add_custom_command(TARGET BUILD_ALL POST_BUILD
                 COMMENT "Installing libraries and assets to ${NEXTCLIENT_INSTALL_DIR}..."
                 COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:next_launcher> ${NEXTCLIENT_INSTALL_DIR}/cstrike.exe

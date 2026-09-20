@@ -46,6 +46,15 @@
         "value": "x86",
         "strategy": "external"
       }
+    },
+
+    {
+      "name": "linux",
+      "inherits": "base",
+      "generator": "Ninja Multi-Config",
+      "cacheVariables": {
+        "VCPKG_TARGET_TRIPLET": "x86-linux"
+      }
     }
   ],
 
@@ -83,6 +92,18 @@
     {
       "name": "ninja-debug",
       "configurePreset": "ninja",
+      "configuration": "Debug"
+    },
+
+    {
+      "name": "linux-release",
+      "configurePreset": "linux",
+      "configuration": "Release"
+    },
+
+    {
+      "name": "linux-debug",
+      "configurePreset": "linux",
       "configuration": "Debug"
     }
   ]
