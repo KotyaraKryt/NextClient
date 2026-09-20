@@ -32,10 +32,4 @@ add_subdirectory(ncl_utils)
 add_subdirectory(task_coro)
 add_subdirectory(ncl_math)
 add_subdirectory(gameplay)
-
-# hwid_collector reads the HWID from WMI/registry; it needs an actual Linux
-# implementation (e.g. /etc/machine-id, DMI), not just a portability fix, so it's
-# not built there yet.
-if (WIN32)
-    add_subdirectory(hwid_collector)
-endif ()
+add_subdirectory(hwid_collector)
