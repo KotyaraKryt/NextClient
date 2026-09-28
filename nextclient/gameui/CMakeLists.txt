@@ -56,6 +56,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
         ncl_math::ncl_math
         crosshair::crosshair
         Ws2_32.lib
+        settings_code::settings_code
 )
 
 target_compile_options(${PROJECT_NAME} PRIVATE
