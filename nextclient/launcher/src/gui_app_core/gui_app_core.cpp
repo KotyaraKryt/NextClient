@@ -4,9 +4,9 @@
 #include <cmrc/cmrc.hpp>
 #include <easylogging++.h>
 #include <taskcoro/TaskCoro.h>
-#include <gui_app_core/imgui/imgui.h>
+#include <imgui/imgui.h>
 #include <gui_app_core/imgui/imgui_impl_glfw.h>
-#include <gui_app_core/imgui/imgui_impl_opengl2.h>
+#include <imgui/imgui_impl_opengl2.h>
 #include <gui_app_core/GuiAppInterface.h>
 #include <taskcoro/impl/TaskCoroImpl.h>
 

@@ -31,6 +31,7 @@ target_link_libraries(${TARGET_NAME} PRIVATE
         OpenGL::GL
         glfw
         TaskCoro::TaskCoro
+        imgui::imgui
         ncl_utils::ncl_utils
         easyloggingpp::easyloggingpp
         ${TARGET_NAME}::rc

@@ -1,6 +1,6 @@
 #include "UpdaterView.h"
 #include <string>
-#include <gui_app_core/imgui/imgui.h>
+#include <imgui/imgui.h>
 
 const std::unordered_map<UpdaterViewState, std::string> UpdaterView::state_string_ru_
 {

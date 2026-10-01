@@ -36,4 +36,5 @@ target_link_libraries(${TARGET_NAME} PRIVATE
         easyloggingpp::easyloggingpp
         ncl_utils::ncl_utils
         TaskCoro::TaskCoro
+        imgui::imgui
 )
