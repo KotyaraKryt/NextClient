@@ -27,6 +27,11 @@
 #include "keydefs.h"
 #include "FileSystem.h"
 #include "LoadingDialog.h"
+#include "GameConsole.h"
+#include <tier1/strtools.h>
+#include <console_buffer/console_buffer.h>
+#include <cstring>
+#include <string>
 #ifdef _WIN32
 #include <Windows.h>
 #include "Browser/ExtensionConsoleApi.h"
@@ -231,6 +236,26 @@ void CHistoryItem::SetText( const char *text, const char *extra )
 
 
 
+// the ImGui console draws from this copy of everything printed here
+static void AddToScrollback(Color color, std::string_view text)
+{
+    console_buffer::Rgba rgba = {
+        static_cast<uint8_t>(color.r()), static_cast<uint8_t>(color.g()),
+        static_cast<uint8_t>(color.b()), static_cast<uint8_t>(color.a())
+    };
+    GameConsole().Scrollback().Print(rgba, text);
+}
+
+static void AddToScrollback(Color color, const wchar_t* begin, const wchar_t* end)
+{
+    std::wstring wide(begin, end);
+    std::string utf8(wide.size() * 4 + 1, '\0');
+    V_UnicodeToUTF8(wide.c_str(), utf8.data(), static_cast<int>(utf8.size()));
+    utf8.resize(strlen(utf8.c_str()));
+
+    AddToScrollback(color, utf8);
+}
+
 //-----------------------------------------------------------------------------
 // Purpose: Constructor
 //-----------------------------------------------------------------------------
@@ -324,6 +349,7 @@ void CGameConsoleDialog::ColorPrint(Color color, const char *msg)
     {
         m_pHistory->InsertColorChange(color);
         m_pHistory->InsertString(msg);
+        AddToScrollback(color, msg);
     }
 }
 
@@ -335,6 +361,7 @@ void CGameConsoleDialog::ColorPrint(Color color, const char *begin, const char *
     {
         m_pHistory->InsertColorChange(color);
         m_pHistory->InsertString(begin, end);
+        AddToScrollback(color, std::string_view(begin, end - begin));
     }
 }
 
@@ -346,6 +373,7 @@ void CGameConsoleDialog::ColorPrint(Color color, const wchar_t *begin, const wch
     {
         m_pHistory->InsertColorChange(color);
         m_pHistory->InsertString(begin, end);
+        AddToScrollback(color, begin, end);
     }
 }
 
@@ -353,12 +381,14 @@ void CGameConsoleDialog::ColorPrintWithoutJsEvent(Color color, const char* msg)
 {
     m_pHistory->InsertColorChange(color);
     m_pHistory->InsertString(msg);
+    AddToScrollback(color, msg);
 }
 
 void CGameConsoleDialog::ColorPrintWithoutJsEvent(Color color, const wchar_t* msg)
 {
     m_pHistory->InsertColorChange(color);
     m_pHistory->InsertString(msg);
+    AddToScrollback(color, msg, msg + wcslen(msg));
 }
 
 //-----------------------------------------------------------------------------
@@ -368,6 +398,7 @@ void CGameConsoleDialog::DPrint(const char *msg)
 {
     m_pHistory->InsertColorChange(m_DPrintColor);
     m_pHistory->InsertString(msg);
+    AddToScrollback(m_DPrintColor, msg);
 }
 
 //-----------------------------------------------------------------------------

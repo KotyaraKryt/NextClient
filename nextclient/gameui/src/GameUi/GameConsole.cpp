@@ -10,7 +10,9 @@
 #include "GameConsoleNext.h"
 #include "GameConsoleDialog.h"
 #include "LoadingDialog.h"
+#include "ImGuiConsole.h"
 #include "ImGuiPanel.h"
+#include <imgui/imgui.h>
 #include <vgui/ISurfaceNext.h>
 
 #include <KeyValues.h>
@@ -31,12 +33,24 @@ CGameConsole &GameConsole()
 
 EXPOSE_SINGLE_INTERFACE_GLOBALVAR(CGameConsole, IGameConsole, GAMECONSOLE_INTERFACE_VERSION_GS, g_GameConsole);
 
-static CImGuiPanel* g_pImGuiDemo = nullptr;
+class CImGuiDemoPanel : public CImGuiPanel
+{
+protected:
+    void DrawImGui() override
+    {
+        bool open = true;
+        ImGui::ShowDemoWindow(&open);
+        if (!open)
+            SetVisible(false);
+    }
+};
+
+static CImGuiDemoPanel* g_pImGuiDemo = nullptr;
 
 static void OnCmdImGuiDemo()
 {
     if (!g_pImGuiDemo)
-        g_pImGuiDemo = vgui2::SETUP_PANEL(new CImGuiPanel());
+        g_pImGuiDemo = vgui2::SETUP_PANEL(new CImGuiDemoPanel());
 
     bool show = !g_pImGuiDemo->IsVisible();
     g_pImGuiDemo->SetVisible(show);
@@ -82,6 +96,10 @@ void CGameConsole::Initialize()
         std::min( swide - 2 * offset, 560 ), std::min( stall - 2 * offset, 400 ) );
 
     GameConsoleNext().Initialize(m_pConsole);
+
+    m_pImGuiConsole = vgui2::SETUP_PANEL(new CImGuiConsole(m_Scrollback));
+    m_pLegacyCvar = engine->pfnRegisterVariable("con_legacy", "0", FCVAR_ARCHIVE);
+
     m_bInitialized = true;
 
     engine->pfnAddCommand("condump", CGameConsole::OnCmdCondump);
@@ -106,7 +124,11 @@ void CGameConsole::Activate()
         return;
 
     vgui2::surface()->RestrictPaintToSinglePanel(NULL);
-    m_pConsole->Activate();
+
+    if (UseLegacyConsole())
+        m_pConsole->Activate();
+    else
+        m_pImGuiConsole->Activate();
 }
 
 //-----------------------------------------------------------------------------
@@ -121,6 +143,7 @@ void CGameConsole::Hide()
         m_pConsole->SetFadeEffectDisableOverride(true);
 
     m_pConsole->Hide();
+    m_pImGuiConsole->SetVisible(false);
 
     if (GameUI().IsInLevel())
         m_pConsole->SetFadeEffectDisableOverride(false);
@@ -135,6 +158,7 @@ void CGameConsole::Clear()
         return;
 
     m_pConsole->Clear();
+    m_Scrollback.Clear();
 }
 
 //-----------------------------------------------------------------------------
@@ -234,8 +258,7 @@ bool CGameConsole::IsConsoleVisible()
     if (!m_bInitialized)
         return false;
 
-    bool is_visible = m_pConsole->IsVisible();
-    return is_visible;
+    return m_pConsole->IsVisible() || m_pImGuiConsole->IsVisible();
 }
 
 //-----------------------------------------------------------------------------
@@ -255,6 +278,12 @@ void CGameConsole::SetParent(int parent)
         return;
 
     m_pConsole->SetParent( static_cast<vgui2::VPANEL>( parent ));
+    m_pImGuiConsole->SetParent( static_cast<vgui2::VPANEL>( parent ));
+}
+
+bool CGameConsole::UseLegacyConsole() const
+{
+    return m_pLegacyCvar && m_pLegacyCvar->value != 0.0f;
 }
 
 //-----------------------------------------------------------------------------

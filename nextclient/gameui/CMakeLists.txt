@@ -70,6 +70,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
         ncl_math::ncl_math
         crosshair::crosshair
         imgui::imgui
+        console_buffer::console_buffer
 )
 
 if (WIN32)

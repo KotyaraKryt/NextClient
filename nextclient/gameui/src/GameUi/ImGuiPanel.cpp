@@ -1,5 +1,7 @@
 #include "ImGuiPanel.h"
 
+#include <vgui/IInput.h>
+#include <vgui/IInputInternal.h>
 #include <vgui/ISurfaceNext.h>
 #include <vgui/ISystem.h>
 #include <vgui_controls/Controls.h>
@@ -7,6 +9,7 @@
 
 #include <imgui/imgui.h>
 #include <imgui/imgui_impl_opengl2.h>
+#include <imgui/imgui_internal.h>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -14,6 +17,8 @@
 #include <GL/gl.h>
 
 #include <algorithm>
+#include <cfloat>
+#include <cmath>
 #include <cstdint>
 
 // memdbgon must be the last include file in a .cpp file!!!
@@ -159,12 +164,9 @@ void CImGuiPanel::Paint()
     m_flLastFrameTime = now;
 
     ImGui::NewFrame();
-    bool open = true;
-    ImGui::ShowDemoWindow(&open);
+    DrawImGui();
     ImGui::Render();
-
-    if (!open)
-        SetVisible(false);
+    FitToWindows();
 
     // the engine batches VGUI text and would draw it over us on the next flush
     surface()->DrawFlushText();
@@ -176,6 +178,32 @@ void CImGuiPanel::Paint()
     ImGui_ImplOpenGL2_RenderDrawData(ImGui::GetDrawData());
     if (alphaTest)
         glEnable(GL_ALPHA_TEST);
+}
+
+void CImGuiPanel::FitToWindows()
+{
+    // the panel only covers the ImGui windows, so clicks around them still reach the menu
+    ImRect bounds;
+    bool any = false;
+    for (ImGuiWindow* window : ImGui::GetCurrentContext()->Windows)
+    {
+        if (!window->Active || window->Hidden)
+            continue;
+
+        if (any)
+            bounds.Add(window->Rect());
+        else
+            bounds = window->Rect();
+        any = true;
+    }
+
+    // a panel of zero size isn't painted, and then ImGui would never draw again
+    if (!any)
+        return;
+
+    int x = static_cast<int>(std::floor(bounds.Min.x));
+    int y = static_cast<int>(std::floor(bounds.Min.y));
+    SetBounds(x, y, static_cast<int>(std::ceil(bounds.Max.x)) - x, static_cast<int>(std::ceil(bounds.Max.y)) - y);
 }
 
 void CImGuiPanel::OnCursorMoved(int x, int y)
@@ -190,6 +218,9 @@ void CImGuiPanel::OnMousePressed(MouseCode code)
     int button = ToImGuiMouseButton(code);
     if (button < 0)
         return;
+
+    // keep getting cursor moves while a window is dragged past the panel's edge
+    input()->SetMouseCapture(GetVPanel());
 
     ImGui::SetCurrentContext(m_pContext);
     ImGui::GetIO().AddMouseButtonEvent(button, true);
@@ -207,8 +238,16 @@ void CImGuiPanel::OnMouseReleased(MouseCode code)
     if (button < 0)
         return;
 
+    input()->SetMouseCapture(0);
+
     ImGui::SetCurrentContext(m_pContext);
     ImGui::GetIO().AddMouseButtonEvent(button, false);
+}
+
+void CImGuiPanel::OnCursorExited()
+{
+    ImGui::SetCurrentContext(m_pContext);
+    ImGui::GetIO().AddMousePosEvent(-FLT_MAX, -FLT_MAX);
 }
 
 void CImGuiPanel::OnMouseWheeled(int delta)
@@ -242,6 +281,11 @@ void CImGuiPanel::OnKeyCodePressed(KeyCode code)
 void CImGuiPanel::OnKeyCodeReleased(KeyCode code)
 {
     OnKey(code, false);
+}
+
+void CImGuiPanel::OnKeyCodeTyped(KeyCode code)
+{
+    // ImGui already got the key in OnKeyCodePressed; the base class would hand it on to the parent panel
 }
 
 void CImGuiPanel::OnKeyTyped(wchar_t unichar)

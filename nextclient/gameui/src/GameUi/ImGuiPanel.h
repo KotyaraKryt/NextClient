@@ -15,6 +15,9 @@ public:
     ~CImGuiPanel() override;
 
 protected:
+    // called between ImGui::NewFrame and ImGui::Render, with this panel's context current
+    virtual void DrawImGui() = 0;
+
     void Paint() override;
 
     void OnCursorMoved(int x, int y) override;
@@ -22,12 +25,15 @@ protected:
     void OnMouseDoublePressed(vgui2::MouseCode code) override;
     void OnMouseReleased(vgui2::MouseCode code) override;
     void OnMouseWheeled(int delta) override;
+    void OnCursorExited() override;
     void OnKeyCodePressed(vgui2::KeyCode code) override;
     void OnKeyCodeReleased(vgui2::KeyCode code) override;
+    void OnKeyCodeTyped(vgui2::KeyCode code) override;
     void OnKeyTyped(wchar_t unichar) override;
 
 private:
     void CreateFontTexture();
+    void FitToWindows();
     void OnKey(vgui2::KeyCode code, bool down);
 
     ImGuiContext* m_pContext;

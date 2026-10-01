@@ -12,8 +12,11 @@
 #endif
 
 #include <IGameConsole.h>
+#include <console_buffer/console_buffer.h>
 
 class CGameConsoleDialog;
+class CImGuiConsole;
+struct cvar_s;
 
 //-----------------------------------------------------------------------------
 // Purpose: VGui implementation of the game/dev console
@@ -61,12 +64,19 @@ public:
     void PrintfWithoutJsEvent(Color color, const std::string& msg);
     void PrintfWithoutJsEvent(Color color, const std::wstring& msg);
 
+    // everything the console shows, for the ImGui console to draw
+    console_buffer::ConsoleBuffer& Scrollback() { return m_Scrollback; }
+
 private:
     void ExecuteTempConsoleBuffer();
+    bool UseLegacyConsole() const;
 
 private:
     bool m_bInitialized;
     CGameConsoleDialog *m_pConsole;
+    CImGuiConsole *m_pImGuiConsole = nullptr;
+    cvar_s *m_pLegacyCvar = nullptr;
+    console_buffer::ConsoleBuffer m_Scrollback;
     std::vector<SavedMessageData> m_TempConsoleBuffer;
 };
 
