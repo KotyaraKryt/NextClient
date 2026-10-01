@@ -45,7 +45,7 @@ void CImGuiConsole::DrawImGui()
     ImGui::SetNextWindowSize(ImVec2(720, 420), ImGuiCond_FirstUseEver);
 
     bool open = true;
-    bool expanded = ImGui::Begin("Console", &open);
+    bool expanded = ImGui::Begin("Console", &open, ImGuiWindowFlags_NoCollapse);
 
     if (expanded)
     {
@@ -93,8 +93,15 @@ void CImGuiConsole::DrawImGui()
             m_bFocusInput = false;
         }
 
-        ImGui::SetNextItemWidth(-FLT_MIN);
-        if (ImGui::InputText("##Input", m_szInput, sizeof(m_szInput), ImGuiInputTextFlags_EnterReturnsTrue))
+        const char* submitLabel = "Submit";
+        float submitWidth = ImGui::CalcTextSize(submitLabel).x + ImGui::GetStyle().FramePadding.x * 2;
+
+        ImGui::SetNextItemWidth(-(submitWidth + ImGui::GetStyle().ItemSpacing.x));
+        bool submitted = ImGui::InputText("##Input", m_szInput, sizeof(m_szInput), ImGuiInputTextFlags_EnterReturnsTrue);
+        ImGui::SameLine();
+        submitted |= ImGui::Button(submitLabel, ImVec2(submitWidth, 0));
+
+        if (submitted)
         {
             if (m_szInput[0] != '\0')
                 Execute(m_szInput);

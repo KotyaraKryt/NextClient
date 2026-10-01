@@ -1,4 +1,5 @@
 #include "ImGuiPanel.h"
+#include "ImGuiTheme.h"
 
 #include <vgui/IInput.h>
 #include <vgui/IInputInternal.h>
@@ -109,6 +110,8 @@ CImGuiPanel::CImGuiPanel() : BaseClass(nullptr, "ImGuiPanel")
     m_pContext = ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO();
     io.IniFilename = nullptr;
+    io.ConfigWindowsMoveFromTitleBarOnly = true;
+    ApplyNextClientTheme(ImGui::GetStyle());
     LoadFont(io, "resource/fonts/JetBrainsMono-Regular.ttf", 16.0f);
     ImGui_ImplOpenGL2_Init();
 }
