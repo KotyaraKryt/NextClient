@@ -69,6 +69,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
         cvars::cvars
         ncl_math::ncl_math
         crosshair::crosshair
+        imgui::imgui
 )
 
 if (WIN32)

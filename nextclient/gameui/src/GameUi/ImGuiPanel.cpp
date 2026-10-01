@@ -1,0 +1,231 @@
+#include "ImGuiPanel.h"
+
+#include <vgui/ISurfaceNext.h>
+#include <vgui/ISystem.h>
+#include <vgui_controls/Controls.h>
+
+#include <imgui/imgui.h>
+#include <imgui/imgui_impl_opengl2.h>
+
+#ifdef _WIN32
+#include <windows.h>
+#endif
+#include <GL/gl.h>
+
+#include <algorithm>
+#include <cstdint>
+
+// memdbgon must be the last include file in a .cpp file!!!
+#include <tier0/memdbgon.h>
+
+using namespace vgui2;
+
+static ImGuiKey ToImGuiKey(KeyCode code)
+{
+    if (code >= KEY_A && code <= KEY_Z)
+        return static_cast<ImGuiKey>(ImGuiKey_A + (code - KEY_A));
+    if (code >= KEY_0 && code <= KEY_9)
+        return static_cast<ImGuiKey>(ImGuiKey_0 + (code - KEY_0));
+    if (code >= KEY_F1 && code <= KEY_F12)
+        return static_cast<ImGuiKey>(ImGuiKey_F1 + (code - KEY_F1));
+
+    switch (code)
+    {
+        case KEY_TAB:       return ImGuiKey_Tab;
+        case KEY_LEFT:      return ImGuiKey_LeftArrow;
+        case KEY_RIGHT:     return ImGuiKey_RightArrow;
+        case KEY_UP:        return ImGuiKey_UpArrow;
+        case KEY_DOWN:      return ImGuiKey_DownArrow;
+        case KEY_PAGEUP:    return ImGuiKey_PageUp;
+        case KEY_PAGEDOWN:  return ImGuiKey_PageDown;
+        case KEY_HOME:      return ImGuiKey_Home;
+        case KEY_END:       return ImGuiKey_End;
+        case KEY_INSERT:    return ImGuiKey_Insert;
+        case KEY_DELETE:    return ImGuiKey_Delete;
+        case KEY_BACKSPACE: return ImGuiKey_Backspace;
+        case KEY_SPACE:     return ImGuiKey_Space;
+        case KEY_ENTER:     return ImGuiKey_Enter;
+        case KEY_PAD_ENTER: return ImGuiKey_KeypadEnter;
+        case KEY_ESCAPE:    return ImGuiKey_Escape;
+        case KEY_LCONTROL:  return ImGuiKey_LeftCtrl;
+        case KEY_RCONTROL:  return ImGuiKey_RightCtrl;
+        case KEY_LSHIFT:    return ImGuiKey_LeftShift;
+        case KEY_RSHIFT:    return ImGuiKey_RightShift;
+        case KEY_LALT:      return ImGuiKey_LeftAlt;
+        case KEY_RALT:      return ImGuiKey_RightAlt;
+        default:            return ImGuiKey_None;
+    }
+}
+
+static int ToImGuiMouseButton(MouseCode code)
+{
+    switch (code)
+    {
+        case MOUSE_LEFT:   return ImGuiMouseButton_Left;
+        case MOUSE_RIGHT:  return ImGuiMouseButton_Right;
+        case MOUSE_MIDDLE: return ImGuiMouseButton_Middle;
+        default:           return -1;
+    }
+}
+
+CImGuiPanel::CImGuiPanel() : BaseClass(nullptr, "ImGuiPanel")
+{
+    MakePopup();
+    SetKeyBoardInputEnabled(true);
+    SetMouseInputEnabled(true);
+    SetPaintBackgroundEnabled(false);
+
+    int wide, tall;
+    surface()->GetScreenSize(wide, tall);
+    SetBounds(0, 0, wide, tall);
+
+    m_pContext = ImGui::CreateContext();
+    ImGui::GetIO().IniFilename = nullptr;
+    ImGui_ImplOpenGL2_Init();
+}
+
+CImGuiPanel::~CImGuiPanel()
+{
+    ImGui::SetCurrentContext(m_pContext);
+    ImGui_ImplOpenGL2_Shutdown();
+    ImGui::DestroyContext(m_pContext);
+}
+
+void CImGuiPanel::CreateFontTexture()
+{
+    ImGuiIO& io = ImGui::GetIO();
+
+    unsigned char* pixels;
+    int width, height;
+    io.Fonts->GetTexDataAsRGBA32(&pixels, &width, &height);
+
+    // GoldSrc hands out GL texture names from its own counter instead of glGenTextures,
+    // so a name from glGenTextures could later be reused (and overwritten) by the engine
+    m_iFontTextureID = surface()->CreateNewTextureID();
+
+    GLint lastTexture;
+    glGetIntegerv(GL_TEXTURE_BINDING_2D, &lastTexture);
+    glBindTexture(GL_TEXTURE_2D, m_iFontTextureID);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
+    glBindTexture(GL_TEXTURE_2D, lastTexture);
+
+    io.Fonts->SetTexID(reinterpret_cast<ImTextureID>(static_cast<intptr_t>(m_iFontTextureID)));
+}
+
+void CImGuiPanel::Paint()
+{
+    ImGui::SetCurrentContext(m_pContext);
+
+    // ImGui_ImplOpenGL2_NewFrame is never called: all it does is create the font
+    // texture with glGenTextures, which CreateFontTexture replaces
+    if (!m_iFontTextureID)
+        CreateFontTexture();
+
+    ImGuiIO& io = ImGui::GetIO();
+
+    int wide, tall;
+    surface()->GetScreenSize(wide, tall);
+    io.DisplaySize = ImVec2(static_cast<float>(wide), static_cast<float>(tall));
+
+    double now = system()->GetCurrentTime();
+    io.DeltaTime = m_flLastFrameTime > 0.0 ? std::max(static_cast<float>(now - m_flLastFrameTime), 0.0001f) : 1.0f / 60.0f;
+    m_flLastFrameTime = now;
+
+    ImGui::NewFrame();
+    bool open = true;
+    ImGui::ShowDemoWindow(&open);
+    ImGui::Render();
+
+    if (!open)
+        SetVisible(false);
+
+    // the engine batches VGUI text and would draw it over us on the next flush
+    surface()->DrawFlushText();
+
+    // the backend saves and restores the rest of the GL state, but not alpha testing,
+    // which the engine leaves on and which would cut off ImGui's antialiased edges
+    GLboolean alphaTest = glIsEnabled(GL_ALPHA_TEST);
+    glDisable(GL_ALPHA_TEST);
+    ImGui_ImplOpenGL2_RenderDrawData(ImGui::GetDrawData());
+    if (alphaTest)
+        glEnable(GL_ALPHA_TEST);
+}
+
+void CImGuiPanel::OnCursorMoved(int x, int y)
+{
+    LocalToScreen(x, y);
+    ImGui::SetCurrentContext(m_pContext);
+    ImGui::GetIO().AddMousePosEvent(static_cast<float>(x), static_cast<float>(y));
+}
+
+void CImGuiPanel::OnMousePressed(MouseCode code)
+{
+    int button = ToImGuiMouseButton(code);
+    if (button < 0)
+        return;
+
+    ImGui::SetCurrentContext(m_pContext);
+    ImGui::GetIO().AddMouseButtonEvent(button, true);
+}
+
+void CImGuiPanel::OnMouseDoublePressed(MouseCode code)
+{
+    // VGUI sends the second click of a double click only here
+    OnMousePressed(code);
+}
+
+void CImGuiPanel::OnMouseReleased(MouseCode code)
+{
+    int button = ToImGuiMouseButton(code);
+    if (button < 0)
+        return;
+
+    ImGui::SetCurrentContext(m_pContext);
+    ImGui::GetIO().AddMouseButtonEvent(button, false);
+}
+
+void CImGuiPanel::OnMouseWheeled(int delta)
+{
+    ImGui::SetCurrentContext(m_pContext);
+    ImGui::GetIO().AddMouseWheelEvent(0.0f, static_cast<float>(delta));
+}
+
+void CImGuiPanel::OnKey(KeyCode code, bool down)
+{
+    ImGui::SetCurrentContext(m_pContext);
+    ImGuiIO& io = ImGui::GetIO();
+
+    if (code == KEY_LCONTROL || code == KEY_RCONTROL)
+        io.AddKeyEvent(ImGuiMod_Ctrl, down);
+    else if (code == KEY_LSHIFT || code == KEY_RSHIFT)
+        io.AddKeyEvent(ImGuiMod_Shift, down);
+    else if (code == KEY_LALT || code == KEY_RALT)
+        io.AddKeyEvent(ImGuiMod_Alt, down);
+
+    ImGuiKey key = ToImGuiKey(code);
+    if (key != ImGuiKey_None)
+        io.AddKeyEvent(key, down);
+}
+
+void CImGuiPanel::OnKeyCodePressed(KeyCode code)
+{
+    OnKey(code, true);
+}
+
+void CImGuiPanel::OnKeyCodeReleased(KeyCode code)
+{
+    OnKey(code, false);
+}
+
+void CImGuiPanel::OnKeyTyped(wchar_t unichar)
+{
+    // VGUI also types control characters (backspace, enter...), which ImGui gets as keys
+    if (unichar < 0x20 || unichar == 0x7F)
+        return;
+
+    ImGui::SetCurrentContext(m_pContext);
+    ImGui::GetIO().AddInputCharacter(static_cast<unsigned int>(unichar));
+}

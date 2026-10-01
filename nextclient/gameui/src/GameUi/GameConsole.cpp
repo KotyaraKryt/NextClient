@@ -10,6 +10,7 @@
 #include "GameConsoleNext.h"
 #include "GameConsoleDialog.h"
 #include "LoadingDialog.h"
+#include "ImGuiPanel.h"
 #include <vgui/ISurfaceNext.h>
 
 #include <KeyValues.h>
@@ -29,6 +30,22 @@ CGameConsole &GameConsole()
 }
 
 EXPOSE_SINGLE_INTERFACE_GLOBALVAR(CGameConsole, IGameConsole, GAMECONSOLE_INTERFACE_VERSION_GS, g_GameConsole);
+
+static CImGuiPanel* g_pImGuiDemo = nullptr;
+
+static void OnCmdImGuiDemo()
+{
+    if (!g_pImGuiDemo)
+        g_pImGuiDemo = vgui2::SETUP_PANEL(new CImGuiPanel());
+
+    bool show = !g_pImGuiDemo->IsVisible();
+    g_pImGuiDemo->SetVisible(show);
+    if (show)
+    {
+        g_pImGuiDemo->MoveToFront();
+        g_pImGuiDemo->RequestFocus();
+    }
+}
 
 //-----------------------------------------------------------------------------
 // Purpose: Constructor
@@ -68,6 +85,7 @@ void CGameConsole::Initialize()
     m_bInitialized = true;
 
     engine->pfnAddCommand("condump", CGameConsole::OnCmdCondump);
+    engine->pfnAddCommand("imgui_demo", OnCmdImGuiDemo);
 
     // This provides a 1 frame delay to display the text after the temporary buffer from the engine
     TaskCoro::RunInMainThread([this]
