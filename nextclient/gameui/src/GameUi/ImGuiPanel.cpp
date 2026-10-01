@@ -3,6 +3,7 @@
 #include <vgui/ISurfaceNext.h>
 #include <vgui/ISystem.h>
 #include <vgui_controls/Controls.h>
+#include <FileSystem.h>
 
 #include <imgui/imgui.h>
 #include <imgui/imgui_impl_opengl2.h>
@@ -57,6 +58,27 @@ static ImGuiKey ToImGuiKey(KeyCode code)
     }
 }
 
+static void LoadFont(ImGuiIO& io, const char* path, float size)
+{
+    FileHandle_t file = g_pFullFileSystem->Open(path, "rb");
+    if (file == FILESYSTEM_INVALID_HANDLE)
+        return;
+
+    int fileSize = g_pFullFileSystem->Size(file);
+    if (fileSize <= 0)
+    {
+        g_pFullFileSystem->Close(file);
+        return;
+    }
+
+    void* data = IM_ALLOC(fileSize);
+    g_pFullFileSystem->Read(data, fileSize, file);
+    g_pFullFileSystem->Close(file);
+
+    // the atlas takes ownership of data and frees it with IM_FREE
+    io.Fonts->AddFontFromMemoryTTF(data, fileSize, size, nullptr, io.Fonts->GetGlyphRangesCyrillic());
+}
+
 static int ToImGuiMouseButton(MouseCode code)
 {
     switch (code)
@@ -80,7 +102,9 @@ CImGuiPanel::CImGuiPanel() : BaseClass(nullptr, "ImGuiPanel")
     SetBounds(0, 0, wide, tall);
 
     m_pContext = ImGui::CreateContext();
-    ImGui::GetIO().IniFilename = nullptr;
+    ImGuiIO& io = ImGui::GetIO();
+    io.IniFilename = nullptr;
+    LoadFont(io, "resource/fonts/JetBrainsMono-Regular.ttf", 16.0f);
     ImGui_ImplOpenGL2_Init();
 }
 
