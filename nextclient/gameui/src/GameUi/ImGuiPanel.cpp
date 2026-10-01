@@ -7,6 +7,7 @@
 #include <vgui/ISystem.h>
 #include <vgui_controls/Controls.h>
 #include <FileSystem.h>
+#include <tier1/strtools.h>
 
 #include <imgui/imgui.h>
 #include <imgui/imgui_impl_opengl2.h>
@@ -21,6 +22,9 @@
 #include <cfloat>
 #include <cmath>
 #include <cstdint>
+#include <cstring>
+#include <string>
+#include <vector>
 
 // memdbgon must be the last include file in a .cpp file!!!
 #include <tier0/memdbgon.h>
@@ -85,6 +89,33 @@ static void LoadFont(ImGuiIO& io, const char* path, float size)
     io.Fonts->AddFontFromMemoryTTF(data, fileSize, size, nullptr, io.Fonts->GetGlyphRangesCyrillic());
 }
 
+// ImGui speaks UTF-8, VGUI's clipboard speaks wchar_t
+static void SetClipboard(void*, const char* text)
+{
+    std::vector<wchar_t> wide(strlen(text) + 1);
+    V_UTF8ToUnicode(text, wide.data(), static_cast<int>(wide.size() * sizeof(wchar_t)));
+    system()->SetClipboardText(wide.data(), static_cast<int>(wcslen(wide.data())));
+}
+
+static const char* GetClipboard(void*)
+{
+    static std::string utf8;
+    utf8.clear();
+
+    int count = system()->GetClipboardTextCount();
+    if (count <= 0)
+        return utf8.c_str();
+
+    std::vector<wchar_t> wide(count + 1);
+    int length = system()->GetClipboardText(0, wide.data(), static_cast<int>(count * sizeof(wchar_t)));
+    wide[std::clamp(length, 0, count)] = L'\0';
+
+    utf8.resize(wcslen(wide.data()) * 4 + 1);
+    V_UnicodeToUTF8(wide.data(), utf8.data(), static_cast<int>(utf8.size()));
+    utf8.resize(strlen(utf8.c_str()));
+    return utf8.c_str();
+}
+
 static int ToImGuiMouseButton(MouseCode code)
 {
     switch (code)
@@ -111,6 +142,8 @@ CImGuiPanel::CImGuiPanel() : BaseClass(nullptr, "ImGuiPanel")
     ImGuiIO& io = ImGui::GetIO();
     io.IniFilename = nullptr;
     io.ConfigWindowsMoveFromTitleBarOnly = true;
+    io.SetClipboardTextFn = SetClipboard;
+    io.GetClipboardTextFn = GetClipboard;
     ApplyNextClientTheme(ImGui::GetStyle());
     LoadFont(io, "resource/fonts/JetBrainsMono-Regular.ttf", 16.0f);
     ImGui_ImplOpenGL2_Init();
@@ -207,6 +240,30 @@ void CImGuiPanel::FitToWindows()
     int x = static_cast<int>(std::floor(bounds.Min.x));
     int y = static_cast<int>(std::floor(bounds.Min.y));
     SetBounds(x, y, static_cast<int>(std::ceil(bounds.Max.x)) - x, static_cast<int>(std::ceil(bounds.Max.y)) - y);
+}
+
+void CImGuiPanel::ResetInput()
+{
+    ImGui::SetCurrentContext(m_pContext);
+    ImGui::GetIO().AddFocusEvent(false);
+    ImGui::GetIO().AddFocusEvent(true);
+}
+
+void CImGuiPanel::OnSetFocus()
+{
+    BaseClass::OnSetFocus();
+
+    ImGui::SetCurrentContext(m_pContext);
+    ImGui::GetIO().AddFocusEvent(true);
+}
+
+void CImGuiPanel::OnKillFocus()
+{
+    BaseClass::OnKillFocus();
+
+    // ImGui releases every key it thinks is held, or a Backspace let go elsewhere repeats forever
+    ImGui::SetCurrentContext(m_pContext);
+    ImGui::GetIO().AddFocusEvent(false);
 }
 
 void CImGuiPanel::OnCursorMoved(int x, int y)

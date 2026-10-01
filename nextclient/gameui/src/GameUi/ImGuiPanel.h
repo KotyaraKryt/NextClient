@@ -20,6 +20,12 @@ protected:
 
     void Paint() override;
 
+    // forget held keys and buttons: their releases may have gone to another panel
+    void ResetInput();
+
+    void OnSetFocus() override;
+    void OnKillFocus() override;
+
     void OnCursorMoved(int x, int y) override;
     void OnMousePressed(vgui2::MouseCode code) override;
     void OnMouseDoublePressed(vgui2::MouseCode code) override;
