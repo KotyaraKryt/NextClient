@@ -6,6 +6,7 @@ include(GoogleTest)
 
 add_executable(${TARGET_NAME}
         ConsoleBufferTests.cpp
+        SelectionTests.cpp
 )
 
 target_link_libraries(${TARGET_NAME} PRIVATE
