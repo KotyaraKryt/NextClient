@@ -54,8 +54,13 @@ void ConsoleCmdLogger::LogCommand(const char* command, const char* value, LogCom
 
     g_GameConsoleNext->PrintfExWide(L"\n");
 
-    if (cmd_modified)
+    // once is enough to explain it, not after every blocked command
+    static bool explained_symbols = false;
+    if (cmd_modified && !explained_symbols)
+    {
+        explained_symbols = true;
         g_GameConsoleNext->ColorPrintfWide(250, 163, 50, L"(line breaks and tabulation are displayed as \\n and \\t, respectively)\n");
+    }
 }
 
 bool ConsoleCmdLogger::ReplaceInconvenientSymbols(std::string& command)
