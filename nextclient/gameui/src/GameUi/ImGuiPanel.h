@@ -2,6 +2,8 @@
 
 #include <vgui_controls/Panel.h>
 
+#include <string>
+
 struct ImGuiContext;
 
 // A VGUI popup that draws Dear ImGui with raw OpenGL from inside Paint(), so the
@@ -16,6 +18,10 @@ public:
 
     // takes effect on the next frame, when the font atlas can be rebuilt
     void SetFontSize(float size);
+
+    // a localization token in UTF-8, "" when no loaded file has it
+    static std::string Localized(const char* token);
+
     ~CImGuiPanel() override;
 
 protected:

@@ -11,6 +11,8 @@
 #include <vgui_controls/PHandle.h>
 
 class CServerBrowserDialog;
+class CImGuiServerBrowser;
+struct cvar_s;
 
 class CServerBrowser : public IServerBrowserEx
 {
@@ -36,7 +38,11 @@ public:
     virtual void CreateDialog();
 
 private:
+    bool UseLegacyBrowser();
+
     vgui2::DHANDLE<CServerBrowserDialog> server_browser_dialog_{};
+    vgui2::DHANDLE<CImGuiServerBrowser> imgui_browser_{};
+    cvar_s* legacy_cvar_{};
     bool first_activate_passed_{};
 };
 

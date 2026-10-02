@@ -85,6 +85,14 @@ void ApplyNextClientTheme(ImGuiStyle& style)
     c[ImGuiCol_TabUnfocused] = field;
     c[ImGuiCol_TabUnfocusedActive] = raised;
 
+    // the server list's column headers are flat like the window, as in the stock browser
+    c[ImGuiCol_TableHeaderBg] = window;
+    c[ImGuiCol_TableBorderStrong] = border;
+    c[ImGuiCol_TableBorderLight] = border;
+    c[ImGuiCol_TableRowBg] = Rgb(0, 0, 0, 0.0f);
+    c[ImGuiCol_TableRowBgAlt] = Rgb(255, 255, 255, 0.03f);
+    c[ImGuiCol_PlotHistogram] = accent;
+
     c[ImGuiCol_TextSelectedBg] = Rgb(142, 137, 35, 0.6f);
     c[ImGuiCol_NavHighlight] = accent;
 }

@@ -72,6 +72,11 @@ unsigned int CServerList::ServerCount()
     return EngineMini()->GetSteamMatchmakingServers()->GetServerCount(server_list_request_);
 }
 
+size_t CServerList::AnsweredCount() const
+{
+    return servers_.size();
+}
+
 uint32_t CServerList::get_revision() const
 {
     return revision_;

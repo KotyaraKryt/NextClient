@@ -35,7 +35,6 @@ private:
     void SaveFilters();
     void DrawScrollback();
     void RebuildView();
-    std::string Localized(const char* token);
     void DrawSuggestions();
     void RebuildCompletionNames();
     void UpdateSuggestions();

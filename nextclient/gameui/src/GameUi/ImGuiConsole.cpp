@@ -138,20 +138,6 @@ void CImGuiConsole::RebuildCompletionNames()
     m_CompletionNames.erase(std::unique(m_CompletionNames.begin(), m_CompletionNames.end()), m_CompletionNames.end());
 }
 
-// a token of resource/console_<language>.txt in UTF-8, "" when it's missing
-std::string CImGuiConsole::Localized(const char* token)
-{
-    std::string utf8;
-    if (const wchar_t* wide = g_pVGuiLocalize->Find(token))
-    {
-        utf8.resize(wcslen(wide) * 4 + 1);
-        V_UnicodeToUTF8(wide, utf8.data(), static_cast<int>(utf8.size()));
-        utf8.resize(strlen(utf8.c_str()));
-    }
-
-    return utf8;
-}
-
 // the description of a command or cvar, "" for the ones the help doesn't cover
 const std::string& CImGuiConsole::Describe(const std::string& name)
 {

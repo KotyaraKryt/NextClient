@@ -31,6 +31,8 @@ public:
     bool IsServerExists(int iServer);
     serveritem_t &GetServer(int iServer);
     unsigned int ServerCount();
+    // the servers that answered or failed to, out of ServerCount
+    [[nodiscard]] size_t AnsweredCount() const;
     // Changes on every answer, failed answer and clear of the servers
     [[nodiscard]] uint32_t get_revision() const;
     void StartRefreshServer(int iServer);

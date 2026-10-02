@@ -1,6 +1,8 @@
 #include "ServerBrowser.h"
 #include "ServerBrowserDialog.h"
 #include "DialogGameInfo.h"
+#include "ImGuiServerBrowser.h"
+#include "GameUi.h"
 
 #undef CreateDialog
 #undef PostMessage
@@ -10,6 +12,7 @@
 #include <vgui/IPanel.h>
 #include <vgui/IVGui.h>
 #include <KeyValues.h>
+#include <cvardef.h>
 
 CServerBrowser g_ServerBrowserSingleton;
 
@@ -42,7 +45,14 @@ bool CServerBrowser::Initialize(CreateInterfaceFn *factorylist, int factoryCount
     g_pVGuiLocalize->AddFile(g_pFullFileSystem, "Servers/serverbrowser_%language%.txt");
 
     CreateDialog();
+
+    imgui_browser_ = vgui2::SETUP_PANEL(new CImGuiServerBrowser());
     return true;
+}
+
+bool CServerBrowser::UseLegacyBrowser()
+{
+    return !imgui_browser_.Get() || (legacy_cvar_ && legacy_cvar_->value != 0.0f);
 }
 
 void CServerBrowser::ActiveGameName(const char *szGameName, const char *szGameDir)
@@ -65,12 +75,24 @@ void CServerBrowser::DisconnectFromGame()
 
 bool CServerBrowser::Activate()
 {
+    if (!UseLegacyBrowser())
+    {
+        imgui_browser_->Activate();
+        return true;
+    }
+
     server_browser_dialog_->Open();
     return true;
 }
 
 bool CServerBrowser::Activate(ServerBrowserTab tab)
 {
+    if (!UseLegacyBrowser())
+    {
+        imgui_browser_->Activate(tab);
+        return true;
+    }
+
     server_browser_dialog_->Open();
     server_browser_dialog_->ActivateTab(tab);
     return true;
@@ -84,6 +106,10 @@ void CServerBrowser::Deactivate()
 
 void CServerBrowser::Reactivate()
 {
+    // CGameUI::Start calls this once the engine functions are there, which Initialize comes before
+    if (!legacy_cvar_)
+        legacy_cvar_ = engine->pfnRegisterVariable("sb_legacy", "0", FCVAR_ARCHIVE);
+
     if (server_browser_dialog_.Get())
     {
         server_browser_dialog_->LoadUserData();
@@ -102,6 +128,9 @@ void CServerBrowser::SetParent(vgui2::VPANEL parent)
 {
     if (server_browser_dialog_.Get())
         server_browser_dialog_->SetParent(parent);
+
+    if (imgui_browser_.Get())
+        imgui_browser_->SetParent(parent);
 }
 
 void CServerBrowser::Shutdown()
@@ -111,6 +140,9 @@ void CServerBrowser::Shutdown()
         server_browser_dialog_->Close();
         server_browser_dialog_->MarkForDeletion();
     }
+
+    if (imgui_browser_.Get())
+        imgui_browser_->MarkForDeletion();
 }
 
 void CServerBrowser::CloseAllGameInfoDialogs()

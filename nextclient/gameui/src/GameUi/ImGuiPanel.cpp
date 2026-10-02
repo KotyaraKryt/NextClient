@@ -3,6 +3,7 @@
 
 #include <vgui/IInput.h>
 #include <vgui/IInputInternal.h>
+#include <vgui/ILocalize.h>
 #include <vgui/ISurfaceNext.h>
 #include <vgui/ISystem.h>
 #include <vgui_controls/Controls.h>
@@ -174,7 +175,10 @@ CImGuiPanel::CImGuiPanel(const char* layoutFile) : BaseClass(nullptr, "ImGuiPane
     surface()->GetScreenSize(wide, tall);
     SetBounds(0, 0, wide, tall);
 
+    // CreateContext only makes the new context current when there is none yet, and the
+    // console and the server browser each have their own
     m_pContext = ImGui::CreateContext();
+    ImGui::SetCurrentContext(m_pContext);
     ImGuiIO& io = ImGui::GetIO();
     io.IniFilename = nullptr;
     io.ConfigWindowsMoveFromTitleBarOnly = true;
@@ -193,6 +197,19 @@ CImGuiPanel::CImGuiPanel(const char* layoutFile) : BaseClass(nullptr, "ImGuiPane
             IM_FREE(layout);
         }
     }
+}
+
+std::string CImGuiPanel::Localized(const char* token)
+{
+    std::string utf8;
+    if (const wchar_t* wide = g_pVGuiLocalize->Find(token))
+    {
+        utf8.resize(wcslen(wide) * 4 + 1);
+        V_UnicodeToUTF8(wide, utf8.data(), static_cast<int>(utf8.size()));
+        utf8.resize(strlen(utf8.c_str()));
+    }
+
+    return utf8;
 }
 
 void CImGuiPanel::SetFontSize(float size)
