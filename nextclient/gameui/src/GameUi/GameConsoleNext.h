@@ -56,6 +56,7 @@ public:
     void ColorPrintfWide(uint8_t r, uint8_t g, uint8_t b, const wchar_t *format, ...) override;
     void PrintfEx(const char *format, ...) override;
     void PrintfExWide(const wchar_t *format, ...) override;
+    void MarkChatLine() override;
 
 private:
     void ExecuteTempConsoleBuffer();

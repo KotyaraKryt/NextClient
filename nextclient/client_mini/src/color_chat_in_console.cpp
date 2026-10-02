@@ -155,6 +155,9 @@ static void ColorChatConsolePrint(char string[512])
 {
     if (g_sayTextLine[0].m_textRanges.Count() != 0)
     {
+        if (g_GameConsoleNext)
+            g_GameConsoleNext->MarkChatLine();
+
         for (int rangeIndex = 0; rangeIndex < g_sayTextLine[0].m_textRanges.Count(); rangeIndex++)
         {
             TextRange* range = &g_sayTextLine[0].m_textRanges[rangeIndex];

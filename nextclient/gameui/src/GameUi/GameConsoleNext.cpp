@@ -1,4 +1,5 @@
 #include "GameConsoleNext.h"
+#include "GameConsole.h"
 #include <strtools.h>
 #include <cstdarg>
 #include <nitro_utils/string_utils.h>
@@ -124,4 +125,9 @@ std::wstring CGameConsoleNext::Utf8ToWstring(const char* str)
     int cwch = Q_UTF8ToWString(str, pwch, cubDest) / sizeof(wchar_t);
 
     return std::wstring(pwch, pwch + cwch);
+}
+
+void CGameConsoleNext::MarkChatLine()
+{
+    GameConsole().Scrollback().MarkNextLine(console_buffer::Source::Chat);
 }

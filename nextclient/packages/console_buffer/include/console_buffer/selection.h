@@ -5,6 +5,7 @@
 #include <compare>
 #include <string>
 #include <string_view>
+#include <vector>
 
 // Selecting scrollback text with the mouse. Columns count characters, not bytes, and the
 // console font is monospaced, so a column is always char_width pixels wide.
@@ -19,6 +20,11 @@ namespace console_buffer
         auto operator<=>(const TextPos&) const = default;
     };
 
+    // The lines on screen: all of them, or only the ones a filter lets through
+    using LineView = std::vector<const Line*>;
+
+    LineView AllLines(const ConsoleBuffer& buffer);
+
     std::string LineText(const Line& line);
 
     // characters in UTF-8 text, and the byte where character number column starts
@@ -27,8 +33,8 @@ namespace console_buffer
 
     // The gap nearest to a point, with x and y measured from the top left corner of the
     // first line; points above, below or to the side land on the nearest line and column
-    TextPos PositionAt(const ConsoleBuffer& buffer, float x, float y, float char_width, float line_height);
+    TextPos PositionAt(const LineView& lines, float x, float y, float char_width, float line_height);
 
     // The text between two gaps in either order, lines joined with "\n"
-    std::string SelectedText(const ConsoleBuffer& buffer, TextPos a, TextPos b);
+    std::string SelectedText(const LineView& lines, TextPos a, TextPos b);
 }

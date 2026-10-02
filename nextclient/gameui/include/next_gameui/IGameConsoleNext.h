@@ -29,6 +29,9 @@ public:
      *  [color=r,g,b][/] - text between tags will be colored in r, g, b which must be between 0 and 255
      */
     virtual void PrintfExWide(const wchar_t *format, ...) = 0;
+
+    // The next line printed is a chat message, for the console's chat filter
+    virtual void MarkChatLine() = 0;
 };
 
-#define GAMECONSOLE_NEXT_INTERFACE_VERSION "GameConsoleNext002"
+#define GAMECONSOLE_NEXT_INTERFACE_VERSION "GameConsoleNext003"

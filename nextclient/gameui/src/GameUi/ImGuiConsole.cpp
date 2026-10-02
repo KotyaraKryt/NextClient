@@ -16,6 +16,7 @@
 
 #include <console_buffer/console_buffer.h>
 #include <console_buffer/completion.h>
+#include <console_buffer/kinds.h>
 #include <console_buffer/selection.h>
 #include <imgui/imgui.h>
 #include <imgui/imgui_internal.h>
@@ -123,23 +124,29 @@ void CImGuiConsole::RebuildCompletionNames()
     m_CompletionNames.erase(std::unique(m_CompletionNames.begin(), m_CompletionNames.end()), m_CompletionNames.end());
 }
 
-// the description from resource/console_<language>.txt, "" for names it doesn't cover
-const std::string& CImGuiConsole::Describe(const std::string& name)
+// a token of resource/console_<language>.txt in UTF-8, "" when it's missing
+std::string CImGuiConsole::Localized(const char* token)
 {
-    auto found = m_Descriptions.find(name);
-    if (found != m_Descriptions.end())
-        return found->second;
-
     std::string utf8;
-    std::string token = "#Console_Help_" + name;
-    if (const wchar_t* wide = g_pVGuiLocalize->Find(token.c_str()))
+    if (const wchar_t* wide = g_pVGuiLocalize->Find(token))
     {
         utf8.resize(wcslen(wide) * 4 + 1);
         V_UnicodeToUTF8(wide, utf8.data(), static_cast<int>(utf8.size()));
         utf8.resize(strlen(utf8.c_str()));
     }
 
-    return m_Descriptions.emplace(name, std::move(utf8)).first->second;
+    return utf8;
+}
+
+// the description of a command or cvar, "" for the ones the help doesn't cover
+const std::string& CImGuiConsole::Describe(const std::string& name)
+{
+    auto found = m_Descriptions.find(name);
+    if (found != m_Descriptions.end())
+        return found->second;
+
+    std::string token = "#Console_Help_" + name;
+    return m_Descriptions.emplace(name, Localized(token.c_str())).first->second;
 }
 
 void CImGuiConsole::UpdateSuggestions()
@@ -267,6 +274,8 @@ void CImGuiConsole::DrawImGui()
 
     if (expanded)
     {
+        DrawToolbar();
+
         // leave one row under the scrollback for the input line
         float footer = ImGui::GetFrameHeightWithSpacing();
         ImGui::BeginChild("Scrollback", ImVec2(0, -footer));
@@ -321,21 +330,160 @@ void CImGuiConsole::DrawImGui()
         SetVisible(false);
 }
 
+struct KindStyle
+{
+    console_buffer::Kind kind;
+    const char* label;
+    // 0 means the theme's text color
+    ImU32 color;
+    // a bar on the left and a tint over the row, for the lines worth noticing
+    bool marked;
+};
+
+// in the order the filter buttons show them
+static const KindStyle kKindStyles[] = {
+    { console_buffer::Kind::Error, "#Console_Filter_Error", IM_COL32(240, 110, 95, 255), true },
+    { console_buffer::Kind::Warning, "#Console_Filter_Warning", IM_COL32(232, 185, 74, 255), true },
+    { console_buffer::Kind::Blocked, "#Console_Filter_Blocked", IM_COL32(237, 128, 64, 255), true },
+    { console_buffer::Kind::Chat, "#Console_Filter_Chat", IM_COL32(110, 180, 230, 255), true },
+    { console_buffer::Kind::Command, "#Console_Filter_Command", IM_COL32(214, 205, 110, 255), false },
+    { console_buffer::Kind::Info, "#Console_Filter_Info", 0, false },
+    { console_buffer::Kind::Developer, "#Console_Filter_Developer", IM_COL32(150, 160, 140, 255), false },
+};
+
+static const KindStyle& StyleOf(console_buffer::Kind kind)
+{
+    for (const KindStyle& style : kKindStyles)
+    {
+        if (style.kind == kind)
+            return style;
+    }
+
+    return kKindStyles[5];
+}
+
+static ImU32 KindColor(console_buffer::Kind kind)
+{
+    ImU32 color = StyleOf(kind).color;
+    return color != 0 ? color : ImGui::GetColorU32(ImGuiCol_Text);
+}
+
+static ImU32 WithAlpha(ImU32 color, float alpha)
+{
+    ImVec4 c = ImGui::ColorConvertU32ToFloat4(color);
+    c.w = alpha;
+    return ImGui::ColorConvertFloat4ToU32(c);
+}
+
+void CImGuiConsole::RebuildView()
+{
+    uint32_t mask = 0;
+    for (int kind = 0; kind < console_buffer::kKindCount; kind++)
+    {
+        if (m_bKindVisible[kind])
+            mask |= 1u << kind;
+    }
+
+    bool filterChanged = mask != m_iViewMask || m_ViewSearch != m_szSearch;
+    if (!filterChanged && m_Scrollback.Generation() == m_iViewGeneration)
+        return;
+
+    m_iViewMask = mask;
+    m_ViewSearch = m_szSearch;
+    m_iViewGeneration = m_Scrollback.Generation();
+
+    std::string needle = console_buffer::ToLowerUtf8(m_szSearch);
+    std::fill(std::begin(m_iKindCounts), std::end(m_iKindCounts), 0);
+    m_View.clear();
+
+    for (const console_buffer::Line& line : m_Scrollback.Lines())
+    {
+        int kind = static_cast<int>(line.kind);
+        m_iKindCounts[kind]++;
+
+        if (!(mask & (1u << kind)))
+            continue;
+        if (!needle.empty() && !console_buffer::ContainsLowered(console_buffer::LineText(line), needle))
+            continue;
+
+        m_View.push_back(&line);
+    }
+
+    // selections are made of rows of the view, which now hold other lines
+    if (filterChanged)
+        m_SelectionStart = m_SelectionEnd = {};
+}
+
+void CImGuiConsole::DrawToolbar()
+{
+    const ImGuiStyle& style = ImGui::GetStyle();
+    float right = ImGui::GetContentRegionMax().x;
+    const float kSearchMinWidth = 140.0f;
+
+    for (const KindStyle& kindStyle : kKindStyles)
+    {
+        int kind = static_cast<int>(kindStyle.kind);
+        bool visible = m_bKindVisible[kind];
+
+        std::string label = Localized(kindStyle.label) + " " + std::to_string(m_iKindCounts[kind]) + "##" + kindStyle.label;
+        float width = ImGui::CalcTextSize(label.c_str(), nullptr, true).x + style.FramePadding.x * 2;
+
+        // wrap the buttons that don't fit, keeping room for the search field on the last row
+        if (&kindStyle != &kKindStyles[0])
+        {
+            if (ImGui::GetCursorPosX() + style.ItemSpacing.x + width <= right)
+                ImGui::SameLine(0.0f, style.ItemSpacing.x * 0.5f);
+        }
+
+        ImU32 color = KindColor(kindStyle.kind);
+        ImGui::PushStyleColor(ImGuiCol_Button, visible ? WithAlpha(color, 0.22f) : WithAlpha(color, 0.0f));
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, WithAlpha(color, 0.35f));
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive, WithAlpha(color, 0.5f));
+        ImGui::PushStyleColor(ImGuiCol_Text, visible ? color : ImGui::GetColorU32(ImGuiCol_TextDisabled));
+
+        if (ImGui::Button(label.c_str()))
+            m_bKindVisible[kind] = !visible;
+
+        if (ImGui::IsItemClicked(ImGuiMouseButton_Right))
+        {
+            for (bool& other : m_bKindVisible)
+                other = false;
+            m_bKindVisible[kind] = true;
+        }
+
+        ImGui::PopStyleColor(4);
+
+        if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))
+            ImGui::SetTooltip("%s", Localized("#Console_Filter_Tip").c_str());
+    }
+
+    if (ImGui::GetCursorPosX() + style.ItemSpacing.x + kSearchMinWidth <= right)
+        ImGui::SameLine();
+
+    ImGui::SetNextItemWidth(-FLT_MIN);
+    ImGui::InputTextWithHint("##Search", Localized("#Console_Search").c_str(), m_szSearch, sizeof(m_szSearch));
+}
+
 void CImGuiConsole::DrawScrollback()
 {
     using console_buffer::TextPos;
 
+    RebuildView();
+
     // console lines sit closer together than the widgets around them
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 2));
+    // room on the left for the bar of marked lines
+    const float kGutter = 8.0f;
+    ImGui::Indent(kGutter);
 
     ImGuiIO& io = ImGui::GetIO();
     float charWidth = ImGui::GetFont()->GetCharAdvance('M');
     float lineHeight = ImGui::GetTextLineHeightWithSpacing();
-    // where line 0 would be, scrolled out of view or not
+    // where row 0 would be, scrolled out of view or not
     ImVec2 origin = ImGui::GetCursorScreenPos();
 
     auto positionAtMouse = [&]() {
-        return console_buffer::PositionAt(m_Scrollback, io.MousePos.x - origin.x, io.MousePos.y - origin.y, charWidth, lineHeight);
+        return console_buffer::PositionAt(m_View, io.MousePos.x - origin.x, io.MousePos.y - origin.y, charWidth, lineHeight);
     };
 
     // InnerRect leaves out the scrollbar, which has to stay draggable
@@ -374,27 +522,38 @@ void CImGuiConsole::DrawScrollback()
     if (ImGui::IsWindowFocused() && !io.WantTextInput && io.KeyCtrl)
     {
         if (hasSelection && ImGui::IsKeyPressed(ImGuiKey_C, false))
-            ImGui::SetClipboardText(console_buffer::SelectedText(m_Scrollback, from, to).c_str());
+            ImGui::SetClipboardText(console_buffer::SelectedText(m_View, from, to).c_str());
 
-        if (ImGui::IsKeyPressed(ImGuiKey_A, false) && !m_Scrollback.Lines().empty())
+        if (ImGui::IsKeyPressed(ImGuiKey_A, false) && !m_View.empty())
         {
-            int last = static_cast<int>(m_Scrollback.Lines().size()) - 1;
+            int last = static_cast<int>(m_View.size()) - 1;
             m_SelectionStart = { 0, 0 };
-            m_SelectionEnd = { last, console_buffer::CharCount(console_buffer::LineText(m_Scrollback.Lines()[last])) };
+            m_SelectionEnd = { last, console_buffer::CharCount(console_buffer::LineText(*m_View[last])) };
         }
     }
 
     ImDrawList* drawList = ImGui::GetWindowDrawList();
     ImU32 selectionColor = ImGui::GetColorU32(ImGuiCol_TextSelectedBg);
+    float rowLeft = ImGui::GetWindowPos().x;
+    float rowRight = rowLeft + ImGui::GetWindowWidth();
 
-    // only the lines in view are drawn, the scrollback can hold thousands
+    // only the rows in view are drawn, the scrollback can hold thousands
     ImGuiListClipper clipper;
-    clipper.Begin(static_cast<int>(m_Scrollback.Lines().size()), lineHeight);
+    clipper.Begin(static_cast<int>(m_View.size()), lineHeight);
     while (clipper.Step())
     {
         for (int i = clipper.DisplayStart; i < clipper.DisplayEnd; i++)
         {
-            const console_buffer::Line& line = m_Scrollback.Lines()[i];
+            const console_buffer::Line& line = *m_View[i];
+            const KindStyle& kindStyle = StyleOf(line.kind);
+            ImU32 kindColor = KindColor(line.kind);
+            float top = origin.y + i * lineHeight;
+
+            if (kindStyle.marked)
+            {
+                drawList->AddRectFilled(ImVec2(rowLeft, top), ImVec2(rowRight, top + lineHeight), WithAlpha(kindColor, 0.08f));
+                drawList->AddRectFilled(ImVec2(rowLeft, top), ImVec2(rowLeft + 3.0f, top + lineHeight), kindColor);
+            }
 
             if (hasSelection && i >= from.line && i <= to.line)
             {
@@ -402,8 +561,8 @@ void CImGuiConsole::DrawScrollback()
                 // a selection going on to the next line also covers this line's break
                 int last = i == to.line ? to.column : console_buffer::CharCount(console_buffer::LineText(line)) + 1;
 
-                ImVec2 min(origin.x + first * charWidth, origin.y + i * lineHeight);
-                ImVec2 max(origin.x + last * charWidth, min.y + lineHeight);
+                ImVec2 min(origin.x + first * charWidth, top);
+                ImVec2 max(origin.x + last * charWidth, top + lineHeight);
                 drawList->AddRectFilled(min, max, selectionColor);
             }
 
@@ -420,8 +579,20 @@ void CImGuiConsole::DrawScrollback()
                     ImGui::SameLine(0.0f, 0.0f);
 
                 const auto& c = segment.color;
-                ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(c.r, c.g, c.b, c.a));
-                ImGui::TextUnformatted(segment.text.data(), segment.text.data() + segment.text.size());
+                ImU32 color = segment.themed ? kindColor : IM_COL32(c.r, c.g, c.b, c.a);
+
+                // typed commands start with "] ", shown as a prompt mark of the same width
+                std::string_view text = segment.text;
+                std::string shown;
+                if (s == 0 && line.kind == console_buffer::Kind::Command && text.starts_with("]"))
+                {
+                    shown = "›";
+                    shown += text.substr(1);
+                    text = shown;
+                }
+
+                ImGui::PushStyleColor(ImGuiCol_Text, color);
+                ImGui::TextUnformatted(text.data(), text.data() + text.size());
                 ImGui::PopStyleColor();
             }
         }
@@ -431,6 +602,7 @@ void CImGuiConsole::DrawScrollback()
     if (!m_bSelecting && ImGui::GetScrollY() >= ImGui::GetScrollMaxY())
         ImGui::SetScrollHereY(1.0f);
 
+    ImGui::Unindent(kGutter);
     ImGui::PopStyleVar();
 }
 

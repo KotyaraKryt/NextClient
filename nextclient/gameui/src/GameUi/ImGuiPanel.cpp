@@ -85,8 +85,21 @@ static void LoadFont(ImGuiIO& io, const char* path, float size)
     g_pFullFileSystem->Read(data, fileSize, file);
     g_pFullFileSystem->Close(file);
 
+    // Latin and Cyrillic, plus the punctuation, arrows, box drawing and shapes that servers
+    // and plugins like to decorate their messages with
+    static const ImWchar ranges[] = {
+        0x0020, 0x00FF, // Basic Latin, Latin-1
+        0x0100, 0x017F, // Latin Extended-A
+        0x0400, 0x052F, // Cyrillic
+        0x2000, 0x206F, // General Punctuation
+        0x2190, 0x21FF, // Arrows
+        0x2500, 0x25FF, // Box Drawing, Block Elements, Geometric Shapes
+        0x2600, 0x26FF, // Miscellaneous Symbols
+        0,
+    };
+
     // the atlas takes ownership of data and frees it with IM_FREE
-    io.Fonts->AddFontFromMemoryTTF(data, fileSize, size, nullptr, io.Fonts->GetGlyphRangesCyrillic());
+    io.Fonts->AddFontFromMemoryTTF(data, fileSize, size, nullptr, ranges);
 }
 
 // ImGui speaks UTF-8, VGUI's clipboard speaks wchar_t

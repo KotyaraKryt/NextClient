@@ -104,6 +104,16 @@ TEST(ConsoleBuffer, DropsTheOldestLinesPastTheLimit)
     EXPECT_EQ(Text(buffer.Lines()[1]), "3");
 }
 
+TEST(ConsoleBuffer, DropsControlCharacters)
+{
+    ConsoleBuffer buffer;
+    buffer.Print(kWhite, "\x01rauf\x04 connected\n");
+    buffer.Print(kWhite, "a\tb\n");
+
+    EXPECT_EQ(Text(buffer.Lines()[0]), "rauf connected");
+    EXPECT_EQ(Text(buffer.Lines()[1]), "a    b");
+}
+
 TEST(ConsoleBuffer, ClearForgetsAnUnfinishedLine)
 {
     ConsoleBuffer buffer;

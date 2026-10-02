@@ -5,6 +5,7 @@
 #include <console_buffer/command_history.h>
 #include <console_buffer/selection.h>
 
+#include <cstdint>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -27,7 +28,10 @@ protected:
 private:
     static int OnInputCallback(struct ImGuiInputTextCallbackData* data);
 
+    void DrawToolbar();
     void DrawScrollback();
+    void RebuildView();
+    std::string Localized(const char* token);
     void DrawSuggestions();
     void RebuildCompletionNames();
     void UpdateSuggestions();
@@ -57,6 +61,15 @@ private:
     float m_flInputX = 0.0f;
     float m_flInputTop = 0.0f;
     float m_flConsoleWidth = 0.0f;
+
+    // the lines that pass the kind filters and the search, rebuilt when any of them change
+    bool m_bKindVisible[console_buffer::kKindCount] = { true, true, true, true, true, true, true };
+    int m_iKindCounts[console_buffer::kKindCount] = {};
+    char m_szSearch[128] = {};
+    console_buffer::LineView m_View;
+    uint64_t m_iViewGeneration = UINT64_MAX;
+    uint32_t m_iViewMask = 0;
+    std::string m_ViewSearch;
 
     console_buffer::TextPos m_SelectionStart;
     console_buffer::TextPos m_SelectionEnd;
