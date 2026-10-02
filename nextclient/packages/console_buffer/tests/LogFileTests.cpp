@@ -137,6 +137,20 @@ TEST(ConsoleBufferLog, PutsEarlierLinesInFront)
     EXPECT_EQ(buffer.Lines()[2].text, "now");
 }
 
+TEST(ConsoleBufferLog, RemovesTheEarlierLinesAgain)
+{
+    ConsoleBuffer buffer;
+    buffer.Print(kWhite, "now\n");
+    Line old = LoggedLine(Topic::System, "old");
+    old.previous_session = true;
+    buffer.AddEarlierLines({ old });
+
+    buffer.RemoveEarlierLines();
+
+    ASSERT_EQ(buffer.Lines().size(), 1u);
+    EXPECT_EQ(buffer.Lines()[0].text, "now");
+}
+
 TEST(ConsoleBufferLog, AddsWholeLinesBeforeAnUnfinishedOne)
 {
     ConsoleBuffer buffer;

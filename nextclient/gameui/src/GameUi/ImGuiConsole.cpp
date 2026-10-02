@@ -292,6 +292,8 @@ void CImGuiConsole::DrawImGui()
 {
     ImGui::SetNextWindowPos(ImVec2(40, 40), ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowSize(ImVec2(720, 420), ImGuiCond_FirstUseEver);
+    // small enough to tuck into a corner, big enough for the filters on two rows and a few lines
+    ImGui::SetNextWindowSizeConstraints(ImVec2(480, 300), ImVec2(FLT_MAX, FLT_MAX));
 
     // the input line only takes the keyboard focus inside a focused window
     if (m_bFocusWindow)
@@ -451,6 +453,7 @@ void CImGuiConsole::DrawSettings()
 
     SettingCheckbox(Localized("#Console_Settings_Timestamps"), "con_timestamps", false);
     SettingCheckbox(Localized("#Console_Settings_Collapse"), "con_collapse", true);
+    SettingCheckbox(Localized("#Console_Settings_Wrap"), "con_wrap", true);
     SettingCheckbox(Localized("#Console_Settings_Suggestions"), "con_suggestions", true);
     ImGui::Separator();
 
@@ -614,9 +617,20 @@ void CImGuiConsole::RebuildView()
         m_ViewRepeats.push_back(1);
     }
 
+    m_iViewBuilds++;
+
     // selections are made of rows of the view, which now hold other lines
     if (filterChanged)
         m_SelectionStart = m_SelectionEnd = {};
+}
+
+// SameLine when an item of this width still fits to the right of the last one. The cursor
+// is already on the next row after an item, so it's the last item's edge that tells.
+static void SameLineIfFits(float width, float spacing)
+{
+    float contentRight = ImGui::GetWindowPos().x + ImGui::GetWindowContentRegionMax().x;
+    if (ImGui::GetItemRectMax().x + spacing + width <= contentRight)
+        ImGui::SameLine(0.0f, spacing);
 }
 
 // a toggle colored like what it filters
@@ -626,8 +640,8 @@ static void FilterButton(const std::string& label, ImU32 color, bool on, bool fi
     float width = ImGui::CalcTextSize(label.c_str(), nullptr, true).x + style.FramePadding.x * 2;
 
     // wrap the buttons that don't fit on the row
-    if (!first && ImGui::GetCursorPosX() + style.ItemSpacing.x + width <= ImGui::GetContentRegionMax().x)
-        ImGui::SameLine(0.0f, style.ItemSpacing.x * 0.5f);
+    if (!first)
+        SameLineIfFits(width, style.ItemSpacing.x * 0.5f);
 
     ImGui::PushStyleColor(ImGuiCol_Button, WithAlpha(color, on ? 0.22f : 0.0f));
     ImGui::PushStyleColor(ImGuiCol_ButtonHovered, WithAlpha(color, 0.35f));
@@ -678,12 +692,11 @@ void CImGuiConsole::DrawToolbar()
         SaveFilters();
     }
 
-    const float kSearchMinWidth = 140.0f;
-    if (ImGui::GetCursorPosX() + style.ItemSpacing.x + kSearchMinWidth <= ImGui::GetContentRegionMax().x)
-        ImGui::SameLine();
-
+    // the search field and the gear stay together, on a row of their own when the window is narrow
     const char* gear = "\u2699";
     float gearWidth = ImGui::CalcTextSize(gear).x + style.FramePadding.x * 2;
+    const float kSearchMinWidth = 140.0f;
+    SameLineIfFits(kSearchMinWidth + style.ItemSpacing.x + gearWidth, style.ItemSpacing.x);
 
     ImGui::SetNextItemWidth(-(gearWidth + style.ItemSpacing.x));
     ImGui::InputTextWithHint("##Search", Localized("#Console_Search").c_str(), m_szSearch, sizeof(m_szSearch));
@@ -719,8 +732,24 @@ void CImGuiConsole::DrawScrollback()
     if (timestamps)
         origin.x += kClockChars * charWidth;
 
+    // with con_wrap, a line too long for the scrollback goes on over several rows; the room
+    // left for a repeat count at the end keeps "×12" from wrapping on its own
+    int columns = 0;
+    if (CvarOn("con_wrap", true))
+    {
+        float textWidth = ImGui::GetContentRegionAvail().x - (origin.x - rowOrigin.x) - charWidth * 6;
+        columns = std::max(20, static_cast<int>(textWidth / charWidth));
+    }
+
+    if (columns != m_iRowsColumns || m_iRowsGeneration != m_iViewBuilds)
+    {
+        m_Rows = console_buffer::WrapLines(m_View, columns);
+        m_iRowsColumns = columns;
+        m_iRowsGeneration = m_iViewBuilds;
+    }
+
     auto positionAtMouse = [&]() {
-        return console_buffer::PositionAt(m_View, io.MousePos.x - origin.x, io.MousePos.y - origin.y, charWidth, lineHeight);
+        return console_buffer::PositionAtRow(m_View, m_Rows, io.MousePos.x - origin.x, io.MousePos.y - origin.y, charWidth, lineHeight);
     };
 
     // InnerRect leaves out the scrollbar, which has to stay draggable
@@ -776,14 +805,17 @@ void CImGuiConsole::DrawScrollback()
 
     // only the rows in view are drawn, the scrollback can hold thousands
     ImGuiListClipper clipper;
-    clipper.Begin(static_cast<int>(m_View.size()), lineHeight);
+    clipper.Begin(static_cast<int>(m_Rows.size()), lineHeight);
     while (clipper.Step())
     {
-        for (int i = clipper.DisplayStart; i < clipper.DisplayEnd; i++)
+        for (int r = clipper.DisplayStart; r < clipper.DisplayEnd; r++)
         {
-            const console_buffer::Line& line = *m_View[i];
+            const console_buffer::Row& row = m_Rows[r];
+            const console_buffer::Line& line = *m_View[row.line];
+            bool firstRow = row.start == 0;
+            bool lastRow = r + 1 == static_cast<int>(m_Rows.size()) || m_Rows[r + 1].line != row.line;
             ImU32 lineColor = LineColor(line);
-            float top = origin.y + i * lineHeight;
+            float top = origin.y + r * lineHeight;
 
             if (StyleOf(line.topic).marked || line.severity != console_buffer::Severity::Normal)
             {
@@ -791,21 +823,27 @@ void CImGuiConsole::DrawScrollback()
                 drawList->AddRectFilled(ImVec2(rowLeft, top), ImVec2(rowLeft + 3.0f, top + lineHeight), lineColor);
             }
 
-            if (hasSelection && i >= from.line && i <= to.line)
+            if (hasSelection && row.line >= from.line && row.line <= to.line)
             {
-                int first = i == from.line ? from.column : 0;
-                // a selection going on to the next line also covers this line's break
-                int last = i == to.line ? to.column : console_buffer::CharCount(console_buffer::LineText(line)) + 1;
+                // the selection in this line's columns, then the part of it on this row; a
+                // selection going on to the next line also covers this line's break
+                int lineFirst = row.line == from.line ? from.column : 0;
+                int lineLast = row.line == to.line ? to.column : row.end + 1;
+                int first = std::max(lineFirst, row.start);
+                int last = std::min(lineLast, row.end + (lastRow ? 1 : 0));
 
-                ImVec2 min(origin.x + first * charWidth, top);
-                ImVec2 max(origin.x + last * charWidth, top + lineHeight);
-                drawList->AddRectFilled(min, max, selectionColor);
+                if (last > first)
+                {
+                    ImVec2 min(origin.x + (first - row.start) * charWidth, top);
+                    ImVec2 max(origin.x + (last - row.start) * charWidth, top + lineHeight);
+                    drawList->AddRectFilled(min, max, selectionColor);
+                }
             }
 
             if (line.divider)
             {
                 // ──── previous run · 11:49:51 ────, across the whole row
-                std::string label = line.text + " \u00B7 " + console_buffer::FormatClock(line.time);
+                std::string label = line.text + " · " + console_buffer::FormatClock(line.time);
                 ImVec2 size = ImGui::CalcTextSize(label.c_str());
                 float middle = top + lineHeight * 0.5f;
                 float textLeft = rowLeft + (rowRight - rowLeft - size.x) * 0.5f;
@@ -822,26 +860,40 @@ void CImGuiConsole::DrawScrollback()
             // lines from an earlier run are a little dimmer than this run's
             float fade = line.previous_session ? 0.8f : 1.0f;
 
+            // the clock on a line's first row, the same room left empty on the rows it wraps onto
             if (timestamps)
             {
-                std::string clock = "[" + console_buffer::FormatClock(line.time) + "] ";
-                ImGui::PushStyleColor(ImGuiCol_Text, WithAlpha(ImGui::GetColorU32(ImGuiCol_TextDisabled), 0.8f * fade));
-                ImGui::TextUnformatted(clock.c_str());
-                ImGui::PopStyleColor();
+                if (firstRow)
+                {
+                    std::string clock = "[" + console_buffer::FormatClock(line.time) + "] ";
+                    ImGui::PushStyleColor(ImGuiCol_Text, WithAlpha(ImGui::GetColorU32(ImGuiCol_TextDisabled), 0.8f * fade));
+                    ImGui::TextUnformatted(clock.c_str());
+                    ImGui::PopStyleColor();
+                }
+                else
+                {
+                    ImGui::Dummy(ImVec2(kClockChars * charWidth, ImGui::GetTextLineHeight()));
+                }
                 ImGui::SameLine(0.0f, 0.0f);
             }
 
-            if (line.segments.empty())
-            {
-                ImGui::TextUnformatted("");
-                continue;
-            }
-
+            // the pieces of the segments that fall within this row's columns
+            bool drewText = false;
+            int segmentStart = 0;
             for (size_t s = 0; s < line.segments.size(); s++)
             {
                 const console_buffer::Segment& segment = line.segments[s];
-                if (s > 0)
-                    ImGui::SameLine(0.0f, 0.0f);
+                int segmentEnd = segmentStart + console_buffer::CharCount(segment.text);
+                int first = std::max(row.start, segmentStart);
+                int last = std::min(row.end, segmentEnd);
+                int offset = segmentStart;
+                segmentStart = segmentEnd;
+                if (last <= first)
+                    continue;
+
+                size_t begin = console_buffer::ByteOffset(segment.text, first - offset);
+                size_t end = console_buffer::ByteOffset(segment.text, last - offset);
+                std::string_view text(segment.text.data() + begin, end - begin);
 
                 const auto& c = segment.color;
                 ImU32 color = segment.themed ? lineColor : IM_COL32(c.r, c.g, c.b, c.a);
@@ -849,23 +901,29 @@ void CImGuiConsole::DrawScrollback()
                     color = WithAlpha(color, ImGui::ColorConvertU32ToFloat4(color).w * fade);
 
                 // typed commands start with "] ", shown as a prompt mark of the same width
-                std::string_view text = segment.text;
                 std::string shown;
-                if (s == 0 && line.topic == console_buffer::Topic::Commands && text.starts_with("] "))
+                if (first == 0 && line.topic == console_buffer::Topic::Commands && text.starts_with("] "))
                 {
                     shown = "›";
                     shown += text.substr(1);
                     text = shown;
                 }
 
+                if (drewText)
+                    ImGui::SameLine(0.0f, 0.0f);
+
                 ImGui::PushStyleColor(ImGuiCol_Text, color);
                 ImGui::TextUnformatted(text.data(), text.data() + text.size());
                 ImGui::PopStyleColor();
+                drewText = true;
             }
 
-            if (m_ViewRepeats[i] > 1)
+            if (!drewText)
+                ImGui::TextUnformatted("");
+
+            if (lastRow && m_ViewRepeats[row.line] > 1)
             {
-                std::string count = "\u00D7" + std::to_string(m_ViewRepeats[i]);
+                std::string count = "×" + std::to_string(m_ViewRepeats[row.line]);
                 ImGui::SameLine(0.0f, charWidth);
                 ImGui::PushStyleColor(ImGuiCol_Text, WithAlpha(lineColor, 0.7f));
                 ImGui::TextUnformatted(count.c_str());

@@ -70,6 +70,12 @@ namespace console_buffer
         lines_.insert(lines_.begin(), std::make_move_iterator(lines.begin() + skip), std::make_move_iterator(lines.end()));
     }
 
+    void ConsoleBuffer::RemoveEarlierLines()
+    {
+        generation_++;
+        std::erase_if(lines_, [](const Line& line) { return line.previous_session; });
+    }
+
     void ConsoleBuffer::AddLine(Line line)
     {
         generation_++;

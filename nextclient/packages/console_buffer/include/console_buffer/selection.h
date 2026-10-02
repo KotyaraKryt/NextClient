@@ -37,4 +37,27 @@ namespace console_buffer
 
     // The text between two gaps in either order, lines joined with "\n"
     std::string SelectedText(const LineView& lines, TextPos a, TextPos b);
+
+    // One row on screen: characters [start, end) of a line of the view, which a line too
+    // long for the window is split into
+    struct Row
+    {
+        int line = 0;
+        int start = 0;
+        int end = 0;
+
+        bool operator==(const Row&) const = default;
+    };
+
+    // Splits text into pieces of at most columns characters, after the last space that
+    // fits, or right at the edge for a word longer than a whole row. The spaces stay at the
+    // end of their row, so the pieces put together are the text again. Empty text is one
+    // empty piece.
+    std::vector<Row> WrapText(std::string_view utf8, int columns);
+
+    // every line of the view as its rows, in order; columns <= 0 keeps each line whole
+    std::vector<Row> WrapLines(const LineView& lines, int columns);
+
+    // Like PositionAt, over rows: y picks the row, x the gap in it, given in its line's columns
+    TextPos PositionAtRow(const LineView& lines, const std::vector<Row>& rows, float x, float y, float char_width, float line_height);
 }

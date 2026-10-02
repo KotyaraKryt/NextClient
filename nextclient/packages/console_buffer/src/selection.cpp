@@ -96,4 +96,68 @@ namespace console_buffer
 
         return text;
     }
+
+    std::vector<Row> WrapText(std::string_view utf8, int columns)
+    {
+        // whether each character is a space
+        std::vector<bool> spaces;
+        for (char byte : utf8)
+        {
+            if (!IsContinuationByte(byte))
+                spaces.push_back(byte == ' ');
+        }
+
+        int count = static_cast<int>(spaces.size());
+        std::vector<Row> rows;
+        int start = 0;
+        while (columns > 0 && count - start > columns)
+        {
+            int limit = start + columns;
+            int split = limit;
+            for (int i = limit; i > start; i--)
+            {
+                if (spaces[i - 1])
+                {
+                    split = i;
+                    break;
+                }
+            }
+
+            rows.push_back({ 0, start, split });
+            start = split;
+        }
+
+        rows.push_back({ 0, start, count });
+        return rows;
+    }
+
+    std::vector<Row> WrapLines(const LineView& lines, int columns)
+    {
+        std::vector<Row> rows;
+        for (int i = 0; i < static_cast<int>(lines.size()); i++)
+        {
+            for (Row row : WrapText(lines[i]->text, columns))
+            {
+                row.line = i;
+                rows.push_back(row);
+            }
+        }
+
+        return rows;
+    }
+
+    TextPos PositionAtRow(const LineView& lines, const std::vector<Row>& rows, float x, float y, float char_width, float line_height)
+    {
+        if (rows.empty() || lines.empty())
+            return {};
+
+        int index = static_cast<int>(std::floor(y / line_height));
+        index = std::clamp(index, 0, static_cast<int>(rows.size()) - 1);
+
+        const Row& row = rows[index];
+        int column = static_cast<int>(std::round(x / char_width));
+        column = std::clamp(column, 0, row.end - row.start);
+
+        return { row.line, row.start + column };
+    }
 }

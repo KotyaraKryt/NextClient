@@ -107,6 +107,9 @@ namespace console_buffer
         // the ones past the limit are left out
         void AddEarlierLines(std::vector<Line> lines);
 
+        // drops what AddEarlierLines brought in, the earlier runs' lines and their divider
+        void RemoveEarlierLines();
+
         const std::deque<Line>& Lines() const { return lines_; }
 
         // changes with every Print and Clear, so a view of the lines knows to rebuild

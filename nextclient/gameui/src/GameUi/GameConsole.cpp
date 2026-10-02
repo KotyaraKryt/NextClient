@@ -109,6 +109,7 @@ void CGameConsole::Initialize()
         { "con_log", "1" },
         { "con_restore", "1" },
         { "con_collapse", "1" },
+        { "con_wrap", "1" },
         { "con_fontsize", "16" },
         { "con_opacity", "1" },
         { "con_maxlines", "5000" },
@@ -128,6 +129,7 @@ void CGameConsole::Initialize()
     m_bInitialized = true;
 
     engine->pfnAddCommand("condump", CGameConsole::OnCmdCondump);
+    engine->pfnAddCommand("clear_conlogs", CGameConsole::OnCmdClearConLogs);
     engine->pfnAddCommand("imgui_demo", OnCmdImGuiDemo);
 
     // This provides a 1 frame delay to display the text after the temporary buffer from the engine
@@ -361,6 +363,34 @@ void CGameConsole::WriteToLog(const console_buffer::Line& line)
     g_pFullFileSystem->Write(text.data(), static_cast<int>(text.size()), m_hLog);
     // a crash would lose whatever hasn't been flushed, and that's when the log matters most
     g_pFullFileSystem->Flush(m_hLog);
+}
+
+void CGameConsole::OnCmdClearConLogs()
+{
+    g_GameConsole.ClearLogs();
+}
+
+// Unlike clear, which empties the screen, this forgets what the earlier runs left behind:
+// console.log starts over and their lines leave the console, this run's stay
+void CGameConsole::ClearLogs()
+{
+    if (m_hLog)
+        g_pFullFileSystem->Close(m_hLog);
+
+    m_hLog = g_pFullFileSystem->Open(kLogFile, "wb");
+    if (m_hLog == FILESYSTEM_INVALID_HANDLE)
+        m_hLog = nullptr;
+
+    m_PreviousLog.clear();
+    m_PreviousLog.shrink_to_fit();
+    m_bRestored = true;
+    m_Scrollback.RemoveEarlierLines();
+
+    const wchar_t* message = g_pVGuiLocalize->Find("#Console_LogsCleared");
+    char text[256] = "console.log cleared";
+    if (message)
+        V_UnicodeToUTF8(message, text, sizeof(text));
+    Printf("%s\n", text);
 }
 
 void CGameConsole::RestorePreviousSession()

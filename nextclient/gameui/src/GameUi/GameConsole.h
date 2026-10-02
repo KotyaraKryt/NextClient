@@ -63,6 +63,7 @@ public:
     void SetParent(int parent);
 
     static void OnCmdCondump();
+    static void OnCmdClearConLogs();
 
     void PrintfWithoutJsEvent(Color color, const std::string& msg);
     void PrintfWithoutJsEvent(Color color, const std::wstring& msg);
@@ -79,6 +80,7 @@ private:
     void ExecuteTempConsoleBuffer();
     bool UseLegacyConsole() const;
     void OpenLog();
+    void ClearLogs();
     void WriteToLog(const console_buffer::Line& line);
 
 private:

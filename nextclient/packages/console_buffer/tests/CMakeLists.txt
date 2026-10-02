@@ -11,6 +11,7 @@ add_executable(${TARGET_NAME}
         CompletionTests.cpp
         KindsTests.cpp
         LogFileTests.cpp
+        WrapTests.cpp
 )
 
 target_link_libraries(${TARGET_NAME} PRIVATE

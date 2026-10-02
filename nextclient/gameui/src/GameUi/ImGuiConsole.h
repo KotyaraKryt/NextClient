@@ -77,6 +77,11 @@ private:
     console_buffer::LineView m_View;
     // how many times each row of the view repeats in a row, when con_collapse folds repeats
     std::vector<int> m_ViewRepeats;
+    // the view's lines split into rows that fit the scrollback's width
+    std::vector<console_buffer::Row> m_Rows;
+    int m_iRowsColumns = -1;
+    uint64_t m_iViewBuilds = 0;
+    uint64_t m_iRowsGeneration = UINT64_MAX;
     bool m_bOpenedOnce = false;
     bool m_bSwitchToLegacy = false;
     size_t m_iMaxLines = 0;
