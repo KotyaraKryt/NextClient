@@ -28,18 +28,6 @@
 //extern void UTIL_StripInvalidCharacters( char *pszInput );
 
 //-----------------------------------------------------------------------------
-// Purpose: class for loading/saving server config file
-//-----------------------------------------------------------------------------
-class CServerDescription : public CDescription
-{
-public:
-    CServerDescription( CPanelListPanel *panel );
-
-    void WriteScriptHeader( FileHandle_t fp );
-    void WriteFileHeader( FileHandle_t fp );
-};
-
-//-----------------------------------------------------------------------------
 // Purpose: Constructor
 //-----------------------------------------------------------------------------
 CCreateMultiplayerGameGameplayPage::CCreateMultiplayerGameGameplayPage(vgui2::Panel *parent, const char *name) : PropertyPage(parent, name)

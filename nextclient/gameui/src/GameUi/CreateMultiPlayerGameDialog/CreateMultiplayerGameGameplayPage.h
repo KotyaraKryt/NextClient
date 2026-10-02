@@ -5,10 +5,22 @@
 #endif
 
 #include <vgui_controls/PropertyPage.h>
+#include "ScriptObject.h"
 
 class CPanelListPanel;
-class CDescription;
 class mpcontrol_t;
+
+//-----------------------------------------------------------------------------
+// Purpose: class for loading/saving server config file
+//-----------------------------------------------------------------------------
+class CServerDescription : public CDescription
+{
+public:
+    CServerDescription( CPanelListPanel *panel );
+
+    void WriteScriptHeader( FileHandle_t fp );
+    void WriteFileHeader( FileHandle_t fp );
+};
 
 //-----------------------------------------------------------------------------
 // Purpose: server options page of the create game server dialog

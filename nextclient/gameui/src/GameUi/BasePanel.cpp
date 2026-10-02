@@ -674,6 +674,9 @@ void CBasePanel::DrawBackgroundImage(void)
 
 void CBasePanel::ApplyMultiplayerGameSettings()
 {
+    if (m_hImGuiCreateServer.Get() && m_hImGuiCreateServer->ApplyServerSettings())
+        return;
+
     if (m_hCreateMultiplayerGameDialog)
         m_hCreateMultiplayerGameDialog->ApplyMultiplayerGameSettings();
 }
@@ -1149,6 +1152,23 @@ void CBasePanel::OnOpenPlayerListDialog()
 
 void CBasePanel::OnOpenCreateMultiplayerGameDialog(void)
 {
+    if (CImGuiCreateServer::UseLegacyDialog())
+    {
+        OpenLegacyCreateMultiplayerGameDialog();
+        return;
+    }
+
+    if (!m_hImGuiCreateServer.Get())
+    {
+        m_hImGuiCreateServer = vgui2::SETUP_PANEL(new CImGuiCreateServer());
+        m_hImGuiCreateServer->SetParent(GetVPanel());
+    }
+
+    m_hImGuiCreateServer->Activate();
+}
+
+void CBasePanel::OpenLegacyCreateMultiplayerGameDialog(void)
+{
     if (!m_hCreateMultiplayerGameDialog.Get())
     {
         m_hCreateMultiplayerGameDialog = new CCreateMultiplayerGameDialog(this);
@@ -1565,4 +1585,6 @@ void CBasePanel::CloseBaseDialogs(void)
 {
     if (m_hCreateMultiplayerGameDialog.Get())
         m_hCreateMultiplayerGameDialog->Close();
+    if (m_hImGuiCreateServer.Get())
+        m_hImGuiCreateServer->Close();
 }

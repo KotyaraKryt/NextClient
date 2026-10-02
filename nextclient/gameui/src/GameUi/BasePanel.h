@@ -12,6 +12,7 @@
 #include "CreateMultiplayerGameDialog.h"
 #include "OptionsDialog.h"
 #include "ImGuiOptions.h"
+#include "ImGuiCreateServer.h"
 #include "KeyValues.h"
 #include "utlvector.h"
 
@@ -139,6 +140,7 @@ public:
     void OnGameUIActivated(void);
     void OnOpenServerBrowser(void);
     void OnOpenCreateMultiplayerGameDialog(void);
+    void OpenLegacyCreateMultiplayerGameDialog(void);
     void OnOpenQuitConfirmationDialog(void);
     void OnOpenOptionsDialog(const char* tabName = nullptr);
     void OpenLegacyOptionsDialog(const char* tabName = nullptr);
@@ -223,6 +225,7 @@ private:
     vgui2::DHANDLE<COptionsDialog> m_hOptionsDialog;
     vgui2::DHANDLE<CImGuiOptions> m_hImGuiOptions;
     vgui2::DHANDLE<CCreateMultiplayerGameDialog> m_hCreateMultiplayerGameDialog;
+    vgui2::DHANDLE<CImGuiCreateServer> m_hImGuiCreateServer;
     vgui2::DHANDLE<vgui2::Frame> m_hPlayerListDialog;;
     vgui2::DHANDLE<vgui2::QueryBox> m_hQuitQueryBox;
 

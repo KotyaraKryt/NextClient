@@ -33,6 +33,7 @@
 #include "LoadingDialog.h"
 #include "DemoPlayerDialog.h"
 #include "ImGuiOptions.h"
+#include "ImGuiCreateServer.h"
 #include "OptionsSubMiscellaneous.h"
 #include "IClientVGUI.h"
 
@@ -236,6 +237,7 @@ void CGameUI::Start(cl_enginefuncs_s *engineFuncs, int interfaceVersion, void *s
 
     ModInfo().LoadCurrentGameInfo();
     CImGuiOptions::RegisterCvars();
+    CImGuiCreateServer::RegisterCvars();
 
     if (g_pServerBrowser)
     {
