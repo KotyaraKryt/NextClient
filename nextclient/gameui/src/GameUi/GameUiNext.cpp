@@ -1,6 +1,6 @@
 #include "GameUINext.h"
+#include "BasePanel.h"
 #include <cstdio>
-#include <vgui_controls/MessageBox.h>
 #include <library_config.h>
 #include "../ServerBrowser/ServerBrowserDialog.h"
 
@@ -71,12 +71,7 @@ void CGameUINext::RemoveCallbacksListener(INextUICallbacks *listener)
 
 void CGameUINext::ShowMessageBox(const char* title, const char* text, const char* button_text)
 {
-    auto* dlg = new vgui2::MessageBox(title, text);
-
-    if (button_text != nullptr)
-        dlg->SetOKButtonText(button_text);
-
-    dlg->DoModal();
+    BasePanel()->ShowMessage(title, text, button_text);
 }
 
 void CGameUINext::InvokeInternetServerSelected(uint32_t ip, uint16_t port, int num, int total_servers)

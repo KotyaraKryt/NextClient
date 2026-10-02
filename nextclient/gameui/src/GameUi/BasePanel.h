@@ -144,6 +144,8 @@ public:
     void OnOpenCreateMultiplayerGameDialog(void);
     void OpenLegacyCreateMultiplayerGameDialog(void);
     void OnOpenQuitConfirmationDialog(void);
+    // a message with one button; the texts may be localization tokens, buttonText nullptr for OK
+    void ShowMessage(const char *title, const char *text, const char *buttonText = nullptr);
     void OnOpenOptionsDialog(const char* tabName = nullptr);
     void OpenLegacyOptionsDialog(const char* tabName = nullptr);
     void OnOpenPlayerListDialog();
@@ -233,6 +235,7 @@ private:
     vgui2::DHANDLE<vgui2::Frame> m_hPlayerListDialog;
     vgui2::DHANDLE<CImGuiPlayerList> m_hImGuiPlayerList;
     vgui2::DHANDLE<CImGuiQueryBox> m_hImGuiQuitBox;
+    vgui2::DHANDLE<CImGuiQueryBox> m_hImGuiMessageBox;
 
     vgui2::AnimationController *m_pConsoleAnimationController;
     KeyValues *m_pConsoleControlSettings;

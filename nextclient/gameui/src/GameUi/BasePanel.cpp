@@ -1005,8 +1005,7 @@ void CBasePanel::RunMenuCommand(const char *command)
         }
         else
         {
-            auto* dlg = new vgui2::MessageBox("Info", "The master server did not return a list of servers for the Random Servers button, or there is no internet connection.");
-            dlg->DoModal();
+            ShowMessage("Info", "The master server did not return a list of servers for the Random Servers button, or there is no internet connection.");
         }
     }
     else if (!Q_stricmp(command, "OpenPlayerListDialog"))
@@ -1070,6 +1069,25 @@ void CBasePanel::OnOpenQuitConfirmationDialog(void)
     m_hImGuiQuitBox->Show(CImGuiPanel::Localized("#GameUI_QuitConfirmationTitle", "Quit game"),
         CImGuiPanel::Localized("#GameUI_QuitConfirmationText", "Do you wish to stop playing now?"),
         CImGuiPanel::Localized("#GameUI_Quit", "Quit game"), [this] { RunMenuCommand("QuitNoConfirm"); });
+}
+
+void CBasePanel::ShowMessage(const char *title, const char *text, const char *buttonText)
+{
+    if (!m_hImGuiMessageBox.Get())
+    {
+        m_hImGuiMessageBox = vgui2::SETUP_PANEL(new CImGuiQueryBox());
+        m_hImGuiMessageBox->SetParent(GetVPanel());
+    }
+
+    auto localized = [](const char *text, const char *fallback)
+    {
+        if (!text || !text[0])
+            return CImGuiPanel::Localized(fallback, "OK");
+        std::string found = text[0] == '#' ? CImGuiPanel::Localized(text) : "";
+        return found.empty() ? std::string(text) : found;
+    };
+
+    m_hImGuiMessageBox->Show(localized(title, "#GameUI_OK"), localized(text, "#GameUI_OK"), localized(buttonText, "#GameUI_OK"), nullptr, false);
 }
 
 void CBasePanel::OnOpenServerBrowser(void)
