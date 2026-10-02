@@ -1106,6 +1106,23 @@ void CBasePanel::OnOpenServerBrowser(void)
 
 void CBasePanel::OnOpenOptionsDialog(const char* tabName)
 {
+    if (CImGuiOptions::UseLegacyDialog())
+    {
+        OpenLegacyOptionsDialog(tabName);
+        return;
+    }
+
+    if (!m_hImGuiOptions.Get())
+    {
+        m_hImGuiOptions = vgui2::SETUP_PANEL(new CImGuiOptions());
+        m_hImGuiOptions->SetParent(GetVPanel());
+    }
+
+    m_hImGuiOptions->Activate(tabName);
+}
+
+void CBasePanel::OpenLegacyOptionsDialog(const char* tabName)
+{
     if (!m_hOptionsDialog.Get())
     {
         m_hOptionsDialog = new COptionsDialog(this);

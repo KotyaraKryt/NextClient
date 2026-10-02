@@ -11,6 +11,7 @@
 #include "vgui_controls/MessageDialog.h"
 #include "CreateMultiplayerGameDialog.h"
 #include "OptionsDialog.h"
+#include "ImGuiOptions.h"
 #include "KeyValues.h"
 #include "utlvector.h"
 
@@ -140,6 +141,7 @@ public:
     void OnOpenCreateMultiplayerGameDialog(void);
     void OnOpenQuitConfirmationDialog(void);
     void OnOpenOptionsDialog(const char* tabName = nullptr);
+    void OpenLegacyOptionsDialog(const char* tabName = nullptr);
     void OnOpenPlayerListDialog();
     void OnSizeChanged(int newWide, int newTall) override;
     void OnGameUIHidden(void);
@@ -219,6 +221,7 @@ private:
     coord m_iGameMenuPos;
 
     vgui2::DHANDLE<COptionsDialog> m_hOptionsDialog;
+    vgui2::DHANDLE<CImGuiOptions> m_hImGuiOptions;
     vgui2::DHANDLE<CCreateMultiplayerGameDialog> m_hCreateMultiplayerGameDialog;
     vgui2::DHANDLE<vgui2::Frame> m_hPlayerListDialog;;
     vgui2::DHANDLE<vgui2::QueryBox> m_hQuitQueryBox;

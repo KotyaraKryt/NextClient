@@ -187,13 +187,6 @@ namespace
         ImGui::Image(reinterpret_cast<ImTextureID>(static_cast<intptr_t>(texture)), ImVec2(size, size));
     }
 
-    // for the tokens only NextClient's own files have, which not every language has yet
-    std::string LocalizedOr(const char* token, const char* english)
-    {
-        std::string text = CImGuiPanel::Localized(token);
-        return text.empty() ? english : text;
-    }
-
     std::string FormatLastPlayed(uint32_t unixTime)
     {
         if (!unixTime)
@@ -680,7 +673,7 @@ void CImGuiServerBrowser::DrawToolbar(Tab& tab)
 
     ImGui::SameLine();
     ImGui::SetNextItemWidth(-FLT_MIN);
-    std::string hint = LocalizedOr("#ServerBrowser_Search", "Name, map or address");
+    std::string hint = Localized("#ServerBrowser_Search", "Name, map or address");
     // the search is for the moment, so it isn't kept with the other filters
     if (ImGui::InputTextWithHint("##Search", hint.c_str(), m_szSearch, sizeof(m_szSearch)))
         m_bFiltersChanged = true;
@@ -776,7 +769,7 @@ void CImGuiServerBrowser::DrawCountryFilter(const Tab& tab, float width)
     if (ImGui::IsWindowAppearing())
         ImGui::SetKeyboardFocusHere();
     ImGui::SetNextItemWidth(-FLT_MIN);
-    ImGui::InputTextWithHint("##CountrySearch", LocalizedOr("#ServerBrowser_CountrySearch", "Find a country").c_str(),
+    ImGui::InputTextWithHint("##CountrySearch", Localized("#ServerBrowser_CountrySearch", "Find a country").c_str(),
                              m_szCountrySearch, sizeof(m_szCountrySearch));
     std::wstring search = nitro_utils::to_lower_copy(nitro_utils::utf8_to_wide(m_szCountrySearch));
 
@@ -1087,7 +1080,7 @@ void CImGuiServerBrowser::DrawContextMenu(Tab& tab)
     if (ImGui::MenuItem(Localized("#ServerBrowser_RefreshServer").c_str(), nullptr, false, !tab.servers.IsRefreshing()))
         tab.servers.StartRefreshServer(tab.selected);
 
-    if (ImGui::MenuItem(LocalizedOr("#ServerBrowser_CopyAddress", "Copy address").c_str()))
+    if (ImGui::MenuItem(Localized("#ServerBrowser_CopyAddress", "Copy address").c_str()))
         ImGui::SetClipboardText(server.m_NetAdr.GetConnectionAddressString().c_str());
 
     if (tab.id != ServerBrowserTab::Favorites && ImGui::MenuItem(Localized("#ServerBrowser_AddServerToFavorites").c_str()))
@@ -1277,7 +1270,7 @@ void CImGuiServerBrowser::DrawServerDetails(const gameserveritem_t& gs)
     std::string address = gs.m_NetAdr.GetConnectionAddressString();
     ImGui::TextDisabled("%s", address.c_str());
     if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("%s", LocalizedOr("#ServerBrowser_CopyAddress", "Copy address").c_str());
+        ImGui::SetTooltip("%s", Localized("#ServerBrowser_CopyAddress", "Copy address").c_str());
     if (ImGui::IsItemClicked())
         ImGui::SetClipboardText(address.c_str());
 

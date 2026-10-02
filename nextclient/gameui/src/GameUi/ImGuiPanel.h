@@ -4,6 +4,7 @@
 
 #include <string>
 
+struct ImFont;
 struct ImGuiContext;
 
 // A VGUI popup that draws Dear ImGui with raw OpenGL from inside Paint(), so the
@@ -21,6 +22,11 @@ public:
 
     // a localization token in UTF-8, "" when no loaded file has it
     static std::string Localized(const char* token);
+    // for the tokens only NextClient's own files have, which not every language has yet
+    static std::string Localized(const char* token, const char* english);
+
+    // the bigger font of the current context, nullptr (which ImGui::PushFont takes as the default) if it failed to load
+    static ImFont* HeadingFont();
 
     ~CImGuiPanel() override;
 

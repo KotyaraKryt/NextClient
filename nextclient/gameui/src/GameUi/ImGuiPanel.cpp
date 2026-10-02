@@ -114,25 +114,33 @@ static void LoadFonts(ImGuiIO& io, float size)
         0x0530, 0x058F, // Armenian
         0x0590, 0x05FF, // Hebrew
         0x10A0, 0x10FF, // Georgian
+        0x2300, 0x23FF, // Miscellaneous Technical
+        0x25A0, 0x25FF, // Geometric Shapes, which JetBrains Mono only has a few of
         0x2600, 0x26FF, // Miscellaneous Symbols
         0x2700, 0x27BF, // Dingbats
         0,
     };
 
-    int fileSize;
-    if (void* data = ReadWholeFile("resource/fonts/JetBrainsMono-Regular.ttf", fileSize))
-        io.Fonts->AddFontFromMemoryTTF(data, fileSize, size, nullptr, textRanges);
-
-    // merging needs a font to merge into
-    if (io.Fonts->Fonts.empty())
-        return;
-
-    if (void* data = ReadWholeFile("resource/fonts/DejaVuSans.ttf", fileSize))
+    auto addFont = [&](float fontSize)
     {
-        ImFontConfig config;
-        config.MergeMode = true;
-        io.Fonts->AddFontFromMemoryTTF(data, fileSize, size, &config, symbolRanges);
-    }
+        int fileSize;
+        void* data = ReadWholeFile("resource/fonts/JetBrainsMono-Regular.ttf", fileSize);
+        if (!data)
+            return;
+
+        io.Fonts->AddFontFromMemoryTTF(data, fileSize, fontSize, nullptr, textRanges);
+
+        if (void* symbols = ReadWholeFile("resource/fonts/DejaVuSans.ttf", fileSize))
+        {
+            ImFontConfig config;
+            config.MergeMode = true;
+            io.Fonts->AddFontFromMemoryTTF(symbols, fileSize, fontSize, &config, symbolRanges);
+        }
+    };
+
+    addFont(size);
+    // a second, bigger size for headings and icons, since a scaled up font looks blurry
+    addFont(std::round(size * 1.4f));
 }
 
 // ImGui speaks UTF-8, VGUI's clipboard speaks wchar_t
@@ -219,6 +227,18 @@ std::string CImGuiPanel::Localized(const char* token)
     }
 
     return utf8;
+}
+
+std::string CImGuiPanel::Localized(const char* token, const char* english)
+{
+    std::string text = Localized(token);
+    return text.empty() ? english : text;
+}
+
+ImFont* CImGuiPanel::HeadingFont()
+{
+    ImFontAtlas* atlas = ImGui::GetIO().Fonts;
+    return atlas->Fonts.Size > 1 ? atlas->Fonts[1] : nullptr;
 }
 
 void CImGuiPanel::SetFontSize(float size)
