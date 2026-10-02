@@ -6,6 +6,7 @@
 #include <vgui/ILocalize.h>
 #include <vgui/ISurfaceNext.h>
 #include <vgui/ISystem.h>
+#include <vgui/IInputInternal.h>
 #include <vgui_controls/Controls.h>
 #include <vgui_controls/ProgressBar.h>
 
@@ -108,6 +109,12 @@ void CImGuiLoadingDialog::ShowLoading()
         RequestFocus();
         ResetInput();
     }
+
+    // a panel that captured the mouse and was hidden before the release (the server browser
+    // on a double click) would go on getting every click, and Cancel none
+    vgui2::VPANEL capture = vgui2::input()->GetMouseCapture();
+    if (capture && capture != GetVPanel())
+        vgui2::input()->SetMouseCapture(0);
 
     MoveToFront();
     vgui2::surface()->RestrictPaintToSinglePanel(GetVPanel());
@@ -227,6 +234,37 @@ void CImGuiLoadingDialog::DrawProgressBar(float fraction, float width, float hei
     ImGui::Dummy(ImVec2(width, height));
 }
 
+bool CImGuiLoadingDialog::IsOverCancel() const
+{
+    int x, y;
+    vgui2::input()->GetCursorPos(x, y);
+    return x >= m_CancelMin.x && x < m_CancelMax.x && y >= m_CancelMin.y && y < m_CancelMax.y;
+}
+
+void CImGuiLoadingDialog::OnMousePressed(vgui2::MouseCode code)
+{
+    BaseClass::OnMousePressed(code);
+    m_bCancelPressed = code == vgui2::MOUSE_LEFT && IsOverCancel();
+}
+
+void CImGuiLoadingDialog::OnMouseReleased(vgui2::MouseCode code)
+{
+    BaseClass::OnMouseReleased(code);
+
+    bool cancel = m_bCancelPressed && code == vgui2::MOUSE_LEFT && IsOverCancel();
+    m_bCancelPressed = false;
+    if (cancel)
+        Cancel();
+}
+
+void CImGuiLoadingDialog::OnKeyCodePressed(vgui2::KeyCode code)
+{
+    BaseClass::OnKeyCodePressed(code);
+
+    if (code == vgui2::KEY_ESCAPE || (m_bError && (code == vgui2::KEY_ENTER || code == vgui2::KEY_PAD_ENTER)))
+        Cancel();
+}
+
 void CImGuiLoadingDialog::Paint()
 {
     // painting is restricted to this panel while loading, so the menu's background has to come from here
@@ -262,7 +300,8 @@ void CImGuiLoadingDialog::DrawImGui()
         drawList->AddRectFilled(min, ImVec2(max.x, fadeTop), IM_COL32(0, 0, 0, 70));
         drawList->AddRectFilledMultiColor(ImVec2(min.x, fadeTop), max, IM_COL32(0, 0, 0, 70), IM_COL32(0, 0, 0, 70), IM_COL32(0, 0, 0, 235), IM_COL32(0, 0, 0, 235));
 
-        float margin = std::round(screen.x * 0.06f);
+        // nearly edge to edge, with just enough room that the text doesn't touch the window's border
+        float margin = std::max(20.0f, std::round(screen.x * 0.02f));
         float width = screen.x - margin * 2.0f;
         ImVec4 accent = ImGui::GetStyleColorVec4(ImGuiCol_CheckMark);
         const ImGuiStyle& style = ImGui::GetStyle();
@@ -282,89 +321,78 @@ void CImGuiLoadingDialog::DrawImGui()
         std::string button = Localized(m_bError ? "#GameUI_Close" : "#GameUI_Cancel");
         float buttonWidth = std::max(110.0f, ImGui::CalcTextSize(button.c_str()).x + style.FramePadding.x * 4.0f);
 
-        // the block is laid out from the bottom up: measure it first
-        float line = ImGui::GetTextLineHeightWithSpacing();
-        float height = TitleFont()->FontSize + 12.0f;
-        if (!caption.empty())
-            height += line;
-        if (m_bError)
-        {
-            ImVec2 size = ImGui::CalcTextSize(m_ErrorText.c_str(), nullptr, false, width * 0.6f);
-            height += size.y + 16.0f;
-        }
-        else
-        {
-            height += line + 4.0f + 8.0f;
-            if (m_bShowingSecondary)
-                height += 12.0f + line + 4.0f + line;
-        }
-        height += 20.0f + ImGui::GetFrameHeight();
-
-        ImGui::SetCursorScreenPos(ImVec2(min.x + margin, max.y - margin * 0.75f - height));
+        // the block sits on the bottom margin; its height is the last frame's, which only changes when a part comes or goes
+        ImGui::SetCursorScreenPos(ImVec2(min.x + margin, max.y - margin - m_flBlockHeight));
         ImGui::BeginGroup();
 
         if (!caption.empty())
             ImGui::TextColored(accent, "%s", caption.c_str());
 
+        // the title with the way out at its right end, so it stays clear of net_graph in the corner
+        ImVec2 titlePos = ImGui::GetCursorScreenPos();
         ImGui::PushFont(TitleFont());
         ImGui::TextUnformatted(title.c_str());
+        float titleHeight = ImGui::GetItemRectSize().y;
         ImGui::PopFont();
-        ImGui::Dummy(ImVec2(0, 12.0f - style.ItemSpacing.y));
+        ImVec2 afterTitle = ImGui::GetCursorScreenPos();
+
+        ImGui::SetCursorScreenPos(ImVec2(titlePos.x + width - buttonWidth, titlePos.y + (titleHeight - ImGui::GetFrameHeight()) * 0.5f));
+        ImGui::Button(button.c_str(), ImVec2(buttonWidth, 0));
+        m_CancelMin = ImGui::GetItemRectMin();
+        m_CancelMax = ImGui::GetItemRectMax();
+        ImGui::SetCursorScreenPos(afterTitle);
+        ImGui::Dummy(ImVec2(0, 10.0f - style.ItemSpacing.y));
 
         if (m_bError)
         {
+            ImGui::PushFont(HeadingFont());
             ImGui::PushTextWrapPos(ImGui::GetCursorPosX() + width * 0.6f);
             ImGui::TextUnformatted(m_ErrorText.c_str());
             ImGui::PopTextWrapPos();
-            ImGui::Dummy(ImVec2(0, 16.0f - style.ItemSpacing.y));
+            ImGui::PopFont();
         }
         else
         {
-            // the status on the left, how far along on the right, then the bar under both
-            float left = ImGui::GetCursorPosX();
+            // the status on the left, how far along on the right, then the bar under both;
+            // SameLine counts from the group's left edge
+            ImGui::PushFont(HeadingFont());
             ImGui::TextUnformatted(m_Status.empty() ? " " : m_Status.c_str());
             std::string percent = std::to_string(static_cast<int>(m_flProgress * 100.0f)) + "%";
-            ImGui::SameLine(left + width - ImGui::CalcTextSize(percent.c_str()).x);
+            ImGui::SameLine(width - ImGui::CalcTextSize(percent.c_str()).x);
             ImGui::TextColored(accent, "%s", percent.c_str());
-            ImGui::Dummy(ImVec2(0, 4.0f - style.ItemSpacing.y));
+            ImGui::PopFont();
+            ImGui::Dummy(ImVec2(0, 6.0f - style.ItemSpacing.y));
             DrawProgressBar(m_flProgress, width, 8.0f);
 
             if (m_bShowingSecondary)
             {
-                ImGui::Dummy(ImVec2(0, 12.0f - style.ItemSpacing.y));
+                ImGui::Dummy(ImVec2(0, 14.0f - style.ItemSpacing.y));
                 std::string detail = std::to_string(static_cast<int>(m_flSecondary * 100.0f)) + "%";
                 wchar_t remaining[256];
                 if (m_flSecondary < 1.0f && vgui2::ProgressBar::ConstructTimeRemainingString(remaining, sizeof(remaining), m_flSecondaryStartTime, Now(), m_flSecondary, m_flSecondaryUpdateTime, true))
                     detail += "  ·  " + ToUTF8(remaining);
 
                 ImGui::TextDisabled("%s", m_SecondaryText.c_str());
-                ImGui::SameLine(left + width - ImGui::CalcTextSize(detail.c_str()).x);
+                ImGui::SameLine(width - ImGui::CalcTextSize(detail.c_str()).x);
                 ImGui::TextDisabled("%s", detail.c_str());
                 ImGui::Dummy(ImVec2(0, 4.0f - style.ItemSpacing.y));
                 DrawProgressBar(m_flSecondary, width, 4.0f);
             }
-        }
 
-        ImGui::Dummy(ImVec2(0, 20.0f - style.ItemSpacing.y));
-
-        // the bottom row: what kind of server on the left, the way out on the right
-        float rowLeft = ImGui::GetCursorPosX();
-        if (!m_bError && g_pGameUIFuncs->IsConnectedToVACSecureServer())
-        {
-            ImGui::AlignTextToFramePadding();
-            ImGui::TextDisabled("%s", Localized("#VAC_ConnectingToSecureServer", "Connecting to a VAC secure server").c_str());
-            ImGui::SameLine();
+            if (g_pGameUIFuncs->IsConnectedToVACSecureServer())
+            {
+                ImGui::Dummy(ImVec2(0, 10.0f - style.ItemSpacing.y));
+                // the token has its two sentences on separate lines with a blank one between
+                std::string vac = Localized("#VAC_ConnectingToSecureServer", "Connecting to a VAC secure server");
+                vac.erase(std::unique(vac.begin(), vac.end(), [](char a, char b) { return a == '\n' && b == '\n'; }), vac.end());
+                std::replace(vac.begin(), vac.end(), '\n', ' ');
+                ImGui::TextDisabled("%s", vac.c_str());
+            }
         }
-        ImGui::SetCursorPosX(rowLeft + width - buttonWidth);
-        bool cancel = ImGui::Button(button.c_str(), ImVec2(buttonWidth, 0));
 
         ImGui::EndGroup();
+        m_flBlockHeight = ImGui::GetItemRectSize().y;
 
-        if (ImGui::IsKeyPressed(ImGuiKey_Escape) || (m_bError && ImGui::IsKeyPressed(ImGuiKey_Enter)))
-            cancel = true;
-
-        if (cancel)
-            Cancel();
     }
     ImGui::End();
 

@@ -422,6 +422,10 @@ void CImGuiPanel::OnKillFocus()
 {
     BaseClass::OnKillFocus();
 
+    // the release that would end a capture taken in OnMousePressed may never come here now
+    if (input()->GetMouseCapture() == GetVPanel())
+        input()->SetMouseCapture(0);
+
     // ImGui releases every key it thinks is held, or a Backspace let go elsewhere repeats forever
     ImGui::SetCurrentContext(m_pContext);
     ImGui::GetIO().AddFocusEvent(false);

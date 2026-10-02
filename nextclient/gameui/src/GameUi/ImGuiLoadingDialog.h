@@ -1,6 +1,8 @@
 #pragma once
 
 #include "ImGuiPanel.h"
+
+#include <imgui/imgui.h>
 #include "LoadingDialog.h"
 
 #include <string>
@@ -41,9 +43,16 @@ protected:
     void Paint() override;
     void DrawImGui() override;
 
+    // while loading the engine only draws a frame when the progress moves, seconds apart, and
+    // ImGui would only see a click in the next one; Cancel answers VGUI's events right away instead
+    void OnMousePressed(vgui2::MouseCode code) override;
+    void OnMouseReleased(vgui2::MouseCode code) override;
+    void OnKeyCodePressed(vgui2::KeyCode code) override;
+
 private:
     void DrawProgressBar(float fraction, float width, float height);
     void Cancel();
+    bool IsOverCancel() const;
 
     bool m_bOpen = false;
     bool m_bError = false;
@@ -62,4 +71,10 @@ private:
     std::string m_SecondaryText;
 
     std::string m_ErrorText;
+    // the text block's height in the last frame, to stand it on the bottom margin
+    float m_flBlockHeight = 0.0f;
+    // where the last frame drew the Cancel button, in screen space
+    ImVec2 m_CancelMin;
+    ImVec2 m_CancelMax;
+    bool m_bCancelPressed = false;
 };
