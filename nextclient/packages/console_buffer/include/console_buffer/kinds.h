@@ -7,9 +7,14 @@
 
 namespace console_buffer
 {
-    // What a line is about, from where it came from and the words it starts with or holds:
-    // "Error: ..." is an error, "Couldn't open ..." a warning, "] cmd" a typed command
-    Kind Classify(Source source, std::string_view text);
+    // What a line is about and how much it matters, from where it came from and the words
+    // the engine, CS and AMX Mod X put in their messages: "Connecting to ..." is network,
+    // "Error: server failed to transmit file ..." a download error, "] cmd" a typed command
+    Topic ClassifyTopic(Source source, std::string_view text);
+    Severity ClassifySeverity(Source source, std::string_view text);
+
+    // fills line.topic and line.severity from its source and text
+    void Classify(Line& line);
 
     // Lower case for ASCII and Russian letters in UTF-8; anything else is left as it is
     std::string ToLowerUtf8(std::string_view text);

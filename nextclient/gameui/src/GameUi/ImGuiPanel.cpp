@@ -68,38 +68,61 @@ static ImGuiKey ToImGuiKey(KeyCode code)
     }
 }
 
-static void LoadFont(ImGuiIO& io, const char* path, float size)
+// the file's bytes in memory from IM_ALLOC, which an ImGui font atlas frees itself; nullptr if missing
+static void* ReadWholeFile(const char* path, int& size)
 {
     FileHandle_t file = g_pFullFileSystem->Open(path, "rb");
     if (file == FILESYSTEM_INVALID_HANDLE)
-        return;
+        return nullptr;
 
-    int fileSize = g_pFullFileSystem->Size(file);
-    if (fileSize <= 0)
+    size = g_pFullFileSystem->Size(file);
+    if (size <= 0)
     {
         g_pFullFileSystem->Close(file);
-        return;
+        return nullptr;
     }
 
-    void* data = IM_ALLOC(fileSize);
-    g_pFullFileSystem->Read(data, fileSize, file);
+    void* data = IM_ALLOC(size);
+    g_pFullFileSystem->Read(data, size, file);
     g_pFullFileSystem->Close(file);
+    return data;
+}
 
+static void LoadFonts(ImGuiIO& io, float size)
+{
     // Latin and Cyrillic, plus the punctuation, arrows, box drawing and shapes that servers
     // and plugins like to decorate their messages with
-    static const ImWchar ranges[] = {
+    static const ImWchar textRanges[] = {
         0x0020, 0x00FF, // Basic Latin, Latin-1
         0x0100, 0x017F, // Latin Extended-A
         0x0400, 0x052F, // Cyrillic
         0x2000, 0x206F, // General Punctuation
         0x2190, 0x21FF, // Arrows
         0x2500, 0x25FF, // Box Drawing, Block Elements, Geometric Shapes
-        0x2600, 0x26FF, // Miscellaneous Symbols
         0,
     };
 
-    // the atlas takes ownership of data and frees it with IM_FREE
-    io.Fonts->AddFontFromMemoryTTF(data, fileSize, size, nullptr, ranges);
+    // JetBrains Mono has none of these, DejaVu Sans has ★ ⚙ ✔ and the rest
+    static const ImWchar symbolRanges[] = {
+        0x2600, 0x26FF, // Miscellaneous Symbols
+        0x2700, 0x27BF, // Dingbats
+        0,
+    };
+
+    int fileSize;
+    if (void* data = ReadWholeFile("resource/fonts/JetBrainsMono-Regular.ttf", fileSize))
+        io.Fonts->AddFontFromMemoryTTF(data, fileSize, size, nullptr, textRanges);
+
+    // merging needs a font to merge into
+    if (io.Fonts->Fonts.empty())
+        return;
+
+    if (void* data = ReadWholeFile("resource/fonts/DejaVuSans.ttf", fileSize))
+    {
+        ImFontConfig config;
+        config.MergeMode = true;
+        io.Fonts->AddFontFromMemoryTTF(data, fileSize, size, &config, symbolRanges);
+    }
 }
 
 // ImGui speaks UTF-8, VGUI's clipboard speaks wchar_t
@@ -140,7 +163,7 @@ static int ToImGuiMouseButton(MouseCode code)
     }
 }
 
-CImGuiPanel::CImGuiPanel() : BaseClass(nullptr, "ImGuiPanel")
+CImGuiPanel::CImGuiPanel(const char* layoutFile) : BaseClass(nullptr, "ImGuiPanel"), m_pszLayoutFile(layoutFile)
 {
     MakePopup();
     SetKeyBoardInputEnabled(true);
@@ -158,8 +181,44 @@ CImGuiPanel::CImGuiPanel() : BaseClass(nullptr, "ImGuiPanel")
     io.SetClipboardTextFn = SetClipboard;
     io.GetClipboardTextFn = GetClipboard;
     ApplyNextClientTheme(ImGui::GetStyle());
-    LoadFont(io, "resource/fonts/JetBrainsMono-Regular.ttf", 16.0f);
+    LoadFonts(io, m_flFontSize);
     ImGui_ImplOpenGL2_Init();
+
+    int layoutSize;
+    if (m_pszLayoutFile)
+    {
+        if (void* layout = ReadWholeFile(m_pszLayoutFile, layoutSize))
+        {
+            ImGui::LoadIniSettingsFromMemory(static_cast<const char*>(layout), layoutSize);
+            IM_FREE(layout);
+        }
+    }
+}
+
+void CImGuiPanel::SetFontSize(float size)
+{
+    m_flPendingFontSize = size;
+}
+
+void CImGuiPanel::SaveLayout()
+{
+    ImGuiIO& io = ImGui::GetIO();
+    if (!io.WantSaveIniSettings)
+        return;
+
+    io.WantSaveIniSettings = false;
+    if (!m_pszLayoutFile)
+        return;
+
+    size_t size;
+    const char* layout = ImGui::SaveIniSettingsToMemory(&size);
+
+    FileHandle_t file = g_pFullFileSystem->Open(m_pszLayoutFile, "wb");
+    if (file == FILESYSTEM_INVALID_HANDLE)
+        return;
+
+    g_pFullFileSystem->Write(layout, static_cast<int>(size), file);
+    g_pFullFileSystem->Close(file);
 }
 
 CImGuiPanel::~CImGuiPanel()
@@ -178,8 +237,10 @@ void CImGuiPanel::CreateFontTexture()
     io.Fonts->GetTexDataAsRGBA32(&pixels, &width, &height);
 
     // GoldSrc hands out GL texture names from its own counter instead of glGenTextures,
-    // so a name from glGenTextures could later be reused (and overwritten) by the engine
-    m_iFontTextureID = surface()->CreateNewTextureID();
+    // so a name from glGenTextures could later be reused (and overwritten) by the engine;
+    // a font size change uploads into the name it already has
+    if (!m_iFontTextureID)
+        m_iFontTextureID = surface()->CreateNewTextureID();
 
     GLint lastTexture;
     glGetIntegerv(GL_TEXTURE_BINDING_2D, &lastTexture);
@@ -197,6 +258,14 @@ void CImGuiPanel::Paint()
 {
     ImGui::SetCurrentContext(m_pContext);
 
+    if (m_flPendingFontSize > 0.0f && m_flPendingFontSize != m_flFontSize)
+    {
+        m_flFontSize = m_flPendingFontSize;
+        ImGui::GetIO().Fonts->Clear();
+        LoadFonts(ImGui::GetIO(), m_flFontSize);
+        CreateFontTexture();
+    }
+
     // ImGui_ImplOpenGL2_NewFrame is never called: all it does is create the font
     // texture with glGenTextures, which CreateFontTexture replaces
     if (!m_iFontTextureID)
@@ -212,10 +281,13 @@ void CImGuiPanel::Paint()
     io.DeltaTime = m_flLastFrameTime > 0.0 ? std::max(static_cast<float>(now - m_flLastFrameTime), 0.0001f) : 1.0f / 60.0f;
     m_flLastFrameTime = now;
 
+    ReleaseKeysLetGoElsewhere();
+
     ImGui::NewFrame();
     DrawImGui();
     ImGui::Render();
     FitToWindows();
+    SaveLayout();
 
     // the engine batches VGUI text and would draw it over us on the next flush
     surface()->DrawFlushText();
@@ -253,6 +325,28 @@ void CImGuiPanel::FitToWindows()
     int x = static_cast<int>(std::floor(bounds.Min.x));
     int y = static_cast<int>(std::floor(bounds.Min.y));
     SetBounds(x, y, static_cast<int>(std::ceil(bounds.Max.x)) - x, static_cast<int>(std::ceil(bounds.Max.y)) - y);
+}
+
+void CImGuiPanel::ReleaseKeysLetGoElsewhere()
+{
+    // VGUI tracks every key, while OnKeyCodeReleased only comes while this panel has the
+    // focus: an Enter let go after its command opened the loading dialog stayed held here,
+    // and its repeat sent off whatever was typed next
+    ImGuiIO& io = ImGui::GetIO();
+    for (int code = KEY_FIRST + 1; code < KEY_LAST; code++)
+    {
+        ImGuiKey key = ToImGuiKey(static_cast<KeyCode>(code));
+        if (key != ImGuiKey_None && ImGui::IsKeyDown(key) && !input()->IsKeyDown(static_cast<KeyCode>(code)))
+            io.AddKeyEvent(key, false);
+    }
+
+    auto eitherDown = [](KeyCode left, KeyCode right) { return input()->IsKeyDown(left) || input()->IsKeyDown(right); };
+    if (io.KeyCtrl && !eitherDown(KEY_LCONTROL, KEY_RCONTROL))
+        io.AddKeyEvent(ImGuiMod_Ctrl, false);
+    if (io.KeyShift && !eitherDown(KEY_LSHIFT, KEY_RSHIFT))
+        io.AddKeyEvent(ImGuiMod_Shift, false);
+    if (io.KeyAlt && !eitherDown(KEY_LALT, KEY_RALT))
+        io.AddKeyEvent(ImGuiMod_Alt, false);
 }
 
 void CImGuiPanel::ResetInput()

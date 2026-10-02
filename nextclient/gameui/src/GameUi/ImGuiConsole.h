@@ -29,6 +29,10 @@ private:
     static int OnInputCallback(struct ImGuiInputTextCallbackData* data);
 
     void DrawToolbar();
+    void DrawSettings();
+    void ApplySettings();
+    void LoadFilters();
+    void SaveFilters();
     void DrawScrollback();
     void RebuildView();
     std::string Localized(const char* token);
@@ -50,6 +54,8 @@ private:
     bool m_bIgnoreNextChar = false;
     // a focus given by code selects the whole input, and the next key would replace it
     bool m_bCursorToEnd = false;
+    // letters typed while the input line wasn't active, for it to take once it is
+    std::string m_PendingInput;
 
     std::vector<std::string> m_CompletionNames;
     std::unordered_map<std::string, std::string> m_Descriptions;
@@ -62,11 +68,18 @@ private:
     float m_flInputTop = 0.0f;
     float m_flConsoleWidth = 0.0f;
 
-    // the lines that pass the kind filters and the search, rebuilt when any of them change
-    bool m_bKindVisible[console_buffer::kKindCount] = { true, true, true, true, true, true, true };
-    int m_iKindCounts[console_buffer::kKindCount] = {};
+    // the lines that pass the topic filters and the search, rebuilt when any of them change
+    bool m_bTopicVisible[console_buffer::kTopicCount] = { true, true, true, true, true, true, true };
+    int m_iTopicCounts[console_buffer::kTopicCount] = {};
+    bool m_bProblemsOnly = false;
+    int m_iProblemCount = 0;
     char m_szSearch[128] = {};
     console_buffer::LineView m_View;
+    // how many times each row of the view repeats in a row, when con_collapse folds repeats
+    std::vector<int> m_ViewRepeats;
+    bool m_bOpenedOnce = false;
+    bool m_bSwitchToLegacy = false;
+    size_t m_iMaxLines = 0;
     uint64_t m_iViewGeneration = UINT64_MAX;
     uint32_t m_iViewMask = 0;
     std::string m_ViewSearch;

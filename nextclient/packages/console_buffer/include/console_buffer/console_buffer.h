@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <deque>
+#include <functional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -26,22 +27,33 @@ namespace console_buffer
     {
         Normal,
         Developer,
+        // said by a player
         Chat,
+        // shown in the chat but sent by the server: joins, team changes, radio, plugin notices
+        ServerChat,
     };
 
-    // What a line is about, for styling and filtering; see Classify in kinds.h
-    enum class Kind
+    // What a line is about, for the filters; see Classify in kinds.h
+    enum class Topic
     {
-        Info,
-        Warning,
-        Error,
-        Blocked,
         Chat,
-        Command,
+        Players,
+        Server,
+        Connection,
+        Commands,
+        System,
         Developer,
     };
 
-    inline constexpr int kKindCount = 7;
+    inline constexpr int kTopicCount = 7;
+
+    // How much a line matters, for its color; a download can fail as much as a connection
+    enum class Severity
+    {
+        Normal,
+        Warning,
+        Error,
+    };
 
     struct Segment
     {
@@ -55,8 +67,17 @@ namespace console_buffer
     struct Line
     {
         std::vector<Segment> segments;
+        // the segments' text joined, kept for searching and comparing lines
+        std::string text;
+        // seconds since the epoch when the line started
+        int64_t time = 0;
+        // brought back from console.log of an earlier run
+        bool previous_session = false;
+        // the mark between an earlier run's lines and this run's, shown whatever the filters
+        bool divider = false;
         Source source = Source::Normal;
-        Kind kind = Kind::Info;
+        Topic topic = Topic::System;
+        Severity severity = Severity::Normal;
     };
 
     class ConsoleBuffer
@@ -73,6 +94,19 @@ namespace console_buffer
         // and only the code printing it knows it's chat
         void MarkNextLine(Source source);
 
+        // drops the oldest lines past the new limit right away
+        void SetMaxLines(size_t max_lines);
+
+        // called with every line that gets its line break, e.g. to write it to a log
+        void SetLineClosedHandler(std::function<void(const Line&)> handler);
+
+        // adds a whole line from elsewhere before an unfinished one
+        void AddLine(Line line);
+
+        // puts lines older than all the others in front, such as an earlier run's log;
+        // the ones past the limit are left out
+        void AddEarlierLines(std::vector<Line> lines);
+
         const std::deque<Line>& Lines() const { return lines_; }
 
         // changes with every Print and Clear, so a view of the lines knows to rebuild
@@ -87,5 +121,6 @@ namespace console_buffer
         bool last_line_open_ = false;
         Source next_source_ = Source::Normal;
         uint64_t generation_ = 0;
+        std::function<void(const Line&)> on_line_closed_;
     };
 }

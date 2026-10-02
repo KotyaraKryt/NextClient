@@ -155,13 +155,17 @@ static void ColorChatConsolePrint(char string[512])
 {
     if (g_sayTextLine[0].m_textRanges.Count() != 0)
     {
+        // players are 1 to maxclients; TextMsg and other server lines come without one
         if (g_GameConsoleNext)
-            g_GameConsoleNext->MarkChatLine();
+            g_GameConsoleNext->MarkChatLine(g_sayTextLine[0].m_clientIndex > 0);
 
+        bool ends_with_newline = false;
         for (int rangeIndex = 0; rangeIndex < g_sayTextLine[0].m_textRanges.Count(); rangeIndex++)
         {
             TextRange* range = &g_sayTextLine[0].m_textRanges[rangeIndex];
             std::wstring print_text = std::wstring(&g_sayTextLine[0].m_line[range->start], range->end - range->start);
+            if (!print_text.empty())
+                ends_with_newline = print_text.back() == L'\n';
 
             if (g_GameConsoleNext)
             {
@@ -173,7 +177,8 @@ static void ColorChatConsolePrint(char string[512])
             }
         }
 
-        if (V_strEndsWith(string, "\n"))
+        // a message with its own line break would otherwise leave an empty line after it
+        if (V_strEndsWith(string, "\n") && !ends_with_newline)
         {
             g_GameConsole->Printf("\n");
         }

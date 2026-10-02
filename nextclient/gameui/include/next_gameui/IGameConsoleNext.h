@@ -30,8 +30,9 @@ public:
      */
     virtual void PrintfExWide(const wchar_t *format, ...) = 0;
 
-    // The next line printed is a chat message, for the console's chat filter
-    virtual void MarkChatLine() = 0;
+    // The next line printed comes from the chat, for the console's filters: said by a player,
+    // or sent by the server (joins, team changes, radio, plugin notices)
+    virtual void MarkChatLine(bool from_player) = 0;
 };
 
 #define GAMECONSOLE_NEXT_INTERFACE_VERSION "GameConsoleNext003"

@@ -9,6 +9,7 @@ add_library(${PROJECT_NAME} STATIC
     src/command_history.cpp
     src/completion.cpp
     src/kinds.cpp
+    src/log_file.cpp
 )
 add_library(console_buffer::console_buffer ALIAS ${PROJECT_NAME})
 

@@ -10,6 +10,7 @@ add_executable(${TARGET_NAME}
         CommandHistoryTests.cpp
         CompletionTests.cpp
         KindsTests.cpp
+        LogFileTests.cpp
 )
 
 target_link_libraries(${TARGET_NAME} PRIVATE

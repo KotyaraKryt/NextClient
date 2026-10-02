@@ -12,6 +12,12 @@
 #include "LoadingDialog.h"
 #include "ImGuiConsole.h"
 #include "ImGuiPanel.h"
+#include <console_buffer/log_file.h>
+#include <cvardef.h>
+#include <tier1/strtools.h>
+#include <vgui/ILocalize.h>
+#include <FileSystem.h>
+#include <algorithm>
 #include <imgui/imgui.h>
 #include <vgui/ISurfaceNext.h>
 
@@ -97,8 +103,27 @@ void CGameConsole::Initialize()
 
     GameConsoleNext().Initialize(m_pConsole);
 
-    m_pImGuiConsole = vgui2::SETUP_PANEL(new CImGuiConsole(m_Scrollback));
+    // the ImGui console's settings, kept in config.cfg; its gear button sets them too
+    static const char* const kSettings[][2] = {
+        { "con_timestamps", "0" },
+        { "con_log", "1" },
+        { "con_restore", "1" },
+        { "con_collapse", "1" },
+        { "con_fontsize", "16" },
+        { "con_opacity", "1" },
+        { "con_maxlines", "5000" },
+        { "con_keepfilters", "1" },
+        { "con_filters", "" },
+        { "con_suggestions", "1" },
+    };
+    for (const auto& setting : kSettings)
+        engine->pfnRegisterVariable(setting[0], setting[1], FCVAR_ARCHIVE);
+
     m_pLegacyCvar = engine->pfnRegisterVariable("con_legacy", "0", FCVAR_ARCHIVE);
+    m_pImGuiConsole = vgui2::SETUP_PANEL(new CImGuiConsole(m_Scrollback));
+
+    OpenLog();
+    m_Scrollback.SetLineClosedHandler([this](const console_buffer::Line& line) { WriteToLog(line); });
 
     m_bInitialized = true;
 
@@ -279,6 +304,106 @@ void CGameConsole::SetParent(int parent)
 
     m_pConsole->SetParent( static_cast<vgui2::VPANEL>( parent ));
     m_pImGuiConsole->SetParent( static_cast<vgui2::VPANEL>( parent ));
+}
+
+static const char* const kLogFile = "console.log";
+// the most con_maxlines can ask for
+static const size_t kMaxLogLines = 20000;
+
+void CGameConsole::OpenLog()
+{
+    // keep the newest lines of the earlier runs and write only those back, so the file
+    // doesn't grow forever; this run's lines go after them
+    FileHandle_t file = g_pFullFileSystem->Open(kLogFile, "rb");
+    if (file != FILESYSTEM_INVALID_HANDLE)
+    {
+        std::string text(g_pFullFileSystem->Size(file), '\0');
+        g_pFullFileSystem->Read(text.data(), static_cast<int>(text.size()), file);
+        g_pFullFileSystem->Close(file);
+
+        size_t start = 0;
+        while (start < text.size())
+        {
+            size_t newline = text.find('\n', start);
+            if (newline == std::string::npos)
+                newline = text.size();
+
+            m_PreviousLog.emplace_back(text, start, newline - start);
+            start = newline + 1;
+        }
+
+        if (m_PreviousLog.size() > kMaxLogLines)
+            m_PreviousLog.erase(m_PreviousLog.begin(), m_PreviousLog.end() - kMaxLogLines);
+    }
+
+    m_hLog = g_pFullFileSystem->Open(kLogFile, "wb");
+    if (m_hLog == FILESYSTEM_INVALID_HANDLE)
+    {
+        m_hLog = nullptr;
+        return;
+    }
+
+    for (const std::string& line : m_PreviousLog)
+    {
+        g_pFullFileSystem->Write(line.data(), static_cast<int>(line.size()), m_hLog);
+        g_pFullFileSystem->Write("\n", 1, m_hLog);
+    }
+    g_pFullFileSystem->Flush(m_hLog);
+}
+
+void CGameConsole::WriteToLog(const console_buffer::Line& line)
+{
+    cvar_t* log = engine->pfnGetCvarPointer("con_log");
+    if (!m_hLog || (log && log->value == 0.0f))
+        return;
+
+    std::string text = console_buffer::FormatLogLine(line) + "\n";
+    g_pFullFileSystem->Write(text.data(), static_cast<int>(text.size()), m_hLog);
+    // a crash would lose whatever hasn't been flushed, and that's when the log matters most
+    g_pFullFileSystem->Flush(m_hLog);
+}
+
+void CGameConsole::RestorePreviousSession()
+{
+    if (m_bRestored)
+        return;
+    m_bRestored = true;
+
+    cvar_t* restore = engine->pfnGetCvarPointer("con_restore");
+    cvar_t* maxLines = engine->pfnGetCvarPointer("con_maxlines");
+    if (restore && restore->value != 0.0f)
+    {
+        size_t keep = maxLines ? static_cast<size_t>(std::clamp(maxLines->value, 100.0f, 20000.0f)) : 5000;
+        size_t first = m_PreviousLog.size() > keep ? m_PreviousLog.size() - keep : 0;
+
+        std::vector<console_buffer::Line> lines;
+        for (size_t i = first; i < m_PreviousLog.size(); i++)
+        {
+            if (std::optional<console_buffer::Line> line = console_buffer::ParseLogLine(m_PreviousLog[i]))
+                lines.push_back(std::move(*line));
+        }
+
+        if (!lines.empty())
+        {
+            console_buffer::Line separator;
+            const wchar_t* label = g_pVGuiLocalize->Find("#Console_PreviousRun");
+            char text[256] = "previous run";
+            if (label)
+                V_UnicodeToUTF8(label, text, sizeof(text));
+
+            separator.text = text;
+            separator.segments.push_back({ console_buffer::Rgba{}, separator.text, true });
+            separator.time = lines.back().time;
+            separator.previous_session = true;
+            separator.divider = true;
+            lines.push_back(std::move(separator));
+
+            m_Scrollback.AddEarlierLines(std::move(lines));
+        }
+    }
+
+    m_PreviousLog.clear();
+    m_PreviousLog.shrink_to_fit();
 }
 
 bool CGameConsole::UseLegacyConsole() const

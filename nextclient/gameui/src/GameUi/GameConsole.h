@@ -14,6 +14,9 @@
 #include <IGameConsole.h>
 #include <console_buffer/console_buffer.h>
 
+#include <string>
+#include <vector>
+
 class CGameConsoleDialog;
 class CImGuiConsole;
 struct cvar_s;
@@ -67,9 +70,16 @@ public:
     // everything the console shows, for the ImGui console to draw
     console_buffer::ConsoleBuffer& Scrollback() { return m_Scrollback; }
 
+    // Puts the lines console.log kept from the last runs in front of this run's, once, if
+    // con_restore asks for it. The ImGui console calls it when first opened: when the console
+    // is set up, config.cfg hasn't been run yet and con_restore still has its default.
+    void RestorePreviousSession();
+
 private:
     void ExecuteTempConsoleBuffer();
     bool UseLegacyConsole() const;
+    void OpenLog();
+    void WriteToLog(const console_buffer::Line& line);
 
 private:
     bool m_bInitialized;
@@ -78,6 +88,11 @@ private:
     cvar_s *m_pLegacyCvar = nullptr;
     console_buffer::ConsoleBuffer m_Scrollback;
     std::vector<SavedMessageData> m_TempConsoleBuffer;
+
+    // console.log, open for this run's lines, and the earlier runs' lines it held
+    void* m_hLog = nullptr;
+    std::vector<std::string> m_PreviousLog;
+    bool m_bRestored = false;
 };
 
 extern CGameConsole &GameConsole();

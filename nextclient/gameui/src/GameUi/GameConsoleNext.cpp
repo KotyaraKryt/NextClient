@@ -127,7 +127,7 @@ std::wstring CGameConsoleNext::Utf8ToWstring(const char* str)
     return std::wstring(pwch, pwch + cwch);
 }
 
-void CGameConsoleNext::MarkChatLine()
+void CGameConsoleNext::MarkChatLine(bool from_player)
 {
-    GameConsole().Scrollback().MarkNextLine(console_buffer::Source::Chat);
+    GameConsole().Scrollback().MarkNextLine(from_player ? console_buffer::Source::Chat : console_buffer::Source::ServerChat);
 }

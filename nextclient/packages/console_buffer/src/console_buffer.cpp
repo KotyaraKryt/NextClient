@@ -1,6 +1,7 @@
 #include <console_buffer/console_buffer.h>
 #include <console_buffer/kinds.h>
-#include <console_buffer/selection.h>
+
+#include <chrono>
 
 namespace console_buffer
 {
@@ -28,6 +29,8 @@ namespace console_buffer
                 StartLine(source);
 
             last_line_open_ = false;
+            if (on_line_closed_)
+                on_line_closed_(lines_.back());
 
             start = newline + 1;
         }
@@ -43,6 +46,41 @@ namespace console_buffer
     void ConsoleBuffer::MarkNextLine(Source source)
     {
         next_source_ = source;
+    }
+
+    void ConsoleBuffer::SetMaxLines(size_t max_lines)
+    {
+        generation_++;
+        max_lines_ = max_lines;
+        while (lines_.size() > max_lines_)
+            lines_.pop_front();
+    }
+
+    void ConsoleBuffer::SetLineClosedHandler(std::function<void(const Line&)> handler)
+    {
+        on_line_closed_ = std::move(handler);
+    }
+
+    void ConsoleBuffer::AddEarlierLines(std::vector<Line> lines)
+    {
+        generation_++;
+
+        size_t room = max_lines_ > lines_.size() ? max_lines_ - lines_.size() : 0;
+        size_t skip = lines.size() > room ? lines.size() - room : 0;
+        lines_.insert(lines_.begin(), std::make_move_iterator(lines.begin() + skip), std::make_move_iterator(lines.end()));
+    }
+
+    void ConsoleBuffer::AddLine(Line line)
+    {
+        generation_++;
+
+        if (last_line_open_)
+            lines_.insert(lines_.end() - 1, std::move(line));
+        else
+            lines_.push_back(std::move(line));
+
+        while (lines_.size() > max_lines_)
+            lines_.pop_front();
     }
 
     // Color codes (\x01-\x04 in GoldSrc chat) and other control bytes have no glyph and showed
@@ -72,14 +110,16 @@ namespace console_buffer
             StartLine(source);
 
         Line& line = lines_.back();
+        line.text += text;
+
         std::vector<Segment>& segments = line.segments;
         if (!segments.empty() && segments.back().color == color && segments.back().themed == themed)
             segments.back().text += text;
         else
             segments.push_back({ color, std::move(text), themed });
 
-        // "Error" may arrive before the rest of its line, so the kind follows the whole text so far
-        line.kind = Classify(line.source, LineText(line));
+        // "Error" may arrive before the rest of its line, so the class follows the whole text so far
+        Classify(line);
     }
 
     void ConsoleBuffer::StartLine(Source source)
@@ -90,7 +130,8 @@ namespace console_buffer
 
         Line& line = lines_.back();
         line.source = next_source_ != Source::Normal ? next_source_ : source;
-        line.kind = Classify(line.source, "");
+        line.time = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+        Classify(line);
         next_source_ = Source::Normal;
 
         last_line_open_ = true;

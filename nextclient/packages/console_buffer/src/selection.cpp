@@ -17,11 +17,7 @@ namespace console_buffer
 
     std::string LineText(const Line& line)
     {
-        std::string text;
-        for (const Segment& segment : line.segments)
-            text += segment.text;
-
-        return text;
+        return line.text;
     }
 
     // continuation bytes of a UTF-8 character look like 10xxxxxx
