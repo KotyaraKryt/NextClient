@@ -3,7 +3,17 @@
 #include "GameUi.h"
 #include "IGameUIFuncs.h"
 #include "ivoicetweak.h"
+#include "OptionsDialog/LogoFile.h"
 #include "OptionsDialog/VideoAdvancedDialog.h"
+#include "ScriptObject.h"
+
+#ifdef _WIN32
+#include <Windows.h>
+#else
+#include "utils/bmp_compat.h"
+#endif
+#include <GL/gl.h>
+#include <vgui/ISurfaceNext.h>
 
 #include <nitro_utils/config/FileConfigProvider.h>
 #include "ModInfo.h"
@@ -80,6 +90,94 @@ namespace
     }
 }
 
+namespace
+{
+    // the colors the old dialog offered; cl_logocolor holds the name
+    struct SprayColor
+    {
+        const char* name;
+        int r, g, b;
+    };
+
+    const SprayColor kSprayColors[] = {
+        { "#Valve_Orange", 255, 120, 24 },
+        { "#Valve_Yellow", 225, 180, 24 },
+        { "#Valve_Blue", 0, 60, 255 },
+        { "#Valve_Ltblue", 0, 167, 255 },
+        { "#Valve_Green", 0, 167, 0 },
+        { "#Valve_Red", 255, 43, 0 },
+        { "#Valve_Brown", 123, 73, 0 },
+        { "#Valve_Ltgray", 100, 100, 100 },
+        { "#Valve_Dkgray", 36, 36, 36 },
+    };
+
+    const SprayColor& SprayColorByName(const std::string& name)
+    {
+        for (const SprayColor& color : kSprayColors)
+        {
+            if (!V_stricmp(color.name, name.c_str()))
+                return color;
+        }
+        return kSprayColors[0];
+    }
+
+    std::string ReadFile(const char* path)
+    {
+        std::string data;
+        FileHandle_t file = g_pFullFileSystem->Open(path, "rb");
+        if (file == FILESYSTEM_INVALID_HANDLE)
+            return data;
+
+        data.resize(g_pFullFileSystem->Size(file));
+        g_pFullFileSystem->Read(data.data(), static_cast<int>(data.size()), file);
+        g_pFullFileSystem->Close(file);
+        return data;
+    }
+
+    uint32_t ReadU32(const std::string& data, size_t at)
+    {
+        uint32_t value;
+        memcpy(&value, data.data() + at, sizeof(value));
+        return value;
+    }
+
+    // A spray is an 8-bit BMP whose palette doesn't matter: the engine paints each pixel in the chosen
+    // color, darker by its index. This gives the DIB that UpdateLogoWAD takes (the file after its
+    // 14-byte header, with the palette remapped like that), empty if the file isn't such a BMP
+    std::string LoadSprayDib(const std::string& logo, const SprayColor& color, int& width, int& height)
+    {
+        std::string file = ReadFile(("logos/" + logo + ".bmp").c_str());
+        constexpr size_t kFileHeader = 14, kInfoHeader = 40, kPalette = 256 * 4;
+        if (file.size() < kFileHeader + kInfoHeader + kPalette || file[0] != 'B' || file[1] != 'M')
+            return {};
+
+        int32_t w, h;
+        uint16_t bits;
+        memcpy(&w, file.data() + 18, 4);
+        memcpy(&h, file.data() + 22, 4);
+        memcpy(&bits, file.data() + 28, 2);
+        // UpdateLogoWAD expects the pixels right after the palette, as Valve's tools write them
+        if (bits != 8 || w <= 0 || h <= 0 || ReadU32(file, 10) != kFileHeader + kInfoHeader + kPalette
+            || file.size() < kFileHeader + kInfoHeader + kPalette + size_t((w + 3) & ~3) * h)
+            return {};
+
+        std::string dib = file.substr(kFileHeader);
+        for (int i = 0; i < 256; i++)
+        {
+            float t = i / 256.0f;
+            unsigned char* entry = reinterpret_cast<unsigned char*>(dib.data()) + kInfoHeader + i * 4;
+            entry[0] = static_cast<unsigned char>(color.b * t);
+            entry[1] = static_cast<unsigned char>(color.g * t);
+            entry[2] = static_cast<unsigned char>(color.r * t);
+            entry[3] = 0;
+        }
+
+        width = w;
+        height = h;
+        return dib;
+    }
+}
+
 CImGuiOptions::CImGuiOptions() : BaseClass("options_layout.ini")
 {
     SetVisible(false);
@@ -87,7 +185,7 @@ CImGuiOptions::CImGuiOptions() : BaseClass("options_layout.ini")
     // the old dialog's pages, sorted into the sidebar's groups
     bool singlePlayerOnly = ModInfo().IsSinglePlayerOnly();
     if (!singlePlayerOnly)
-        m_Pages.push_back({ "multiplayer", "#GameUI_Multiplayer", kGroupPlayer });
+        m_Pages.push_back({ "multiplayer", "#GameUI_Multiplayer", kGroupPlayer, &CImGuiOptions::DrawMultiplayer, "#GameUI_OptionsMultiplayerHint", "Your name, spray and what servers see of you" });
     m_Pages.push_back({ "game", "#GameUI_Game", kGroupPlayer });
     m_Pages.push_back({ "keyboard", "#GameUI_Keyboard", kGroupControls });
     m_Pages.push_back({ "mouse", "#GameUI_Mouse", kGroupControls, &CImGuiOptions::DrawMouse, "#GameUI_OptionsMouseHint", "Sensitivity, looking around and the joystick" });
@@ -96,6 +194,8 @@ CImGuiOptions::CImGuiOptions() : BaseClass("options_layout.ini")
     if (!singlePlayerOnly)
         m_Pages.push_back({ "voice", "#GameUI_Voice", kGroupSystem, &CImGuiOptions::DrawVoice, "#GameUI_OptionsVoiceHint", "Voice chat and the microphone" });
     m_Pages.push_back({ "miscellaneous", "#GameUI_Miscellaneous", kGroupSystem, &CImGuiOptions::DrawMisc, "#GameUI_OptionsMiscHint", "Look of the menus and the server browser" });
+
+    m_SetInfoKeys.insert("_pw");
 
     for (const Page& page : m_Pages)
     {
@@ -129,6 +229,7 @@ void CImGuiOptions::Activate(const char* tabName)
         LoadMiscSettings();
         LoadVoiceSettings();
         LoadVideoSettings();
+        LoadMultiplayerSettings();
     }
 
     if (tabName)
@@ -568,6 +669,235 @@ static std::string AspectRatioText(int width, int height)
     return std::to_string(x) + ":" + std::to_string(y);
 }
 
+void CImGuiOptions::DrawMultiplayer()
+{
+    BeginCard("#GameUI_OptionsGroupPlayer", "Player");
+    CvarText("#GameUI_PlayerName", "name");
+    CvarText("#GameUI_AdminPassword", "_pw", true);
+    EndCard();
+
+    DrawSpray();
+
+    BeginCard("#GameUI_OptionsCrosshair", "Crosshair");
+    BeginRow("#GameUI_OptionsCrosshairWhere", false);
+    if (ImGui::Button(Localized("#GameUI_CrosshairSettingsBtn").c_str(), ImVec2(ImGui::CalcItemWidth(), 0)))
+    {
+        for (const Page& page : m_Pages)
+        {
+            if (!strcmp(page.id, "game"))
+                m_pSelected = &page;
+        }
+    }
+    EndRow();
+    EndCard();
+
+    if (m_pAdvancedOptions && m_pAdvancedOptions->pObjList)
+    {
+        BeginCard("#GameUI_MultiplayerAdvanced", "Advanced");
+        for (CScriptObject* option = m_pAdvancedOptions->pObjList; option; option = option->pNext)
+            DrawAdvancedOption(*option);
+        EndCard();
+    }
+}
+
+void CImGuiOptions::DrawSpray()
+{
+    if (m_Logos.empty())
+        return;
+
+    BeginCard("#GameUI_SpraypaintImage", "Spraypaint image");
+    ImVec2 cardTop = ImGui::GetCursorScreenPos();
+
+    // a spray picked from a name that isn't in logos/ any more falls back to the first one
+    std::string logo = PendingString("cl_logofile");
+    if (std::find(m_Logos.begin(), m_Logos.end(), logo) == m_Logos.end())
+        logo = m_Logos.front();
+
+    BeginRow("#GameUI_OptionsSpray", m_Pending.count("cl_logofile") != 0);
+    if (ImGui::BeginCombo("##Spray", logo.c_str(), ImGuiComboFlags_HeightLarge))
+    {
+        for (const std::string& name : m_Logos)
+        {
+            if (ImGui::Selectable(name.c_str(), name == logo))
+                SetPending("cl_logofile", name);
+        }
+        ImGui::EndCombo();
+    }
+    EndRow();
+
+    const SprayColor& color = SprayColorByName(PendingString("cl_logocolor"));
+    BeginRow("#GameUI_OptionsSprayColor", m_Pending.count("cl_logocolor") != 0);
+    if (ImGui::BeginCombo("##SprayColor", Localized(color.name, color.name + 1).c_str()))
+    {
+        for (const SprayColor& choice : kSprayColors)
+        {
+            ImVec4 swatch(choice.r / 255.0f, choice.g / 255.0f, choice.b / 255.0f, 1.0f);
+            ImGui::ColorButton(choice.name, swatch, ImGuiColorEditFlags_NoTooltip, ImVec2(ImGui::GetTextLineHeight(), ImGui::GetTextLineHeight()));
+            ImGui::SameLine();
+            if (ImGui::Selectable(Localized(choice.name, choice.name + 1).c_str(), &choice == &color))
+                SetPending("cl_logocolor", choice.name);
+        }
+        ImGui::EndCombo();
+    }
+    EndRow();
+
+    // the preview, remade only when the spray or its color changes
+    std::string key = logo + "|" + color.name;
+    if (key != m_LogoTextureKey)
+    {
+        m_LogoTextureKey = key;
+        int width = 0, height = 0;
+        std::string dib = LoadSprayDib(logo, color, width, height);
+        m_iLogoWidth = m_iLogoHeight = 0;
+        if (!dib.empty())
+        {
+            // the DIB's rows go bottom up and are padded to 4 bytes
+            const unsigned char* pixels = reinterpret_cast<const unsigned char*>(dib.data()) + 40 + 256 * 4;
+            int stride = (width + 3) & ~3;
+            std::vector<unsigned char> rgba(size_t(width) * height * 4);
+            for (int y = 0; y < height; y++)
+            {
+                for (int x = 0; x < width; x++)
+                {
+                    float t = pixels[size_t(height - 1 - y) * stride + x] / 256.0f;
+                    unsigned char* out = &rgba[(size_t(y) * width + x) * 4];
+                    out[0] = static_cast<unsigned char>(color.r * t);
+                    out[1] = static_cast<unsigned char>(color.g * t);
+                    out[2] = static_cast<unsigned char>(color.b * t);
+                    out[3] = 255;
+                }
+            }
+
+            // a texture name from the engine's counter, like the font atlas's
+            if (!m_iLogoTexture)
+                m_iLogoTexture = vgui2::surface()->CreateNewTextureID();
+
+            GLint lastTexture;
+            glGetIntegerv(GL_TEXTURE_BINDING_2D, &lastTexture);
+            glBindTexture(GL_TEXTURE_2D, m_iLogoTexture);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+            glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, rgba.data());
+            glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
+            glBindTexture(GL_TEXTURE_2D, lastTexture);
+
+            m_iLogoWidth = width;
+            m_iLogoHeight = height;
+        }
+    }
+
+    if (m_iLogoWidth > 0)
+    {
+        // whole pixels, so the nearest filter keeps the spray sharp
+        float side = ImGui::GetFrameHeight() * 2.0f + ImGui::GetStyle().ItemSpacing.y;
+        float scale = std::max(1.0f, std::floor(side / std::max(m_iLogoWidth, m_iLogoHeight)));
+        if (std::max(m_iLogoWidth, m_iLogoHeight) > side)
+            scale = side / std::max(m_iLogoWidth, m_iLogoHeight);
+        ImVec2 size(m_iLogoWidth * scale, m_iLogoHeight * scale);
+
+        // beside the two combo boxes, in the gap between their captions and them
+        ImVec2 cursor = ImGui::GetCursorScreenPos();
+        float controlWidth = std::clamp((m_flCardRight - cardTop.x) * 0.5f, 180.0f, 340.0f);
+        ImGui::SetCursorScreenPos(ImVec2(m_flCardRight - controlWidth - ImGui::GetStyle().ItemSpacing.x * 2.0f - size.x, cardTop.y));
+        ImGui::Image(reinterpret_cast<ImTextureID>(static_cast<intptr_t>(m_iLogoTexture)), size);
+        ImGui::SetCursorScreenPos(cursor);
+    }
+
+    ImGui::PushTextWrapPos(ImGui::GetCursorPosX() + (m_flCardRight - ImGui::GetCursorScreenPos().x));
+    ImGui::TextDisabled("%s", Localized("#GameUI_SpraypaintServerNote").c_str());
+    ImGui::PopTextWrapPos();
+    EndCard();
+}
+
+void CImGuiOptions::DrawAdvancedOption(CScriptObject& option)
+{
+    const char* cvar = option.cvarname;
+    // the prompts are mostly tokens, but a script may have plain text too
+    std::string caption = option.prompt[0] == '#' ? Localized(option.prompt, option.prompt + 1) : option.prompt;
+
+    ImGui::PushID(cvar);
+    switch (option.type)
+    {
+        case O_BOOL:
+        {
+            BeginRowText(caption, m_Pending.count(cvar) != 0);
+            bool value = atof(PendingString(cvar).c_str()) != 0.0;
+            if (ImGui::Checkbox("##Value", &value))
+                SetPending(cvar, value ? "1" : "0");
+            EndRow();
+            break;
+        }
+
+        case O_NUMBER:
+        {
+            BeginRowText(caption, m_Pending.count(cvar) != 0);
+            float value = static_cast<float>(atof(PendingString(cvar).c_str()));
+            bool changed;
+            // -1 for both ends means no limits, which a slider can't show
+            if (option.fMin == -1.0f && option.fMax == -1.0f)
+                changed = ImGui::InputFloat("##Value", &value, 0.0f, 0.0f, "%g");
+            else
+                changed = ImGui::SliderFloat("##Value", &value, option.fMin, option.fMax, "%g", ImGuiSliderFlags_AlwaysClamp);
+            if (changed)
+            {
+                char text[32];
+                snprintf(text, sizeof(text), "%g", value);
+                SetPending(cvar, text);
+            }
+            EndRow();
+            break;
+        }
+
+        case O_STRING:
+        {
+            BeginRowText(caption, m_Pending.count(cvar) != 0);
+            char text[128];
+            V_strncpy(text, PendingString(cvar).c_str(), sizeof(text));
+            if (ImGui::InputText("##Value", text, sizeof(text)))
+            {
+                UTIL_StripInvalidCharacters(text, sizeof(text));
+                SetPending(cvar, text);
+            }
+            EndRow();
+            break;
+        }
+
+        case O_LIST:
+        {
+            BeginRowText(caption, m_Pending.count(cvar) != 0);
+            std::string current = PendingString(cvar);
+            auto itemText = [](const CScriptListItem* item)
+            {
+                return item->szItemText[0] == '#' ? Localized(item->szItemText, item->szItemText + 1) : std::string(item->szItemText);
+            };
+
+            std::string preview = current;
+            for (CScriptListItem* item = option.pListItems; item; item = item->pNext)
+            {
+                if (SameValue(item->szValue, current.c_str()))
+                    preview = itemText(item);
+            }
+
+            if (ImGui::BeginCombo("##Value", preview.c_str()))
+            {
+                for (CScriptListItem* item = option.pListItems; item; item = item->pNext)
+                {
+                    if (ImGui::Selectable(itemText(item).c_str(), SameValue(item->szValue, current.c_str())))
+                        SetPending(cvar, item->szValue);
+                }
+                ImGui::EndCombo();
+            }
+            EndRow();
+            break;
+        }
+
+        default:
+            break;
+    }
+    ImGui::PopID();
+}
+
 void CImGuiOptions::DrawVideo()
 {
     VideoSettings& video = m_VideoEdited;
@@ -744,14 +1074,13 @@ void CImGuiOptions::BeginRowText(const std::string& caption, bool pending)
         ImGui::GetWindowDrawList()->AddCircleFilled(dot, 3.0f, ImGui::GetColorU32(ImGuiCol_CheckMark));
     }
 
-    // a caption longer than its room is cut off and shown whole on hover
+    // a caption longer than its room wraps, and the row grows to fit it
     float captionRoom = m_flRowCaptionRight - pos.x;
     ImGui::AlignTextToFramePadding();
-    ImGui::PushClipRect(pos, ImVec2(m_flRowCaptionRight, pos.y + ImGui::GetFrameHeight()), true);
+    ImGui::PushTextWrapPos(ImGui::GetCursorPosX() + captionRoom);
     ImGui::TextUnformatted(caption.c_str());
-    ImGui::PopClipRect();
-    if (ImGui::CalcTextSize(caption.c_str()).x > captionRoom && ImGui::IsItemHovered())
-        ImGui::SetTooltip("%s", caption.c_str());
+    ImGui::PopTextWrapPos();
+    m_flRowCaptionBottom = ImGui::GetItemRectMax().y;
 
     ImGui::SameLine();
     ImGui::SetCursorScreenPos(ImVec2(controlX, pos.y));
@@ -760,22 +1089,30 @@ void CImGuiOptions::BeginRowText(const std::string& caption, bool pending)
 
 void CImGuiOptions::EndRow()
 {
+    float controlBottom = ImGui::GetItemRectMax().y;
+    float textBottom = m_flRowCaptionBottom;
+
     std::string hint = std::move(m_RowHint);
     m_RowHint.clear();
-    if (hint.empty())
-        return;
+    if (!hint.empty())
+    {
+        // under the caption, where the control has left the cursor below itself
+        ImGui::SetCursorScreenPos(ImVec2(m_flRowLeft, m_flRowCaptionBottom));
+        ImGui::PushTextWrapPos(ImGui::GetCursorPosX() + (m_flRowCaptionRight - m_flRowLeft));
+        ImGui::TextDisabled("%s", hint.c_str());
+        ImGui::PopTextWrapPos();
+        textBottom = ImGui::GetItemRectMax().y + 2.0f;
+    }
 
-    // the control has moved the cursor below itself; the hint goes under the caption instead
-    ImGui::SetCursorScreenPos(ImVec2(m_flRowLeft, m_flRowTop + ImGui::GetFrameHeight()));
-    ImGui::PushTextWrapPos(ImGui::GetCursorPosX() + (m_flRowCaptionRight - m_flRowLeft));
-    ImGui::TextDisabled("%s", hint.c_str());
-    ImGui::PopTextWrapPos();
-    ImGui::Dummy(ImVec2(0, 2));
+    // the next row starts below whichever is taller, the control or the text beside it; an empty
+    // item there tells the card where the row ends and moves the cursor on by the item spacing
+    ImGui::SetCursorScreenPos(ImVec2(m_flRowLeft, std::max(controlBottom, textBottom)));
+    ImGui::Dummy(ImVec2(0, 0));
 }
 
 bool CImGuiOptions::CvarCheckbox(const char* token, const char* cvar)
 {
-    if (!engine->pfnGetCvarPointer(cvar))
+    if (!Exists(cvar))
     {
         m_RowHint.clear();
         return false;
@@ -796,7 +1133,7 @@ bool CImGuiOptions::CvarCheckbox(const char* token, const char* cvar)
 
 bool CImGuiOptions::CvarNegateCheckbox(const char* token, const char* cvar)
 {
-    if (!engine->pfnGetCvarPointer(cvar))
+    if (!Exists(cvar))
     {
         m_RowHint.clear();
         return false;
@@ -821,6 +1158,32 @@ bool CImGuiOptions::CvarNegateCheckbox(const char* token, const char* cvar)
         char value[32];
         snprintf(value, sizeof(value), "%g", negative ? -magnitude : magnitude);
         SetPending(cvar, value);
+    }
+    return changed;
+}
+
+bool CImGuiOptions::CvarText(const char* token, const char* cvar, bool password)
+{
+    if (!Exists(cvar))
+    {
+        m_RowHint.clear();
+        return false;
+    }
+
+    BeginRow(token, m_Pending.count(cvar) != 0);
+
+    char text[128];
+    V_strncpy(text, PendingString(cvar).c_str(), sizeof(text));
+    ImGui::PushID(cvar);
+    bool changed = ImGui::InputText("##Value", text, sizeof(text), password ? ImGuiInputTextFlags_Password : 0);
+    ImGui::PopID();
+    EndRow();
+
+    // quotes would end the command that sets the value early
+    if (changed)
+    {
+        UTIL_StripInvalidCharacters(text, sizeof(text));
+        SetPending(cvar, text);
     }
     return changed;
 }
@@ -855,7 +1218,7 @@ bool CImGuiOptions::KeyToggleCheckbox(const char* token, const char* keyName, co
 
 bool CImGuiOptions::CvarSlider(const char* token, const char* cvar, float min, float max, const char* format, float displayScale, int flags)
 {
-    if (!engine->pfnGetCvarPointer(cvar))
+    if (!Exists(cvar))
     {
         m_RowHint.clear();
         return false;
@@ -880,7 +1243,7 @@ bool CImGuiOptions::CvarSlider(const char* token, const char* cvar, float min, f
 
 bool CImGuiOptions::CvarCombo(const char* token, const char* cvar, const std::vector<Choice>& choices)
 {
-    if (!engine->pfnGetCvarPointer(cvar))
+    if (!Exists(cvar))
     {
         m_RowHint.clear();
         return false;
@@ -918,14 +1281,30 @@ bool CImGuiOptions::CvarCombo(const char* token, const char* cvar, const std::ve
     return changed;
 }
 
+std::string CImGuiOptions::CurrentString(const char* name) const
+{
+    if (m_SetInfoKeys.count(name))
+    {
+        const char* value = engine->LocalPlayerInfo_ValueForKey(name);
+        return value ? value : "";
+    }
+
+    cvar_t* pointer = engine->pfnGetCvarPointer(name);
+    return pointer ? pointer->string : "";
+}
+
+bool CImGuiOptions::Exists(const char* name) const
+{
+    return m_SetInfoKeys.count(name) || engine->pfnGetCvarPointer(name);
+}
+
 std::string CImGuiOptions::PendingString(const char* cvar) const
 {
     auto it = m_Pending.find(cvar);
     if (it != m_Pending.end())
         return it->second;
 
-    cvar_t* pointer = engine->pfnGetCvarPointer(cvar);
-    return pointer ? pointer->string : "";
+    return CurrentString(cvar);
 }
 
 float CImGuiOptions::PendingValue(const char* cvar) const
@@ -936,8 +1315,7 @@ float CImGuiOptions::PendingValue(const char* cvar) const
 void CImGuiOptions::SetPending(const char* cvar, const std::string& value)
 {
     // a control moved back to where it was leaves nothing to apply
-    cvar_t* pointer = engine->pfnGetCvarPointer(cvar);
-    if (pointer && SameValue(pointer->string, value.c_str()))
+    if (Exists(cvar) && SameValue(CurrentString(cvar).c_str(), value.c_str()))
         m_Pending.erase(cvar);
     else
         m_Pending[cvar] = value;
@@ -1006,9 +1384,27 @@ void CImGuiOptions::ApplyChanges()
     StopMicrophoneTest();
 
     bool restartForCvars = m_Pending.count("brightness") || m_Pending.count("gamma");
+    bool sprayChanged = m_Pending.count("cl_logofile") || m_Pending.count("cl_logocolor");
+    SaveAdvancedOptions();
 
     for (const auto& [cvar, value] : m_Pending)
-        engine->Cvar_Set(cvar.c_str(), value.c_str());
+    {
+        // userinfo keys and the options of user.scr that aren't the client's cvars go as commands
+        char command[512];
+        if (m_SetInfoKeys.count(cvar))
+            snprintf(command, sizeof(command), "setinfo %s \"%s\"\n", cvar.c_str(), value.c_str());
+        else if (!engine->pfnGetCvarPointer(cvar.c_str()))
+            snprintf(command, sizeof(command), "%s \"%s\"\n", cvar.c_str(), value.c_str());
+        else
+        {
+            engine->Cvar_Set(cvar.c_str(), value.c_str());
+            continue;
+        }
+        engine->pfnClientCmd(command);
+    }
+
+    if (sprayChanged)
+        SaveSpray();
 
     for (const auto& [command, on] : m_PendingKeys)
     {
@@ -1023,6 +1419,85 @@ void CImGuiOptions::ApplyChanges()
     SaveVoiceSettings();
     // last, since it may restart the game
     SaveVideoSettings(restartForCvars);
+}
+
+void CImGuiOptions::LoadMultiplayerSettings()
+{
+    m_Logos.clear();
+    FileFindHandle_t handle = 0;
+    for (const char* file = g_pFullFileSystem->FindFirst("logos/*.bmp", &handle); file; file = g_pFullFileSystem->FindNext(handle))
+    {
+        // remapped.bmp is the old dialog's preview, not a spray
+        std::string name = file;
+        if (name.size() > 4 && V_stricmp(file, "remapped.bmp") && name[0] != '.')
+            m_Logos.push_back(name.substr(0, name.size() - 4));
+    }
+    g_pFullFileSystem->FindClose(handle);
+    std::sort(m_Logos.begin(), m_Logos.end());
+
+    m_pAdvancedOptions = std::make_unique<CInfoDescription>(nullptr);
+    m_pAdvancedOptions->InitFromFile("user.scr");
+
+    // the old dialog adds this one when the game's script lacks it
+    if (!m_pAdvancedOptions->FindObject("hud_deathnotice_old"))
+    {
+        auto* option = new CScriptObject();
+        option->type = O_BOOL;
+        V_strcpy_safe(option->prompt, "#Cstrike_LegacyKillFeed");
+        V_strcpy_safe(option->cvarname, "hud_deathnotice_old");
+        m_pAdvancedOptions->AddObject(option);
+    }
+
+    m_pAdvancedOptions->TransferCurrentValues(nullptr);
+
+    for (CScriptObject* option = m_pAdvancedOptions->pObjList; option; option = option->pNext)
+    {
+        if (option->bSetInfo)
+            m_SetInfoKeys.insert(option->cvarname);
+    }
+}
+
+void CImGuiOptions::SaveAdvancedOptions()
+{
+    if (!m_pAdvancedOptions)
+        return;
+
+    bool changed = false;
+    for (CScriptObject* option = m_pAdvancedOptions->pObjList; option; option = option->pNext)
+    {
+        auto it = m_Pending.find(option->cvarname);
+        if (it == m_Pending.end())
+            continue;
+
+        option->SetCurValue(it->second.c_str());
+        changed = true;
+    }
+
+    if (!changed)
+        return;
+
+    FileHandle_t file = g_pFullFileSystem->Open("user.scr", "wb");
+    if (file != FILESYSTEM_INVALID_HANDLE)
+    {
+        m_pAdvancedOptions->WriteToScriptFile(file);
+        g_pFullFileSystem->Close(file);
+    }
+}
+
+void CImGuiOptions::SaveSpray()
+{
+    const SprayColor& color = SprayColorByName(CurrentString("cl_logocolor"));
+    int width, height;
+    std::string dib = LoadSprayDib(CurrentString("cl_logofile"), color, width, height);
+    if (dib.empty())
+        return;
+
+    // UpdateLogoWAD locks what it's given like a Windows memory handle
+    HGLOBAL handle = GlobalAlloc(GMEM_MOVEABLE | GMEM_ZEROINIT, dib.size());
+    memcpy(GlobalLock(handle), dib.data(), dib.size());
+    GlobalUnlock(handle);
+    UpdateLogoWAD(handle, color.r, color.g, color.b);
+    GlobalFree(handle);
 }
 
 void CImGuiOptions::LoadVideoSettings()

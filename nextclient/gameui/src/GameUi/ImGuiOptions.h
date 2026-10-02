@@ -3,11 +3,16 @@
 #include "ImGuiPanel.h"
 
 #include <map>
+#include <memory>
+#include <set>
 #include <string>
 #include <vector>
 
 // The options dialog drawn with Dear ImGui; opt_legacy 1 brings the VGUI one back.
 // Like the old dialog, changes wait for OK or Apply and Cancel throws them away
+class CInfoDescription;
+class CScriptObject;
+
 class CImGuiOptions : public CImGuiPanel
 {
     DECLARE_CLASS_SIMPLE(CImGuiOptions, CImGuiPanel);
@@ -56,6 +61,9 @@ private:
     void DrawMisc();
     void DrawVoice();
     void DrawVideo();
+    void DrawMultiplayer();
+    void DrawSpray();
+    void DrawAdvancedOption(CScriptObject& option);
 
     // a titled box the settings rows go in; it has to be closed before the page's next one
     void BeginCard(const char* token, const char* english);
@@ -77,7 +85,11 @@ private:
     bool CvarCombo(const char* token, const char* cvar, const std::vector<Choice>& choices);
     // a +command the player keeps on, like +mlook; keyName is the client's name for its state, like in_mlook
     bool KeyToggleCheckbox(const char* token, const char* keyName, const char* command);
+    bool CvarText(const char* token, const char* cvar, bool password = false);
 
+    // a cvar's value, or a userinfo key's for the names in m_SetInfoKeys
+    std::string CurrentString(const char* name) const;
+    bool Exists(const char* name) const;
     // what the cvar will be after Apply: the pending value if there is one
     std::string PendingString(const char* cvar) const;
     float PendingValue(const char* cvar) const;
@@ -95,6 +107,12 @@ private:
     void LoadVideoSettings();
     // restartForCvars: brightness or gamma changed, which the engine only picks up on a restart
     void SaveVideoSettings(bool restartForCvars);
+    // the sprays in logos/ and the options user.scr describes
+    void LoadMultiplayerSettings();
+    // user.scr keeps the last values chosen, for the old dialog to start from
+    void SaveAdvancedOptions();
+    // writes tempdecal.wad, the spray the engine uploads to servers
+    void SaveSpray();
     void ApplyChanges();
     void Close();
 
@@ -111,6 +129,7 @@ private:
     float m_flRowLeft = 0.0f;
     float m_flRowTop = 0.0f;
     float m_flRowCaptionRight = 0.0f;
+    float m_flRowCaptionBottom = 0.0f;
     std::string m_RowHint;
 
     // cvar name -> the value it gets on Apply
@@ -169,4 +188,16 @@ private:
     VideoSettings m_VideoEdited;
     // width and height
     std::vector<std::pair<int, int>> m_VideoModes;
+
+    // names in logos/ without .bmp
+    std::vector<std::string> m_Logos;
+    int m_iLogoTexture = 0;
+    int m_iLogoWidth = 0;
+    int m_iLogoHeight = 0;
+    // the logo and color the texture shows, so it's only remade when they change
+    std::string m_LogoTextureKey;
+    std::unique_ptr<CInfoDescription> m_pAdvancedOptions;
+
+    // userinfo keys that Apply sets with setinfo instead of as cvars
+    std::set<std::string> m_SetInfoKeys;
 };
