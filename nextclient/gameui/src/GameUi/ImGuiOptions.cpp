@@ -6,6 +6,11 @@
 #include "OptionsDialog/LogoFile.h"
 #include "OptionsDialog/VideoAdvancedDialog.h"
 #include "ScriptObject.h"
+#include "Controls/BobPreviewPanel.h"
+
+#include <crosshair/crosshair.h>
+#include <cvars/cvar_defaults.h>
+#include <view/view_bob.h>
 
 #ifdef _WIN32
 #include <Windows.h>
@@ -28,6 +33,7 @@
 #include <imgui/imgui.h>
 
 #include <algorithm>
+#include <functional>
 #include <numeric>
 #include <cfloat>
 #include <cmath>
@@ -186,8 +192,8 @@ CImGuiOptions::CImGuiOptions() : BaseClass("options_layout.ini")
     bool singlePlayerOnly = ModInfo().IsSinglePlayerOnly();
     if (!singlePlayerOnly)
         m_Pages.push_back({ "multiplayer", "#GameUI_Multiplayer", kGroupPlayer, &CImGuiOptions::DrawMultiplayer, "#GameUI_OptionsMultiplayerHint", "Your name, spray and what servers see of you" });
-    m_Pages.push_back({ "game", "#GameUI_Game", kGroupPlayer });
-    m_Pages.push_back({ "keyboard", "#GameUI_Keyboard", kGroupControls });
+    m_Pages.push_back({ "game", "#GameUI_Game", kGroupPlayer, &CImGuiOptions::DrawGame, "#GameUI_OptionsGameHint", "Crosshair and how the weapon and the view move" });
+    m_Pages.push_back({ "keyboard", "#GameUI_Keyboard", kGroupControls, &CImGuiOptions::DrawKeyboard, "#GameUI_OptionsKeyboardHint", "Click a key to change it, right-click to clear it, Esc to stop" });
     m_Pages.push_back({ "mouse", "#GameUI_Mouse", kGroupControls, &CImGuiOptions::DrawMouse, "#GameUI_OptionsMouseHint", "Sensitivity, looking around and the joystick" });
     m_Pages.push_back({ "audio", "#GameUI_Audio", kGroupSystem, &CImGuiOptions::DrawAudio, "#GameUI_OptionsAudioHint", "Volume and sound quality" });
     m_Pages.push_back({ "video", "#GameUI_Video", kGroupSystem, &CImGuiOptions::DrawVideo, "#GameUI_OptionsVideoHint", "Screen, picture and field of view" });
@@ -230,6 +236,7 @@ void CImGuiOptions::Activate(const char* tabName)
         LoadVoiceSettings();
         LoadVideoSettings();
         LoadMultiplayerSettings();
+        LoadBindings();
     }
 
     if (tabName)
@@ -250,6 +257,11 @@ void CImGuiOptions::Activate(const char* tabName)
 
 void CImGuiOptions::Close()
 {
+    m_iCaptureRow = -1;
+    m_Bindings = m_BindingsSaved;
+    if (m_hGamePreview.Get())
+        m_hGamePreview->SetVisible(false);
+
     StopMicrophoneTest();
     m_VoiceEdited = m_VoiceSaved;
     m_VideoEdited = m_VideoSaved;
@@ -274,6 +286,8 @@ void CImGuiOptions::DrawImGui()
         ImGui::SetNextWindowFocus();
         m_bFocusWindow = false;
     }
+
+    m_bPreviewDrawn = false;
 
     bool open = true;
     std::string title = Localized("#GameUI_Options") + "###Options";
@@ -319,6 +333,9 @@ void CImGuiOptions::DrawImGui()
     ImGui::End();
 
     ImGui::PopStyleVar();
+
+    if (m_hGamePreview.Get() && !m_bPreviewDrawn)
+        m_hGamePreview->SetVisible(false);
 
     if (!open)
         Close();
@@ -681,13 +698,7 @@ void CImGuiOptions::DrawMultiplayer()
     BeginCard("#GameUI_OptionsCrosshair", "Crosshair");
     BeginRow("#GameUI_OptionsCrosshairWhere", false);
     if (ImGui::Button(Localized("#GameUI_CrosshairSettingsBtn").c_str(), ImVec2(ImGui::CalcItemWidth(), 0)))
-    {
-        for (const Page& page : m_Pages)
-        {
-            if (!strcmp(page.id, "game"))
-                m_pSelected = &page;
-        }
-    }
+        ShowCrosshairSettings();
     EndRow();
     EndCard();
 
@@ -898,6 +909,839 @@ void CImGuiOptions::DrawAdvancedOption(CScriptObject& option)
     ImGui::PopID();
 }
 
+namespace
+{
+    struct GameTab
+    {
+        const char* token;
+        PreviewMove move;
+        PreviewDemo demo;
+    };
+
+    // the old page's tabs, each with the movement and demo that make its settings show
+    const GameTab kGameTabs[] = {
+        { "#GameUI_GameTabCrosshair", PreviewMove::kIdle, PreviewDemo::kNone },
+        { "#GameUI_GameTabBobbing", PreviewMove::kRun, PreviewDemo::kNone },
+        { "#GameUI_GameTabModel", PreviewMove::kIdle, PreviewDemo::kNone },
+        { "#GameUI_GameTabInertia", PreviewMove::kIdle, PreviewDemo::kLag },
+        { "#GameUI_GameTabCamera", PreviewMove::kStrafe, PreviewDemo::kWeaponSwitch },
+    };
+
+    enum
+    {
+        kTabCrosshair,
+        kTabBobbing,
+        kTabModel,
+        kTabInertia,
+        kTabCamera,
+    };
+
+    const char* const kPreviewMoves[] = {
+        "#GameUI_BobPreviewRun",
+        "#GameUI_BobPreviewWalk",
+        "#GameUI_BobPreviewStrafe",
+        "#GameUI_BobPreviewIdle",
+    };
+
+    // each tab's cvars, which Defaults puts back
+    const char* const kTabCvars[][8] = {
+        { cvars::kCrosshairType.name, cvars::kCrosshairSize.name, cvars::kCrosshairColor.name, cvars::kCrosshairTranslucent.name, cvars::kDynamicCrosshair.name },
+        { cvars::kBobStyle.name, cvars::kBob.name, cvars::kBobCycle.name, cvars::kBobUp.name, cvars::kBobAmtVert.name, cvars::kBobAmtLat.name, cvars::kBobLowerAmt.name },
+        { cvars::kViewmodelOffsetX.name, cvars::kViewmodelOffsetY.name, cvars::kViewmodelOffsetZ.name, cvars::kViewmodelFov.name, cvars::kViewmodelDisableShift.name },
+        { cvars::kViewmodelLagStyle.name, cvars::kViewmodelLagScale.name, cvars::kViewmodelLagSpeed.name },
+        { cvars::kRollAngle.name, cvars::kRollSpeed.name, cvars::kCameraMovementScale.name, cvars::kCameraMovementInterp.name, cvars::kBobCamera.name },
+    };
+
+    // "r g b" as cl_crosshair_color carries it
+    ncl_math::Color ParseCrosshairColor(const std::string& text)
+    {
+        int r, g, b;
+        if (sscanf(text.c_str(), "%d %d %d", &r, &g, &b) != 3 && sscanf(cvars::kCrosshairColor.value, "%d %d %d", &r, &g, &b) != 3)
+            return {};
+
+        return { (uint8_t)std::clamp(r, 0, 255), (uint8_t)std::clamp(g, 0, 255), (uint8_t)std::clamp(b, 0, 255) };
+    }
+}
+
+void CImGuiOptions::ShowCrosshairSettings()
+{
+    for (const Page& page : m_Pages)
+    {
+        if (!strcmp(page.id, "game"))
+            m_pSelected = &page;
+    }
+
+    m_iGameTab = kTabCrosshair;
+    m_bSelectGameTab = true;
+}
+
+void CImGuiOptions::ResetToDefault(const char* cvar)
+{
+    if (const char* value = cvars::FindDefault(cvar))
+        SetPending(cvar, value);
+}
+
+void CImGuiOptions::SetPendingFloat(const char* cvar, float value)
+{
+    char text[32];
+    snprintf(text, sizeof(text), "%g", value);
+    SetPending(cvar, text);
+}
+
+void CImGuiOptions::SyncGamePreview()
+{
+    CBobPreviewPanel* preview = m_hGamePreview.Get();
+
+    view_bob::BobParams bob;
+    bob.style = static_cast<int>(PendingValue(cvars::kBobStyle.name));
+    bob.bob = PendingValue(cvars::kBob.name);
+    bob.bob_cycle = PendingValue(cvars::kBobCycle.name);
+    bob.bob_up = PendingValue(cvars::kBobUp.name);
+    bob.amt_vert = PendingValue(cvars::kBobAmtVert.name);
+    bob.amt_lat = PendingValue(cvars::kBobAmtLat.name);
+    bob.lower_amt = PendingValue(cvars::kBobLowerAmt.name);
+    bob.camera_bob = PendingValue(cvars::kBobCamera.name) != 0.0f;
+    preview->SetBobParams(bob);
+
+    ViewTuningParams tuning;
+    tuning.offset_x = PendingValue(cvars::kViewmodelOffsetX.name);
+    tuning.offset_y = PendingValue(cvars::kViewmodelOffsetY.name);
+    tuning.offset_z = PendingValue(cvars::kViewmodelOffsetZ.name);
+    tuning.disable_shift = PendingValue(cvars::kViewmodelDisableShift.name) != 0.0f;
+    tuning.viewmodel_fov = PendingValue(cvars::kViewmodelFov.name);
+    tuning.lag_style = static_cast<int>(PendingValue(cvars::kViewmodelLagStyle.name));
+    tuning.lag_scale = PendingValue(cvars::kViewmodelLagScale.name);
+    tuning.lag_speed = PendingValue(cvars::kViewmodelLagSpeed.name);
+    tuning.roll_angle = PendingValue(cvars::kRollAngle.name);
+    tuning.roll_speed = PendingValue(cvars::kRollSpeed.name);
+    tuning.camera_move_scale = PendingValue(cvars::kCameraMovementScale.name);
+    tuning.camera_move_interp = PendingValue(cvars::kCameraMovementInterp.name);
+    preview->SetViewTuning(tuning);
+
+    CrosshairParams crosshair;
+    crosshair.type = std::clamp(static_cast<int>(PendingValue(cvars::kCrosshairType.name)), 0, crosshair::kTypeCount - 1);
+    crosshair.color = ParseCrosshairColor(PendingString(cvars::kCrosshairColor.name));
+    crosshair.size_index = crosshair::SizeIndex(PendingString(cvars::kCrosshairSize.name).c_str());
+    crosshair.translucent = PendingValue(cvars::kCrosshairTranslucent.name) != 0.0f;
+    crosshair.dynamic = PendingValue(cvars::kDynamicCrosshair.name) != 0.0f;
+    preview->SetCrosshairParams(crosshair);
+}
+
+void CImGuiOptions::DrawGame()
+{
+    // the preview is the old page's VGUI panel: it draws the scene through the engine, which
+    // ImGui can't, so it sits over a hole the page leaves for it
+    if (!m_hGamePreview.Get())
+    {
+        m_hGamePreview = new CBobPreviewPanel(this, "GamePreview");
+        m_hGamePreview->SetMouseInputEnabled(false);
+        m_hGamePreview->SetKeyBoardInputEnabled(false);
+        m_iShownPreviewMove = m_iShownPreviewDemo = -1;
+    }
+
+    float previewHeight = std::clamp(ImGui::GetContentRegionAvail().y * 0.48f, 140.0f, 320.0f);
+    DrawGamePreview(previewHeight);
+    ImGui::Dummy(ImVec2(0, 4));
+
+    int shownTab = m_iGameTab;
+    if (ImGui::BeginTabBar("GameTabs"))
+    {
+        for (int i = 0; i < (int)std::size(kGameTabs); i++)
+        {
+            ImGuiTabItemFlags flags = m_bSelectGameTab && i == m_iGameTab ? ImGuiTabItemFlags_SetSelected : 0;
+            std::string label = Localized(kGameTabs[i].token) + "###GameTab" + std::to_string(i);
+            if (ImGui::BeginTabItem(label.c_str(), nullptr, flags))
+            {
+                shownTab = i;
+                ImGui::EndTabItem();
+            }
+        }
+        ImGui::EndTabBar();
+    }
+    m_bSelectGameTab = false;
+
+    // a tab that comes up starts the movement that shows its settings, as on the old page
+    if (shownTab != m_iGameTab)
+        m_iPreviewMove = static_cast<int>(kGameTabs[shownTab].move);
+    m_iGameTab = shownTab;
+
+    // the settings scroll under the preview, which has to stay where the page left room for it
+    ImGui::BeginChild("GameSettings", ImVec2(0, 0), false);
+    BeginCard(nullptr, nullptr);
+    switch (m_iGameTab)
+    {
+        case kTabCrosshair: DrawCrosshairTab(); break;
+        case kTabBobbing: DrawBobbingTab(); break;
+        case kTabModel: DrawModelTab(); break;
+        case kTabInertia: DrawInertiaTab(); break;
+        case kTabCamera: DrawCameraTab(); break;
+    }
+    EndCard();
+    ImGui::EndChild();
+
+    SyncGamePreview();
+}
+
+void CImGuiOptions::DrawGamePreview(float height)
+{
+    const ImGuiStyle& style = ImGui::GetStyle();
+    CBobPreviewPanel* preview = m_hGamePreview.Get();
+
+    struct Preset
+    {
+        const char* token;
+        std::function<void()> apply;
+    };
+
+    auto reset = [this](std::initializer_list<const char*> names)
+    {
+        for (const char* name : names)
+            ResetToDefault(name);
+    };
+
+    std::vector<Preset> presets;
+    switch (m_iGameTab)
+    {
+        case kTabCrosshair:
+            presets = {
+                { "#GameUI_PresetClassic", [&] { for (const char* cvar : kTabCvars[kTabCrosshair]) if (cvar) ResetToDefault(cvar); } },
+                { "#GameUI_PresetCrosshairDot", [&] { SetPendingFloat(cvars::kCrosshairType.name, crosshair::kTypeDot); SetPending(cvars::kDynamicCrosshair.name, "0"); } },
+                { "#GameUI_PresetCrosshairStatic", [&] { SetPending(cvars::kDynamicCrosshair.name, "0"); } },
+            };
+            break;
+        case kTabBobbing:
+            presets = {
+                { "#GameUI_PresetClassic", [&] { SetPendingFloat(cvars::kBobStyle.name, view_bob::kStyleClassic); reset({ cvars::kBob.name, cvars::kBobCycle.name, cvars::kBobUp.name }); } },
+                { "#GameUI_PresetModern", [&] { SetPendingFloat(cvars::kBobStyle.name, view_bob::kStyleModern); reset({ cvars::kBobCycle.name, cvars::kBobUp.name, cvars::kBobAmtVert.name, cvars::kBobAmtLat.name, cvars::kBobLowerAmt.name }); } },
+                // every amplitude and not the style, so the weapon stands still in either style
+                { "#GameUI_PresetNone", [&] { for (const char* cvar : { cvars::kBob.name, cvars::kBobAmtVert.name, cvars::kBobAmtLat.name, cvars::kBobLowerAmt.name }) SetPending(cvar, "0"); } },
+            };
+            break;
+        case kTabModel:
+            presets = {
+                { "#GameUI_PresetDefault", [&] { reset({ cvars::kViewmodelOffsetX.name, cvars::kViewmodelOffsetY.name, cvars::kViewmodelOffsetZ.name, cvars::kViewmodelFov.name }); } },
+                { "#GameUI_PresetModelCentered", [&] { SetPendingFloat(cvars::kViewmodelOffsetX.name, -1.5f); SetPendingFloat(cvars::kViewmodelOffsetY.name, 1.0f); SetPendingFloat(cvars::kViewmodelOffsetZ.name, 0.5f); } },
+                { "#GameUI_PresetModelWide", [&] { SetPendingFloat(cvars::kViewmodelFov.name, 100.0f); } },
+            };
+            break;
+        case kTabInertia:
+            presets = {
+                { "#GameUI_PresetOff", [&] { SetPending(cvars::kViewmodelLagStyle.name, "0"); } },
+                { "#GameUI_ViewLagHL2", [&] { SetPending(cvars::kViewmodelLagStyle.name, "1"); reset({ cvars::kViewmodelLagScale.name, cvars::kViewmodelLagSpeed.name }); } },
+                { "#GameUI_ViewLagCSS", [&] { SetPending(cvars::kViewmodelLagStyle.name, "2"); reset({ cvars::kViewmodelLagScale.name }); } },
+            };
+            break;
+        case kTabCamera:
+            presets = {
+                { "#GameUI_PresetCameraCalm", [&] { reset({ cvars::kRollAngle.name, cvars::kCameraMovementInterp.name }); SetPending(cvars::kCameraMovementScale.name, "0"); } },
+                { "#GameUI_PresetCameraQuake", [&] { SetPending(cvars::kRollAngle.name, "2"); reset({ cvars::kRollSpeed.name }); } },
+                { "#GameUI_PresetCameraCinematic", [&] { SetPendingFloat(cvars::kCameraMovementScale.name, 1.5f); SetPendingFloat(cvars::kCameraMovementInterp.name, 0.1f); } },
+            };
+            break;
+    }
+
+    // the scene, framed like the player's screen and as big as the page allows
+    float avail = ImGui::GetContentRegionAvail().x;
+    float aspect = CBobPreviewPanel::get_screen_aspect();
+    float width = std::min(height * aspect, avail);
+    height = width / aspect;
+
+    ImGui::SetCursorPosX(ImGui::GetCursorPosX() + (avail - width) * 0.5f);
+    ImVec2 min = ImGui::GetCursorScreenPos();
+    ImGui::Dummy(ImVec2(width, height));
+    ImGui::GetWindowDrawList()->AddRect(ImVec2(min.x - 1, min.y - 1), ImVec2(min.x + width + 1, min.y + height + 1),
+        ImGui::GetColorU32(ImGuiCol_Border), 2.0f, 0, 2.0f);
+
+    // ImGui works in screen space, while this panel shrinks itself around its windows and a
+    // child is placed relative to it
+    int x = static_cast<int>(min.x), y = static_cast<int>(min.y);
+    ScreenToLocal(x, y);
+    preview->SetBounds(x, y, static_cast<int>(width), static_cast<int>(height));
+    preview->SetVisible(true);
+    m_bPreviewDrawn = true;
+
+    if (m_iShownPreviewMove != m_iPreviewMove)
+    {
+        m_iShownPreviewMove = m_iPreviewMove;
+        preview->SetMoveMode(static_cast<PreviewMove>(m_iPreviewMove));
+    }
+    int demo = static_cast<int>(kGameTabs[m_iGameTab].demo);
+    if (m_iShownPreviewDemo != demo)
+    {
+        m_iShownPreviewDemo = demo;
+        preview->SetDemo(kGameTabs[m_iGameTab].demo);
+    }
+
+    ImGui::Dummy(ImVec2(0, 2));
+
+    // under it, how the preview moves on the left and the tab's presets on the right
+    auto buttonWidth = [&](const std::string& text) { return ImGui::CalcTextSize(text.c_str()).x + style.FramePadding.x * 2.0f; };
+
+    float movesWidth = 0.0f;
+    for (const char* token : kPreviewMoves)
+        movesWidth += buttonWidth(Localized(token)) + 1.0f;
+
+    std::string defaults = Localized("#GameUI_ViewDefaultsBtn");
+    std::string presetsCaption = Localized("#GameUI_GamePresets");
+    float presetsWidth = buttonWidth(defaults) + ImGui::CalcTextSize(presetsCaption.c_str()).x + style.ItemSpacing.x;
+    for (const Preset& preset : presets)
+        presetsWidth += buttonWidth(Localized(preset.token)) + style.ItemSpacing.x;
+
+    // the movement buttons join into one switch
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(1, style.ItemSpacing.y));
+    for (int i = 0; i < (int)std::size(kPreviewMoves); i++)
+    {
+        bool active = m_iPreviewMove == i;
+        if (active)
+            ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyleColorVec4(ImGuiCol_CheckMark));
+        if (i > 0)
+            ImGui::SameLine();
+        if (ImGui::Button(Localized(kPreviewMoves[i]).c_str()))
+            m_iPreviewMove = i;
+        if (active)
+            ImGui::PopStyleColor();
+    }
+    ImGui::PopStyleVar();
+
+    // on one line when there's room, under the switch otherwise
+    if (movesWidth + presetsWidth + style.ItemSpacing.x * 4.0f <= avail)
+    {
+        ImGui::SameLine();
+        ImGui::SetCursorPosX(ImGui::GetCursorPosX() + avail - movesWidth - presetsWidth - style.ItemSpacing.x);
+    }
+
+    ImGui::AlignTextToFramePadding();
+    ImGui::TextDisabled("%s", presetsCaption.c_str());
+    ImGui::SameLine();
+
+    for (size_t i = 0; i < presets.size(); i++)
+    {
+        ImGui::PushID(static_cast<int>(i));
+        if (ImGui::Button(Localized(presets[i].token).c_str()))
+            presets[i].apply();
+        ImGui::PopID();
+        ImGui::SameLine();
+    }
+
+    if (ImGui::Button(defaults.c_str()))
+    {
+        for (const char* cvar : kTabCvars[m_iGameTab])
+        {
+            if (cvar)
+                ResetToDefault(cvar);
+        }
+    }
+}
+
+void CImGuiOptions::DrawCrosshairTab()
+{
+    CvarCombo("#GameUI_CrosshairType", cvars::kCrosshairType.name, {
+        { "#GameUI_Crosshair_Cross", "0" },
+        { "#GameUI_Crosshair_TShape", "1" },
+        { "#GameUI_Crosshair_Circle", "2" },
+        { "#GameUI_Crosshair_Dot", "3" },
+    });
+
+    // captions of crosshair::kSizes, in its order
+    static const char* const kSizeTokens[crosshair::kSizeCount] = {
+        "#GameUI_Auto", "#GameUI_Small", "#GameUI_Medium", "#GameUI_Large", "#GameUI_ExtraSmall",
+    };
+    std::vector<Choice> sizes;
+    for (int i = 0; i < crosshair::kSizeCount; i++)
+        sizes.push_back({ kSizeTokens[i], crosshair::kSizes[i].name });
+    CvarCombo("#GameUI_CrosshairSize", cvars::kCrosshairSize.name, sizes);
+
+    const char* colorCvar = cvars::kCrosshairColor.name;
+    if (Exists(colorCvar))
+    {
+        BeginRow("#GameUI_CrosshairColor", m_Pending.count(colorCvar) != 0);
+        ncl_math::Color color = ParseCrosshairColor(PendingString(colorCvar));
+        float rgb[3] = { color.r / 255.0f, color.g / 255.0f, color.b / 255.0f };
+        if (ImGui::ColorEdit3("##CrosshairColor", rgb, ImGuiColorEditFlags_DisplayRGB | ImGuiColorEditFlags_Uint8))
+        {
+            char text[32];
+            snprintf(text, sizeof(text), "%d %d %d", (int)std::lround(rgb[0] * 255.0f), (int)std::lround(rgb[1] * 255.0f), (int)std::lround(rgb[2] * 255.0f));
+            SetPending(colorCvar, text);
+        }
+        EndRow();
+    }
+
+    CvarCheckbox("#GameUI_Translucent", cvars::kCrosshairTranslucent.name);
+    CvarCheckbox("#GameUI_CrosshairDynamic", cvars::kDynamicCrosshair.name);
+}
+
+void CImGuiOptions::DrawBobbingTab()
+{
+    CvarCombo("#GameUI_BobStyle", cvars::kBobStyle.name, {
+        { "#GameUI_BobStyleClassic", "0" },
+        { "#GameUI_BobStyleClassicSway", "1" },
+        { "#GameUI_BobStyleModern", "2" },
+    });
+
+    CvarSlider("#GameUI_BobCycle", cvars::kBobCycle.name, 0.1f, 2.0f, "%.2f");
+    CvarSlider("#GameUI_BobUp", cvars::kBobUp.name, 0.05f, 0.95f, "%.2f");
+
+    // the two styles have their own amplitudes, so only the selected style's show
+    if (static_cast<int>(PendingValue(cvars::kBobStyle.name)) == view_bob::kStyleModern)
+    {
+        CvarSlider("#GameUI_BobAmtVert", cvars::kBobAmtVert.name, 0.0f, 0.4f, "%.2f");
+        CvarSlider("#GameUI_BobAmtLat", cvars::kBobAmtLat.name, 0.0f, 0.8f, "%.2f");
+        CvarSlider("#GameUI_BobLowerAmt", cvars::kBobLowerAmt.name, 0.0f, 30.0f, "%.0f");
+    }
+    else
+        CvarSlider("#GameUI_BobAmount", cvars::kBob.name, 0.0f, 0.05f, "%.3f");
+}
+
+void CImGuiOptions::DrawModelTab()
+{
+    CvarSlider("#GameUI_ViewmodelOffsetX", cvars::kViewmodelOffsetX.name, -8.0f, 8.0f, "%.2f");
+    CvarSlider("#GameUI_ViewmodelOffsetY", cvars::kViewmodelOffsetY.name, -8.0f, 8.0f, "%.2f");
+    CvarSlider("#GameUI_ViewmodelOffsetZ", cvars::kViewmodelOffsetZ.name, -8.0f, 8.0f, "%.2f");
+
+    // the Video page can tie it to the main FOV, which this slider would then fight
+    bool followsFov = m_VideoEdited.viewmodelFovAuto;
+    if (followsFov)
+        SetNextRowHint("#GameUI_OptionsViewmodelFovFollows");
+    ImGui::BeginDisabled(followsFov);
+    CvarSlider("#GameUI_ViewmodelFov", cvars::kViewmodelFov.name, 70.0f, 100.0f, "%.0f");
+    ImGui::EndDisabled();
+
+    CvarCheckbox("#GameUI_ViewmodelDisableShift", cvars::kViewmodelDisableShift.name);
+}
+
+void CImGuiOptions::DrawInertiaTab()
+{
+    CvarCombo("#GameUI_ViewLagStyle", cvars::kViewmodelLagStyle.name, {
+        { "#GameUI_ViewLagOff", "0" },
+        { "#GameUI_ViewLagHL2", "1" },
+        { "#GameUI_ViewLagCSS", "2" },
+    });
+
+    // the scale works for both lag styles, the speed only for HL2's
+    int style = static_cast<int>(PendingValue(cvars::kViewmodelLagStyle.name));
+    ImGui::BeginDisabled(style == 0);
+    CvarSlider("#GameUI_ViewLagScale", cvars::kViewmodelLagScale.name, 0.0f, 5.0f, "%.2f");
+    ImGui::EndDisabled();
+    ImGui::BeginDisabled(style != 1);
+    CvarSlider("#GameUI_ViewLagSpeed", cvars::kViewmodelLagSpeed.name, 1.0f, 20.0f, "%.1f");
+    ImGui::EndDisabled();
+}
+
+void CImGuiOptions::DrawCameraTab()
+{
+    CvarSlider("#GameUI_RollAngle", cvars::kRollAngle.name, 0.0f, 10.0f, "%.1f");
+    CvarSlider("#GameUI_RollSpeed", cvars::kRollSpeed.name, 10.0f, 400.0f, "%.0f");
+    CvarSlider("#GameUI_CameraMoveScale", cvars::kCameraMovementScale.name, 0.0f, 2.0f, "%.2f");
+    CvarSlider("#GameUI_CameraMoveInterp", cvars::kCameraMovementInterp.name, 0.0f, 0.5f, "%.2f");
+
+    // the modern bob style never moves the camera
+    ImGui::BeginDisabled(static_cast<int>(PendingValue(cvars::kBobStyle.name)) == view_bob::kStyleModern);
+    SetNextRowHint("#GameUI_BobCameraTooltip");
+    CvarCheckbox("#GameUI_BobCamera", cvars::kBobCamera.name);
+    ImGui::EndDisabled();
+}
+
+// the old Keyboard page's, from a VGUI key code to the engine's
+int ConvertVGUIToEngine(vgui2::KeyCode code);
+
+namespace
+{
+    // the engine's tokenizer, which kb_act.lst and kb_def.lst are written for: quoted strings and
+    // // comments; empty once the text runs out
+    std::vector<std::string> ParseTokens(const char* path)
+    {
+        std::vector<std::string> tokens;
+        std::string text = ReadFile(path);
+        char token[1024];
+        for (char* data = text.data(); data;)
+        {
+            data = engine->COM_ParseFile(data, token);
+            if (!token[0])
+                break;
+            tokens.push_back(token);
+        }
+        return tokens;
+    }
+
+    // takes the key off every action: an action losing its key moves its alternate up
+    void RemoveKey(std::vector<CImGuiOptions::Binding>& bindings, const std::string& key)
+    {
+        for (auto& binding : bindings)
+        {
+            if (!V_stricmp(binding.altKey.c_str(), key.c_str()))
+                binding.altKey.clear();
+
+            if (!V_stricmp(binding.key.c_str(), key.c_str()))
+            {
+                binding.key = binding.altKey;
+                binding.altKey.clear();
+            }
+        }
+    }
+
+    // as the old page did: a new key goes first and the old one becomes the alternate
+    void AddKey(std::vector<CImGuiOptions::Binding>& bindings, size_t row, const std::string& key, int slot)
+    {
+        CImGuiOptions::Binding& binding = bindings[row];
+        if (!V_stricmp((slot == 0 ? binding.key : binding.altKey).c_str(), key.c_str()))
+            return;
+
+        RemoveKey(bindings, key);
+
+        if (slot == 0)
+        {
+            binding.altKey = binding.key;
+            binding.key = key;
+        }
+        else if (binding.key.empty())
+            binding.key = key;
+        else
+            binding.altKey = key;
+    }
+
+    CImGuiOptions::Binding* FindBinding(std::vector<CImGuiOptions::Binding>& bindings, const char* command)
+    {
+        for (auto& binding : bindings)
+        {
+            if (!binding.header && !V_stricmp(binding.command.c_str(), command))
+                return &binding;
+        }
+        return nullptr;
+    }
+
+    // the engine names keys in lower case, which reads better as the keyboard prints them
+    std::string KeyDisplayName(const std::string& key)
+    {
+        std::string text = key;
+        for (char& c : text)
+            c = static_cast<char>(toupper(static_cast<unsigned char>(c)));
+        return text;
+    }
+}
+
+void CImGuiOptions::LoadBindings()
+{
+    m_Bindings.clear();
+    m_KeysToUnbind.clear();
+    m_iCaptureRow = -1;
+
+    // pairs of a command and its description; "blank" starts a section, "=====" lines are decoration
+    std::vector<std::string> tokens = ParseTokens("gfx/shell/kb_act.lst");
+    for (size_t i = 0; i + 1 < tokens.size(); i += 2)
+    {
+        if (tokens[i + 1][0] == '=')
+            continue;
+
+        Binding binding;
+        binding.command = tokens[i];
+        binding.description = tokens[i + 1];
+        binding.header = !V_stricmp(tokens[i].c_str(), "blank");
+        m_Bindings.push_back(binding);
+    }
+
+    for (int key = 0; key < 256; key++)
+    {
+        const char* command = g_pGameUIFuncs->Key_BindingForKey(key);
+        const char* name = g_pGameUIFuncs->Key_NameForKey(key);
+        if (!command || !command[0] || !name || !name[0])
+            continue;
+
+        if (Binding* binding = FindBinding(m_Bindings, command))
+        {
+            AddKey(m_Bindings, binding - m_Bindings.data(), name, 0);
+            m_KeysToUnbind.push_back(name);
+        }
+    }
+
+    m_BindingsSaved = m_Bindings;
+}
+
+void CImGuiOptions::LoadDefaultBindings()
+{
+    for (auto& binding : m_Bindings)
+        binding.key.clear(), binding.altKey.clear();
+
+    // pairs of a key and a command
+    std::vector<std::string> tokens = ParseTokens("gfx/shell/kb_def.lst");
+    for (size_t i = 0; i + 1 < tokens.size(); i += 2)
+    {
+        if (Binding* binding = FindBinding(m_Bindings, tokens[i + 1].c_str()))
+            AddKey(m_Bindings, binding - m_Bindings.data(), tokens[i], 0);
+    }
+
+    // whatever the file says, the console and the menu stay reachable
+    if (Binding* binding = FindBinding(m_Bindings, "toggleconsole"))
+        AddKey(m_Bindings, binding - m_Bindings.data(), "`", 0);
+    if (Binding* binding = FindBinding(m_Bindings, "cancelselect"))
+        AddKey(m_Bindings, binding - m_Bindings.data(), "ESCAPE", 0);
+}
+
+void CImGuiOptions::SaveBindings()
+{
+    bool changed = false;
+    for (size_t i = 0; i < m_Bindings.size() && i < m_BindingsSaved.size(); i++)
+        changed |= m_Bindings[i].key != m_BindingsSaved[i].key || m_Bindings[i].altKey != m_BindingsSaved[i].altKey;
+    if (!changed)
+        return;
+
+    char command[512];
+    for (const std::string& key : m_KeysToUnbind)
+    {
+        snprintf(command, sizeof(command), "unbind \"%s\"\n", key.c_str());
+        engine->pfnClientCmd(command);
+    }
+
+    m_KeysToUnbind.clear();
+    for (const Binding& binding : m_Bindings)
+    {
+        for (const std::string* key : { &binding.key, &binding.altKey })
+        {
+            if (binding.header || key->empty())
+                continue;
+
+            snprintf(command, sizeof(command), "bind \"%s\" \"%s\"\n", key->c_str(), binding.command.c_str());
+            engine->pfnClientCmd(command);
+            m_KeysToUnbind.push_back(*key);
+        }
+    }
+
+    // the player's own binds come back on top, as with the old page
+    engine->pfnClientCmd("exec userconfig.cfg\n");
+
+    // the engine runs the commands later, so the list can't be read back from it yet
+    m_BindingsSaved = m_Bindings;
+}
+
+void CImGuiOptions::FinishCapture(const char* keyName)
+{
+    if (m_iCaptureRow >= 0 && m_iCaptureRow < (int)m_Bindings.size() && keyName && keyName[0])
+        AddKey(m_Bindings, m_iCaptureRow, keyName, m_iCaptureSlot);
+
+    m_iCaptureRow = -1;
+}
+
+void CImGuiOptions::OnKeyCodePressed(vgui2::KeyCode code)
+{
+    if (m_iCaptureRow < 0)
+    {
+        BaseClass::OnKeyCodePressed(code);
+        return;
+    }
+
+    // Escape only leaves the capture, so the menu key can't be bound away by accident
+    if (code == vgui2::KEY_ESCAPE)
+    {
+        m_iCaptureRow = -1;
+        return;
+    }
+
+    int key = ConvertVGUIToEngine(code);
+    if (key > 0)
+        FinishCapture(g_pGameUIFuncs->Key_NameForKey(key));
+}
+
+void CImGuiOptions::OnKeyCodeTyped(vgui2::KeyCode code)
+{
+    if (m_iCaptureRow < 0)
+        BaseClass::OnKeyCodeTyped(code);
+}
+
+void CImGuiOptions::OnMousePressed(vgui2::MouseCode code)
+{
+    if (m_iCaptureRow < 0)
+    {
+        BaseClass::OnMousePressed(code);
+        return;
+    }
+
+    switch (code)
+    {
+        case vgui2::MOUSE_RIGHT: FinishCapture("MOUSE2"); break;
+        case vgui2::MOUSE_MIDDLE: FinishCapture("MOUSE3"); break;
+        case vgui2::MOUSE_4: FinishCapture("MOUSE4"); break;
+        case vgui2::MOUSE_5: FinishCapture("MOUSE5"); break;
+        default: FinishCapture("MOUSE1"); break;
+    }
+}
+
+void CImGuiOptions::OnMouseDoublePressed(vgui2::MouseCode code)
+{
+    if (m_iCaptureRow < 0)
+        BaseClass::OnMouseDoublePressed(code);
+    else
+        OnMousePressed(code);
+}
+
+void CImGuiOptions::OnMouseWheeled(int delta)
+{
+    if (m_iCaptureRow < 0)
+        BaseClass::OnMouseWheeled(delta);
+    else
+        FinishCapture(delta > 0 ? "MWHEELUP" : "MWHEELDOWN");
+}
+
+void CImGuiOptions::DrawKeyboard()
+{
+    const ImGuiStyle& style = ImGui::GetStyle();
+    ImVec4 accent = ImGui::GetStyleColorVec4(ImGuiCol_CheckMark);
+
+    std::string defaults = Localized("#GameUI_UseDefaults", "Use defaults");
+    float defaultsWidth = ImGui::CalcTextSize(defaults.c_str()).x + style.FramePadding.x * 2.0f;
+    ImGui::SetNextItemWidth(std::min(320.0f, ImGui::GetContentRegionAvail().x - defaultsWidth - style.ItemSpacing.x));
+    ImGui::InputTextWithHint("##BindingSearch", Localized("#GameUI_OptionsBindingSearch", "Find an action or a key").c_str(), m_szBindingSearch, sizeof(m_szBindingSearch));
+    ImGui::SameLine();
+    ImGui::SetCursorPosX(ImGui::GetCursorPosX() + ImGui::GetContentRegionAvail().x - defaultsWidth);
+    if (ImGui::Button(defaults.c_str()))
+        m_bOpenDefaultsPopup = true;
+
+    // the old page asked too: every binding goes at once
+    if (m_bOpenDefaultsPopup)
+    {
+        ImGui::OpenPopup("##DefaultBindings");
+        m_bOpenDefaultsPopup = false;
+    }
+    if (ImGui::BeginPopupModal("##DefaultBindings", nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoTitleBar))
+    {
+        ImGui::TextColored(accent, "%s", Localized("#GameUI_KeyboardSettings").c_str());
+        ImGui::PushTextWrapPos(ImGui::GetFontSize() * 28.0f);
+        ImGui::TextUnformatted(Localized("#GameUI_KeyboardSettingsText").c_str());
+        ImGui::PopTextWrapPos();
+        ImGui::Spacing();
+        if (ImGui::Button(Localized("#GameUI_OK").c_str(), ImVec2(120, 0)))
+        {
+            LoadDefaultBindings();
+            ImGui::CloseCurrentPopup();
+        }
+        ImGui::SameLine();
+        if (ImGui::Button(Localized("#GameUI_Cancel").c_str(), ImVec2(120, 0)) || ImGui::IsKeyPressed(ImGuiKey_Escape))
+            ImGui::CloseCurrentPopup();
+        ImGui::EndPopup();
+    }
+
+    ImGui::Dummy(ImVec2(0, 2));
+
+    // the search matches the action's text or either key, in any case
+    std::string search = m_szBindingSearch;
+    for (char& c : search)
+        c = static_cast<char>(tolower(static_cast<unsigned char>(c)));
+    auto matches = [&](const Binding& binding, const std::string& description)
+    {
+        if (search.empty())
+            return true;
+        for (std::string text : { description, binding.key, binding.altKey })
+        {
+            for (char& c : text)
+                c = static_cast<char>(tolower(static_cast<unsigned char>(c)));
+            if (text.find(search) != std::string::npos)
+                return true;
+        }
+        return false;
+    };
+
+    // each section of kb_act.lst is a card, each action a row with its two keys as key caps
+    bool cardOpen = false;
+    for (int row = 0; row < (int)m_Bindings.size(); row++)
+    {
+        Binding& binding = m_Bindings[row];
+        std::string description = !binding.description.empty() && binding.description[0] == '#' ? Localized(binding.description.c_str(), binding.description.c_str() + 1) : binding.description;
+
+        if (binding.header)
+        {
+            // a section none of whose actions the search found stays closed
+            bool any = false;
+            for (int next = row + 1; next < (int)m_Bindings.size() && !m_Bindings[next].header; next++)
+            {
+                const Binding& item = m_Bindings[next];
+                std::string text = !item.description.empty() && item.description[0] == '#' ? Localized(item.description.c_str(), item.description.c_str() + 1) : item.description;
+                any |= matches(item, text);
+            }
+
+            if (cardOpen)
+                EndCard();
+            cardOpen = any;
+            if (any)
+                BeginCard(binding.description.c_str(), description.c_str());
+            continue;
+        }
+
+        if (!cardOpen || !matches(binding, description))
+            continue;
+
+        ImGui::PushID(row);
+        bool pending = row < (int)m_BindingsSaved.size()
+            && (binding.key != m_BindingsSaved[row].key || binding.altKey != m_BindingsSaved[row].altKey);
+        BeginRowText(description, pending);
+
+        float capsWidth = ImGui::CalcItemWidth();
+        float capWidth = (capsWidth - style.ItemSpacing.x) * 0.5f;
+        ImVec2 capsPos = ImGui::GetCursorScreenPos();
+        ImDrawList* drawList = ImGui::GetWindowDrawList();
+
+        for (int slot = 0; slot < 2; slot++)
+        {
+            const std::string& key = slot == 0 ? binding.key : binding.altKey;
+            bool capturing = m_iCaptureRow == row && m_iCaptureSlot == slot;
+
+            ImVec2 min(capsPos.x + slot * (capWidth + style.ItemSpacing.x), capsPos.y);
+            ImVec2 max(min.x + capWidth, min.y + ImGui::GetFrameHeight());
+            ImGui::SetCursorScreenPos(min);
+            ImGui::PushID(slot);
+            if (ImGui::InvisibleButton("##Key", ImVec2(capWidth, ImGui::GetFrameHeight()), ImGuiButtonFlags_MouseButtonLeft | ImGuiButtonFlags_MouseButtonRight))
+            {
+                // right-click takes the key away, which leaves it bound to nothing
+                if (ImGui::IsMouseReleased(ImGuiMouseButton_Right))
+                {
+                    if (!key.empty())
+                        RemoveKey(m_Bindings, std::string(key));
+                }
+                else
+                {
+                    m_iCaptureRow = row;
+                    m_iCaptureSlot = slot;
+                }
+            }
+            bool hovered = ImGui::IsItemHovered();
+            ImGui::PopID();
+
+            // a key cap: a raised face with a darker lip under it
+            ImU32 face = ImGui::GetColorU32(hovered || capturing ? ImGuiCol_FrameBgHovered : ImGuiCol_FrameBg);
+            drawList->AddRectFilled(ImVec2(min.x, min.y + 2.0f), ImVec2(max.x, max.y + 2.0f), ImGui::GetColorU32(ImGuiCol_Border), 4.0f);
+            drawList->AddRectFilled(min, max, face, 4.0f);
+            drawList->AddRect(min, max, capturing ? ImGui::GetColorU32(accent) : ImGui::GetColorU32(ImGuiCol_Border), 4.0f, 0, capturing ? 2.0f : 1.0f);
+
+            std::string text;
+            ImU32 color = ImGui::GetColorU32(ImGuiCol_Text);
+            if (capturing)
+            {
+                // blinks, so the cap that waits is easy to find
+                text = Localized("#GameUI_OptionsPressKey", "Press a key");
+                float blink = 0.55f + 0.45f * std::sin(static_cast<float>(ImGui::GetTime()) * 6.0f);
+                color = ImGui::GetColorU32(ImVec4(accent.x, accent.y, accent.z, blink));
+            }
+            else if (key.empty())
+            {
+                text = "-";
+                color = ImGui::GetColorU32(ImGuiCol_TextDisabled);
+            }
+            else
+                text = KeyDisplayName(key);
+
+            ImVec2 size = ImGui::CalcTextSize(text.c_str());
+            ImGui::PushClipRect(min, max, true);
+            drawList->AddText(ImVec2(min.x + std::max(4.0f, (capWidth - size.x) * 0.5f), min.y + (max.y - min.y - size.y) * 0.5f), color, text.c_str());
+            ImGui::PopClipRect();
+        }
+
+        ImGui::SetCursorScreenPos(ImVec2(capsPos.x, capsPos.y));
+        ImGui::Dummy(ImVec2(capsWidth, ImGui::GetFrameHeight() + 2.0f));
+        EndRow();
+        ImGui::PopID();
+    }
+
+    if (cardOpen)
+        EndCard();
+}
+
 void CImGuiOptions::DrawVideo()
 {
     VideoSettings& video = m_VideoEdited;
@@ -1019,8 +1863,11 @@ void CImGuiOptions::BeginCard(const char* token, const char* english)
 
     ImGui::SetCursorScreenPos(ImVec2(start.x + kCardPadding, start.y + kCardPadding));
     ImGui::BeginGroup();
-    ImGui::TextColored(ImGui::GetStyleColorVec4(ImGuiCol_CheckMark), "%s", Localized(token, english).c_str());
-    ImGui::Dummy(ImVec2(0, 2));
+    if (token)
+    {
+        ImGui::TextColored(ImGui::GetStyleColorVec4(ImGuiCol_CheckMark), "%s", Localized(token, english).c_str());
+        ImGui::Dummy(ImVec2(0, 2));
+    }
 }
 
 void CImGuiOptions::EndCard()
@@ -1333,7 +2180,11 @@ size_t CImGuiOptions::PendingCount() const
     size_t video = (a.width != b.width || a.height != b.height) + (a.windowed != b.windowed) + (a.lowDetail != b.lowDetail)
         + (a.disableMultitexture != b.disableMultitexture) + (a.stretchAspect != b.stretchAspect) + (a.viewmodelFovAuto != b.viewmodelFovAuto);
 
-    return m_Pending.size() + m_PendingKeys.size() + misc + voice + video;
+    size_t bindings = 0;
+    for (size_t i = 0; i < m_Bindings.size() && i < m_BindingsSaved.size(); i++)
+        bindings += m_Bindings[i].key != m_BindingsSaved[i].key || m_Bindings[i].altKey != m_BindingsSaved[i].altKey;
+
+    return m_Pending.size() + m_PendingKeys.size() + misc + voice + video + bindings;
 }
 
 void CImGuiOptions::LoadMiscSettings()
@@ -1417,6 +2268,7 @@ void CImGuiOptions::ApplyChanges()
     m_PendingKeys.clear();
     SaveMiscSettings();
     SaveVoiceSettings();
+    SaveBindings();
     // last, since it may restart the game
     SaveVideoSettings(restartForCvars);
 }

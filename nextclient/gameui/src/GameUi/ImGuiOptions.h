@@ -2,6 +2,8 @@
 
 #include "ImGuiPanel.h"
 
+#include <vgui_controls/PHandle.h>
+
 #include <map>
 #include <memory>
 #include <set>
@@ -10,6 +12,7 @@
 
 // The options dialog drawn with Dear ImGui; opt_legacy 1 brings the VGUI one back.
 // Like the old dialog, changes wait for OK or Apply and Cancel throws them away
+class CBobPreviewPanel;
 class CInfoDescription;
 class CScriptObject;
 
@@ -30,6 +33,13 @@ public:
 
 protected:
     void DrawImGui() override;
+
+    // while a key is being captured for a binding, the next key or button goes to it, not to ImGui
+    void OnKeyCodePressed(vgui2::KeyCode code) override;
+    void OnKeyCodeTyped(vgui2::KeyCode code) override;
+    void OnMousePressed(vgui2::MouseCode code) override;
+    void OnMouseDoublePressed(vgui2::MouseCode code) override;
+    void OnMouseWheeled(int delta) override;
 
 private:
     struct Page
@@ -64,8 +74,29 @@ private:
     void DrawMultiplayer();
     void DrawSpray();
     void DrawAdvancedOption(CScriptObject& option);
+    void DrawGame();
+    void DrawGamePreview(float height);
+    void DrawCrosshairTab();
+    void DrawBobbingTab();
+    void DrawModelTab();
+    void DrawInertiaTab();
+    void DrawCameraTab();
+    void DrawKeyboard();
+    // kb_act.lst's actions with the keys the engine has bound to them
+    void LoadBindings();
+    // kb_def.lst's keys in place of the current ones, waiting for Apply like any change
+    void LoadDefaultBindings();
+    void SaveBindings();
+    // binds keyName to the action being captured, taking it off any other action first
+    void FinishCapture(const char* keyName);
+    // hands the preview the values the page shows, applied or not
+    void SyncGamePreview();
+    // sets the cvar's pending value back to what NextClient registers it with
+    void ResetToDefault(const char* cvar);
+    void SetPendingFloat(const char* cvar, float value);
 
-    // a titled box the settings rows go in; it has to be closed before the page's next one
+    // a box the settings rows go in, titled unless token is nullptr; it has to be closed
+    // before the page's next one
     void BeginCard(const char* token, const char* english);
     void EndCard();
     // a line of smaller text under the next row's caption, like ImGui's SetNext* functions
@@ -115,6 +146,8 @@ private:
     void SaveSpray();
     void ApplyChanges();
     void Close();
+    // the Game page, with its crosshair tab in front
+    void ShowCrosshairSettings();
 
     std::vector<Page> m_Pages;
     const Page* m_pSelected = nullptr;
@@ -197,6 +230,40 @@ private:
     // the logo and color the texture shows, so it's only remade when they change
     std::string m_LogoTextureKey;
     std::unique_ptr<CInfoDescription> m_pAdvancedOptions;
+
+    // the Game page's tabs, its preview of the view and how the preview moves
+    int m_iGameTab = 0;
+    bool m_bSelectGameTab = false;
+    vgui2::DHANDLE<CBobPreviewPanel> m_hGamePreview;
+    int m_iPreviewMove = 0;
+    int m_iShownPreviewMove = -1;
+    int m_iShownPreviewDemo = -1;
+    bool m_bPreviewDrawn = false;
+
+public:
+    struct Binding
+    {
+        std::string command;
+        // a token, or the text itself
+        std::string description;
+        // the row starts a section with description as its title
+        bool header = false;
+        std::string key;
+        std::string altKey;
+    };
+
+private:
+
+    // the list as the engine had it, and as the page shows it
+    std::vector<Binding> m_BindingsSaved;
+    std::vector<Binding> m_Bindings;
+    // keys bound to the list's actions when it was loaded, which Apply unbinds before binding anew
+    std::vector<std::string> m_KeysToUnbind;
+    // the row and slot (0 the key, 1 the alternate) waiting for a key, -1 when none is
+    int m_iCaptureRow = -1;
+    int m_iCaptureSlot = 0;
+    char m_szBindingSearch[64] = {};
+    bool m_bOpenDefaultsPopup = false;
 
     // userinfo keys that Apply sets with setinfo instead of as cvars
     std::set<std::string> m_SetInfoKeys;
