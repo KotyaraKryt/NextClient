@@ -5,6 +5,7 @@
 #include <vector>
 
 #include <gtest/gtest.h>
+#include <nitro_utils/string_utils.h>
 #include <strtools.h>
 
 #include "ServerBrowser/ServerBrowserText.h"
@@ -147,4 +148,54 @@ TEST(ServerBrowserTextTest, CountryFilterTextMatchesANativeNamePrefix)
     EXPECT_TRUE(ServerBrowserText_MatchesCountryFilter(Details("DE", "Germany"), native_names, "", L"deutsch"));
     EXPECT_FALSE(ServerBrowserText_MatchesCountryFilter(Details("DE", "Germany"), native_names, "", L"schweiz"));
     EXPECT_FALSE(ServerBrowserText_MatchesCountryFilter(Details("AT", "Austria"), native_names, "", L"deutsch"));
+}
+
+namespace
+{
+    // Hebrew letters by their code points: alef, bet, gimel, dalet
+    constexpr wchar_t kAlef = 0x05D0;
+    constexpr wchar_t kBet = 0x05D1;
+    constexpr wchar_t kGimel = 0x05D2;
+    constexpr wchar_t kDalet = 0x05D3;
+
+    std::string Utf8(const std::wstring& text)
+    {
+        return nitro_utils::wide_to_utf8(text);
+    }
+} // namespace
+
+TEST(ServerBrowserTextTest, VisualOrderLeavesLeftToRightTextAlone)
+{
+    EXPECT_EQ(ServerBrowserText_ToVisualOrder("FragC.com #1 [Team A]"), "FragC.com #1 [Team A]");
+    EXPECT_EQ(ServerBrowserText_ToVisualOrder(kRussiaUtf8), kRussiaUtf8);
+    EXPECT_EQ(ServerBrowserText_ToVisualOrder(""), "");
+}
+
+TEST(ServerBrowserTextTest, VisualOrderTurnsHebrewWordsAround)
+{
+    std::wstring words = {kAlef, kBet, L' ', kGimel, kDalet};
+    std::wstring shown = {kDalet, kGimel, L' ', kBet, kAlef};
+
+    EXPECT_EQ(ServerBrowserText_ToVisualOrder(Utf8(words)), Utf8(shown));
+    EXPECT_EQ(ServerBrowserText_ToVisualOrder(Utf8(L"FragC.com # " + words + L" | Surf")), Utf8(L"FragC.com # " + shown + L" | Surf"));
+}
+
+TEST(ServerBrowserTextTest, VisualOrderKeepsNumbersAndSwapsBrackets)
+{
+    std::wstring with_number = {kAlef, L' ', L'2', L'4', L'/', L'7', L' ', kBet};
+    std::wstring with_number_shown = {kBet, L' ', L'2', L'4', L'/', L'7', L' ', kAlef};
+    EXPECT_EQ(ServerBrowserText_ToVisualOrder(Utf8(with_number)), Utf8(with_number_shown));
+
+    std::wstring bracketed = {kAlef, L' ', L'(', kBet, L')', L' ', kGimel};
+    std::wstring bracketed_shown = {kGimel, L' ', L'(', kBet, L')', L' ', kAlef};
+    EXPECT_EQ(ServerBrowserText_ToVisualOrder(Utf8(bracketed)), Utf8(bracketed_shown));
+}
+
+TEST(ServerBrowserTextTest, VisualOrderEndsTheRunAtItsLastHebrewLetter)
+{
+    // the space and the number after the Hebrew word stay where they are
+    std::wstring trailing = {kAlef, kBet, L' ', L'1', L'0'};
+    std::wstring trailing_shown = {kBet, kAlef, L' ', L'1', L'0'};
+
+    EXPECT_EQ(ServerBrowserText_ToVisualOrder(Utf8(trailing)), Utf8(trailing_shown));
 }

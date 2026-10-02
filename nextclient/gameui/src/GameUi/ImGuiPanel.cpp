@@ -91,11 +91,13 @@ static void* ReadWholeFile(const char* path, int& size)
 
 static void LoadFonts(ImGuiIO& io, float size)
 {
-    // Latin and Cyrillic, plus the punctuation, arrows, box drawing and shapes that servers
+    // Latin, Greek and Cyrillic, plus the punctuation, arrows, box drawing and shapes that servers
     // and plugins like to decorate their messages with
     static const ImWchar textRanges[] = {
         0x0020, 0x00FF, // Basic Latin, Latin-1
         0x0100, 0x017F, // Latin Extended-A
+        0x0180, 0x024F, // Latin Extended-B
+        0x0370, 0x03FF, // Greek
         0x0400, 0x052F, // Cyrillic
         0x2000, 0x206F, // General Punctuation
         0x2190, 0x21FF, // Arrows
@@ -103,8 +105,15 @@ static void LoadFonts(ImGuiIO& io, float size)
         0,
     };
 
-    // JetBrains Mono has none of these, DejaVu Sans has ★ ⚙ ✔ and the rest
+    // DejaVu Sans fills in what JetBrains Mono lacks: the rest of Latin Extended-B and Greek,
+    // the scripts server names come in, and ★ ⚙ ✔ with the other symbols. Arabic is left out,
+    // since ImGui can neither join its letters nor write it right to left
     static const ImWchar symbolRanges[] = {
+        0x0180, 0x024F, // Latin Extended-B
+        0x0370, 0x03FF, // Greek
+        0x0530, 0x058F, // Armenian
+        0x0590, 0x05FF, // Hebrew
+        0x10A0, 0x10FF, // Georgian
         0x2600, 0x26FF, // Miscellaneous Symbols
         0x2700, 0x27BF, // Dingbats
         0,

@@ -18,6 +18,10 @@ struct CountryNativeNames
 int ServerBrowserText_CompareUnknownLast(const char* v1, const char* v2);
 int ServerBrowserText_CompareUnknownLast(const wchar_t* v1, const wchar_t* v2);
 
+// ImGui draws every string left to right, so the Hebrew runs of a server name are turned around
+// to read right; their numbers keep their order, and the brackets are swapped to face the right way
+std::string ServerBrowserText_ToVisualOrder(std::string_view utf8);
+
 std::string ServerBrowserText_GetCountryLabel(const std::string& code, const std::string& name);
 
 // docs/master-server-http-protocol.md describes the file; a line of another form is skipped

@@ -108,7 +108,10 @@ void CServerBrowser::Reactivate()
 {
     // CGameUI::Start calls this once the engine functions are there, which Initialize comes before
     if (!legacy_cvar_)
+    {
         legacy_cvar_ = engine->pfnRegisterVariable("sb_legacy", "0", FCVAR_ARCHIVE);
+        CImGuiServerBrowser::RegisterCvars();
+    }
 
     if (server_browser_dialog_.Get())
     {

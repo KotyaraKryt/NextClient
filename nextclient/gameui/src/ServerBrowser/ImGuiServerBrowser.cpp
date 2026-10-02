@@ -2,10 +2,13 @@
 #include "GameUINext.h"
 #include "ImGuiServerBrowser.h"
 #include "ServerBrowserDialog.h"
+#include "ServerBrowser/ServerBrowserText.h"
 #include "ServerBrowser/ServerGameModeNames.h"
 #include <GameServerHelpers.h>
 #include <ModInfo.h>
 
+#include <cvardef.h>
+#include <nitro_utils/string_utils.h>
 #include <tier1/strtools.h>
 #include <FileSystem.h>
 #include <vgui/ISurfaceNext.h>
@@ -43,6 +46,97 @@ namespace
 
     // how often a list that is still being filled re-sorts, in seconds
     constexpr double kRebuildInterval = 0.3;
+
+    // the limits the ping filter offers, with their names in the stock localization
+    struct PingLimit
+    {
+        int ping;
+        const char* token;
+    };
+
+    constexpr PingLimit kPingLimits[] = {
+        { 50, "#ServerBrowser_LessThan50" },
+        { 100, "#ServerBrowser_LessThan100" },
+        { 150, "#ServerBrowser_LessThan150" },
+        { 250, "#ServerBrowser_LessThan250" },
+        { 350, "#ServerBrowser_LessThan350" },
+        { 600, "#ServerBrowser_LessThan600" },
+    };
+
+    const char* CvarString(const char* name)
+    {
+        cvar_t* cvar = engine->pfnGetCvarPointer(name);
+        return cvar ? cvar->string : "";
+    }
+
+    float CvarValue(const char* name)
+    {
+        cvar_t* cvar = engine->pfnGetCvarPointer(name);
+        return cvar ? cvar->value : 0.0f;
+    }
+
+    // how often the info window asks a full server again while auto-retry waits, in seconds
+    constexpr double kInfoRetryInterval = 2.5;
+
+    std::string FormatPlayedTime(float seconds)
+    {
+        int total = static_cast<int>(seconds);
+        int hours = total / 3600;
+        int minutes = total / 60 % 60;
+        char text[32];
+        if (hours)
+            V_snprintf(text, sizeof(text), "%dh %dm %ds", hours, minutes, total % 60);
+        else if (minutes)
+            V_snprintf(text, sizeof(text), "%dm %ds", minutes, total % 60);
+        else
+            V_snprintf(text, sizeof(text), "%ds", total);
+        return text;
+    }
+
+    // muted to sit on the olive theme: a good ping, a playable one, a bad one, and a warning
+    const ImVec4 kGoodColor(0.60f, 0.78f, 0.45f, 1.0f);
+    const ImVec4 kFairColor(0.86f, 0.78f, 0.40f, 1.0f);
+    const ImVec4 kBadColor(0.88f, 0.52f, 0.40f, 1.0f);
+    const ImVec4 kTitleColor(0.92f, 0.88f, 0.62f, 1.0f);
+
+    void DrawPing(const gameserveritem_t& server)
+    {
+        if (!server.m_bHadSuccessfulResponse)
+        {
+            ImGui::TextDisabled("-");
+            return;
+        }
+
+        int ping = server.m_nPing;
+        ImGui::TextColored(ping < 80 ? kGoodColor : ping < 150 ? kFairColor : kBadColor, "%d", ping);
+    }
+
+    // a full server's count stands out, since joining it needs a free slot
+    void DrawPlayerCount(const gameserveritem_t& server)
+    {
+        if (!server.m_bHadSuccessfulResponse)
+        {
+            ImGui::TextDisabled("-");
+            return;
+        }
+
+        if (IsServerFull(server))
+            ImGui::TextColored(kBadColor, "%d / %d", GetHumanPlayerCount(server), server.m_nMaxPlayers);
+        else
+            ImGui::Text("%d / %d", GetHumanPlayerCount(server), server.m_nMaxPlayers);
+    }
+
+    // at least minWidth, and wide enough for what the closed combo shows next to its arrow
+    float ComboWidth(const std::string& preview, float minWidth)
+    {
+        float fits = ImGui::CalcTextSize(preview.c_str()).x + ImGui::GetStyle().FramePadding.x * 2 + ImGui::GetFrameHeight();
+        return std::max(minWidth, fits);
+    }
+
+    std::string WithCount(const std::string& text, int count)
+    {
+        return text + " (" + std::to_string(count) + ")";
+    }
 
     // a server that never answered has no ping, and goes after every one that did
     int PingOf(const gameserveritem_t& server)
@@ -122,8 +216,56 @@ CImGuiServerBrowser::CImGuiServerBrowser() : BaseClass("serverbrowser_layout.ini
     m_Tabs.push_back(std::make_unique<Tab>(ServerBrowserTab::Friends, "#ServerBrowser_FriendsTab", GuiConnectionSource::Unknown));
 }
 
+void CImGuiServerBrowser::RegisterCvars()
+{
+    static const char* const kCvars[][2] = {
+        { "sb_hideempty", "0" },
+        { "sb_hidefull", "0" },
+        { "sb_hidepassword", "0" },
+        { "sb_mode", "" },
+        { "sb_country", "" },
+        { "sb_maxping", "0" },
+    };
+    for (const auto& cvar : kCvars)
+        engine->pfnRegisterVariable(cvar[0], cvar[1], FCVAR_ARCHIVE);
+}
+
+void CImGuiServerBrowser::LoadFilters()
+{
+    m_bHideEmpty = CvarValue("sb_hideempty") != 0.0f;
+    m_bHideFull = CvarValue("sb_hidefull") != 0.0f;
+    m_bHidePassworded = CvarValue("sb_hidepassword") != 0.0f;
+    m_ModeFilter = CvarString("sb_mode");
+    m_CountryFilter = CvarString("sb_country");
+    m_iPingFilter = static_cast<int>(CvarValue("sb_maxping"));
+    m_bFiltersChanged = true;
+}
+
+void CImGuiServerBrowser::SaveFilters()
+{
+    engine->Cvar_SetValue("sb_hideempty", m_bHideEmpty ? 1.0f : 0.0f);
+    engine->Cvar_SetValue("sb_hidefull", m_bHideFull ? 1.0f : 0.0f);
+    engine->Cvar_SetValue("sb_hidepassword", m_bHidePassworded ? 1.0f : 0.0f);
+    engine->Cvar_Set("sb_mode", m_ModeFilter.c_str());
+    engine->Cvar_Set("sb_country", m_CountryFilter.c_str());
+    engine->Cvar_SetValue("sb_maxping", static_cast<float>(m_iPingFilter));
+}
+
+void CImGuiServerBrowser::OnFiltersChanged()
+{
+    m_bFiltersChanged = true;
+    SaveFilters();
+}
+
 void CImGuiServerBrowser::Activate()
 {
+    // config.cfg has run by the time the browser first opens, so the cvars hold the player's filters
+    if (!m_bFiltersLoaded)
+    {
+        m_bFiltersLoaded = true;
+        LoadFilters();
+    }
+
     SetVisible(true);
     MoveToFront();
     RequestFocus();
@@ -147,6 +289,8 @@ void CImGuiServerBrowser::Close()
     for (auto& tab : m_Tabs)
         tab->servers.StopRefresh(IGameList::CancelQueryReason::PageClosed);
 
+    m_pServerInfo.reset();
+    m_bAutoJoin = false;
     SetVisible(false);
 }
 
@@ -253,7 +397,7 @@ void CImGuiServerBrowser::DrawHeaders()
     }
 }
 
-bool CImGuiServerBrowser::PassesFilters(const Tab& tab, const serveritem_t& server) const
+bool CImGuiServerBrowser::PassesBaseFilters(const Tab& tab, const serveritem_t& server) const
 {
     const gameserveritem_t& gs = server.gs;
 
@@ -272,6 +416,8 @@ bool CImGuiServerBrowser::PassesFilters(const Tab& tab, const serveritem_t& serv
         return false;
     if (m_bHidePassworded && gs.m_bPassword)
         return false;
+    if (m_iPingFilter && (!gs.m_bHadSuccessfulResponse || gs.m_nPing > m_iPingFilter))
+        return false;
 
     if (m_szSearch[0])
     {
@@ -284,12 +430,37 @@ bool CImGuiServerBrowser::PassesFilters(const Tab& tab, const serveritem_t& serv
     return true;
 }
 
+bool CImGuiServerBrowser::PassesModeFilter(const ServerDetailsNext& details) const
+{
+    return m_ModeFilter.empty() || ServerGameMode_MatchesFilter(details.game_mode, m_ModeFilter.c_str());
+}
+
+bool CImGuiServerBrowser::PassesCountryFilter(const ServerDetailsNext& details) const
+{
+    return m_CountryFilter.empty() || !V_stricmp(details.country_code, m_CountryFilter.c_str());
+}
+
 void CImGuiServerBrowser::RebuildRows(Tab& tab, ImGuiTableSortSpecs* sortSpecs)
 {
     std::vector<SortEntry> entries;
+    tab.counts = {};
     for (auto& [id, server] : tab.servers)
     {
-        if (PassesFilters(tab, server))
+        if (!PassesBaseFilters(tab, server))
+            continue;
+
+        const ServerDetailsNext& details = server.next_details;
+        if (details.country_code[0] && details.country_name[0])
+            m_CountryNames[details.country_code] = details.country_name;
+        else if (details.country_code[0])
+            m_CountryNames.emplace(details.country_code, details.country_code);
+
+        // a mode counts the servers the country filter lets through, and the other way round
+        bool passesMode = PassesModeFilter(details);
+        bool passesCountry = PassesCountryFilter(details);
+        ServerFilterCounts_Add(details, passesMode, passesCountry, &tab.counts);
+
+        if (passesMode && passesCountry)
             entries.push_back({ id, &server, server.gs.GetName() });
     }
 
@@ -330,17 +501,43 @@ void CImGuiServerBrowser::Connect(Tab& tab, int serverID)
     if (!tab.servers.IsServerExists(serverID))
         return;
 
-    const gameserveritem_t& server = tab.servers.GetServer(serverID).gs;
-    if (server.m_bPassword)
+    JoinServer(tab.servers.GetServer(serverID), tab.source);
+}
+
+void CImGuiServerBrowser::JoinServer(const serveritem_t& server, GuiConnectionSource source)
+{
+    const gameserveritem_t& gs = server.gs;
+    if (gs.m_bHadSuccessfulResponse && IsServerFull(gs))
     {
-        m_PasswordServer = server;
-        m_PasswordSource = tab.source;
+        bool sameServer = m_pServerInfo && m_pServerInfo->GetServer().m_NetAdr.GetIP() == gs.m_NetAdr.GetIP() &&
+                          m_pServerInfo->GetServer().m_NetAdr.GetQueryPort() == gs.m_NetAdr.GetQueryPort();
+        if (!sameServer)
+            OpenServerInfo(server, source);
+        m_bInfoFull = true;
+        return;
+    }
+
+    if (gs.m_bPassword)
+    {
+        m_PasswordServer = gs;
+        m_PasswordSource = source;
         m_szPassword[0] = '\0';
         m_bOpenPasswordPopup = true;
         return;
     }
 
-    ConnectWithPassword(server, tab.source, "");
+    ConnectWithPassword(gs, source, "");
+}
+
+void CImGuiServerBrowser::OpenServerInfo(const serveritem_t& server, GuiConnectionSource source)
+{
+    m_pServerInfo = std::make_unique<CServerInfoQuery>(server.gs);
+    m_InfoDetails = server.next_details;
+    m_InfoSource = source;
+    m_bInfoAppearing = true;
+    m_bInfoFull = false;
+    m_bAutoJoin = false;
+    m_iInfoResponsesSeen = 0;
 }
 
 void CImGuiServerBrowser::ConnectWithPassword(const gameserveritem_t& server, GuiConnectionSource source, const char* password)
@@ -363,6 +560,10 @@ void CImGuiServerBrowser::ConnectWithPassword(const gameserveritem_t& server, Gu
 
     V_snprintf(command, sizeof(command), "connect %s\n", server.m_NetAdr.GetConnectionAddressString().c_str());
     engine->pfnClientCmd(command);
+
+    // the info window has done its job once the connect is sent
+    m_pServerInfo.reset();
+    m_bAutoJoin = false;
 }
 
 void CImGuiServerBrowser::DrawImGui()
@@ -371,6 +572,9 @@ void CImGuiServerBrowser::DrawImGui()
     ImGui::SetNextWindowPos(viewport->GetCenter(), ImGuiCond_FirstUseEver, ImVec2(0.5f, 0.5f));
     ImGui::SetNextWindowSize(ImVec2(960, 640), ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowSizeConstraints(ImVec2(640, 384), ImVec2(FLT_MAX, FLT_MAX));
+
+    // the stock browser's fields and checkboxes are outlined; without it a checkbox is a blank square
+    ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1.0f);
 
     if (m_bFocusWindow)
     {
@@ -428,6 +632,9 @@ void CImGuiServerBrowser::DrawImGui()
     }
     ImGui::End();
 
+    DrawServerInfo();
+    ImGui::PopStyleVar();
+
     if (!open)
         Close();
 }
@@ -453,14 +660,183 @@ void CImGuiServerBrowser::DrawToolbar(Tab& tab)
     ImGui::SameLine();
     ImGui::SetNextItemWidth(-FLT_MIN);
     std::string hint = LocalizedOr("#ServerBrowser_Search", "Name, map or address");
+    // the search is for the moment, so it isn't kept with the other filters
     if (ImGui::InputTextWithHint("##Search", hint.c_str(), m_szSearch, sizeof(m_szSearch)))
         m_bFiltersChanged = true;
 
-    m_bFiltersChanged |= ImGui::Checkbox(Localized("#ServerBrowser_HasUsersPlaying").c_str(), &m_bHideEmpty);
+    float comboWidth = ImGui::CalcTextSize("0").x * 22;
+    DrawModeFilter(tab, comboWidth);
     ImGui::SameLine();
-    m_bFiltersChanged |= ImGui::Checkbox(Localized("#ServerBrowser_ServerNotFull").c_str(), &m_bHideFull);
+    DrawCountryFilter(tab, comboWidth);
     ImGui::SameLine();
-    m_bFiltersChanged |= ImGui::Checkbox(Localized("#ServerBrowser_IsNotPasswordProtected").c_str(), &m_bHidePassworded);
+    DrawPingFilter(0.0f);
+
+    // a narrow window moves the checkboxes that don't fit to the next row
+    auto checkbox = [](const std::string& label, bool* value)
+    {
+        const ImGuiStyle& style = ImGui::GetStyle();
+        float width = ImGui::GetFrameHeight() + style.ItemInnerSpacing.x + ImGui::CalcTextSize(label.c_str()).x;
+        float right = ImGui::GetItemRectMax().x + style.ItemSpacing.x + width;
+        if (right <= ImGui::GetWindowPos().x + ImGui::GetWindowContentRegionMax().x)
+            ImGui::SameLine();
+        return ImGui::Checkbox(label.c_str(), value);
+    };
+
+    bool changed = false;
+    changed |= checkbox(Localized("#ServerBrowser_HasUsersPlaying"), &m_bHideEmpty);
+    changed |= checkbox(Localized("#ServerBrowser_ServerNotFull"), &m_bHideFull);
+    changed |= checkbox(Localized("#ServerBrowser_IsNotPasswordProtected"), &m_bHidePassworded);
+    if (changed)
+        OnFiltersChanged();
+}
+
+void CImGuiServerBrowser::DrawModeFilter(const Tab& tab, float width)
+{
+    std::string all = Localized("#ServerBrowser_All");
+    std::string preview = Localized("#ServerBrowser_GameMode") + ": " + (m_ModeFilter.empty() ? all : GameModeText(m_ModeFilter.c_str()));
+
+    ImGui::SetNextItemWidth(ComboWidth(preview, width));
+    if (!ImGui::BeginCombo("##Mode", preview.c_str()))
+        return;
+
+    if (ImGui::Selectable(WithCount(all, tab.counts.all_game_modes).c_str(), m_ModeFilter.empty()))
+    {
+        m_ModeFilter.clear();
+        OnFiltersChanged();
+    }
+
+    std::vector<int> modes(std::size(kServerGameModeNames));
+    for (size_t i = 0; i < modes.size(); i++)
+        modes[i] = static_cast<int>(i);
+    std::sort(modes.begin(), modes.end(), [this](int a, int b)
+    {
+        return V_stricmp(GameModeText(kServerGameModeNames[a].name).c_str(), GameModeText(kServerGameModeNames[b].name).c_str()) < 0;
+    });
+
+    for (int mode : modes)
+    {
+        const char* name = kServerGameModeNames[mode].name;
+        int count = tab.counts.game_modes[mode];
+        bool selected = !V_stricmp(name, m_ModeFilter.c_str());
+
+        // a mode without servers stays pickable, its servers may still be on their way
+        if (!count && !selected)
+            ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
+        if (ImGui::Selectable(WithCount(GameModeText(name), count).c_str(), selected))
+        {
+            m_ModeFilter = name;
+            OnFiltersChanged();
+        }
+        if (!count && !selected)
+            ImGui::PopStyleColor();
+    }
+
+    ImGui::EndCombo();
+}
+
+void CImGuiServerBrowser::DrawCountryFilter(const Tab& tab, float width)
+{
+    std::string all = Localized("#ServerBrowser_All");
+    std::string current = all;
+    if (!m_CountryFilter.empty())
+    {
+        auto name = m_CountryNames.find(m_CountryFilter);
+        current = name != m_CountryNames.end() ? name->second : m_CountryFilter;
+    }
+    std::string preview = Localized("#ServerBrowser_Country") + ": " + current;
+
+    ImGui::SetNextItemWidth(ComboWidth(preview, width));
+    if (!ImGui::BeginCombo("##Country", preview.c_str(), ImGuiComboFlags_HeightLarge))
+    {
+        m_szCountrySearch[0] = '\0';
+        return;
+    }
+
+    if (ImGui::IsWindowAppearing())
+        ImGui::SetKeyboardFocusHere();
+    ImGui::SetNextItemWidth(-FLT_MIN);
+    ImGui::InputTextWithHint("##CountrySearch", LocalizedOr("#ServerBrowser_CountrySearch", "Find a country").c_str(),
+                             m_szCountrySearch, sizeof(m_szCountrySearch));
+    std::wstring search = nitro_utils::to_lower_copy(nitro_utils::utf8_to_wide(m_szCountrySearch));
+
+    if (ImGui::Selectable(WithCount(all, tab.counts.all_countries).c_str(), m_CountryFilter.empty()))
+    {
+        m_CountryFilter.clear();
+        OnFiltersChanged();
+    }
+
+    // the countries of the listed servers, and the picked one even when none of them is from there
+    std::vector<std::pair<std::string, std::string>> countries;
+    for (const auto& [code, count] : tab.counts.countries)
+    {
+        auto name = m_CountryNames.find(code);
+        countries.emplace_back(code, name != m_CountryNames.end() ? name->second : code);
+    }
+    if (!m_CountryFilter.empty() && !tab.counts.countries.contains(m_CountryFilter))
+        countries.emplace_back(m_CountryFilter, current);
+
+    std::sort(countries.begin(), countries.end(), [](const auto& a, const auto& b)
+    {
+        return nitro_utils::to_lower_copy(nitro_utils::utf8_to_wide(a.second)) <
+               nitro_utils::to_lower_copy(nitro_utils::utf8_to_wide(b.second));
+    });
+
+    for (const auto& [code, name] : countries)
+    {
+        std::wstring lowerName = nitro_utils::to_lower_copy(nitro_utils::utf8_to_wide(name));
+        std::wstring lowerCode = nitro_utils::to_lower_copy(nitro_utils::utf8_to_wide(code));
+        if (!search.empty() && lowerName.find(search) == std::wstring::npos && lowerCode != search)
+            continue;
+
+        if (int flag = FlagTexture(code.c_str()))
+            DrawIcon(flag);
+        else
+            ImGui::Dummy(ImVec2(ImGui::GetTextLineHeight(), ImGui::GetTextLineHeight()));
+        ImGui::SameLine();
+
+        auto count = tab.counts.countries.find(code);
+        std::string label = WithCount(name, count != tab.counts.countries.end() ? count->second : 0) + "##" + code;
+        if (ImGui::Selectable(label.c_str(), code == m_CountryFilter))
+        {
+            m_CountryFilter = code;
+            OnFiltersChanged();
+        }
+    }
+
+    ImGui::EndCombo();
+}
+
+void CImGuiServerBrowser::DrawPingFilter(float width)
+{
+    std::string all = Localized("#ServerBrowser_All");
+    std::string current = all;
+    for (const PingLimit& limit : kPingLimits)
+    {
+        if (limit.ping == m_iPingFilter)
+            current = Localized(limit.token);
+    }
+    std::string preview = Localized("#ServerBrowser_Latency") + ": " + current;
+
+    ImGui::SetNextItemWidth(ComboWidth(preview, width));
+    if (!ImGui::BeginCombo("##Ping", preview.c_str()))
+        return;
+
+    if (ImGui::Selectable(all.c_str(), m_iPingFilter == 0))
+    {
+        m_iPingFilter = 0;
+        OnFiltersChanged();
+    }
+
+    for (const PingLimit& limit : kPingLimits)
+    {
+        if (ImGui::Selectable(Localized(limit.token).c_str(), limit.ping == m_iPingFilter))
+        {
+            m_iPingFilter = limit.ping;
+            OnFiltersChanged();
+        }
+    }
+
+    ImGui::EndCombo();
 }
 
 void CImGuiServerBrowser::DrawTable(Tab& tab)
@@ -626,17 +1002,14 @@ void CImGuiServerBrowser::DrawRow(Tab& tab, const serveritem_t& server)
                     ImGui::TextUnformatted("✔");
                 break;
             case kColumnName:
-                ImGui::TextUnformatted(gs.GetName().c_str());
+                ImGui::TextUnformatted(ServerBrowserText_ToVisualOrder(gs.GetName()).c_str());
                 break;
             case kColumnMode:
                 if (server.next_details.game_mode[0])
                     ImGui::TextUnformatted(GameModeText(server.next_details.game_mode).c_str());
                 break;
             case kColumnPlayers:
-                if (gs.m_bHadSuccessfulResponse)
-                    ImGui::Text("%d / %d", GetHumanPlayerCount(gs), gs.m_nMaxPlayers);
-                else
-                    ImGui::TextDisabled("-");
+                DrawPlayerCount(gs);
                 break;
             case kColumnBots:
                 if (gs.m_nBotPlayers > 0)
@@ -646,10 +1019,7 @@ void CImGuiServerBrowser::DrawRow(Tab& tab, const serveritem_t& server)
                 ImGui::TextUnformatted(gs.m_szMap);
                 break;
             case kColumnPing:
-                if (gs.m_bHadSuccessfulResponse)
-                    ImGui::Text("%d", gs.m_nPing);
-                else
-                    ImGui::TextDisabled("-");
+                DrawPing(gs);
                 break;
             case kColumnCountry:
                 // the flag sits in the middle of a 16x16 picture with transparent margins
@@ -685,6 +1055,9 @@ void CImGuiServerBrowser::DrawContextMenu(Tab& tab)
 
     if (ImGui::MenuItem(Localized("#ServerBrowser_ConnectToServer").c_str()))
         Connect(tab, tab.selected);
+
+    if (ImGui::MenuItem(Localized("#ServerBrowser_ViewServerInfo").c_str()))
+        OpenServerInfo(tab.servers.GetServer(tab.selected), tab.source);
 
     if (ImGui::MenuItem(Localized("#ServerBrowser_RefreshServer").c_str(), nullptr, false, !tab.servers.IsRefreshing()))
         tab.servers.StartRefreshServer(tab.selected);
@@ -739,7 +1112,7 @@ void CImGuiServerBrowser::DrawPasswordPopup()
     std::string title = Localized("#ServerBrowser_Password") + popupId;
     if (ImGui::BeginPopupModal(title.c_str(), nullptr, ImGuiWindowFlags_AlwaysAutoResize))
     {
-        ImGui::TextUnformatted(m_PasswordServer.GetName().c_str());
+        ImGui::TextUnformatted(ServerBrowserText_ToVisualOrder(m_PasswordServer.GetName()).c_str());
         ImGui::TextUnformatted(Localized("#ServerBrowser_PasswordRequired").c_str());
 
         if (ImGui::IsWindowAppearing())
@@ -765,4 +1138,237 @@ void CImGuiServerBrowser::DrawPasswordPopup()
         ImGui::EndPopup();
     }
     ImGui::PopStyleColor();
+}
+
+void CImGuiServerBrowser::DrawServerInfo()
+{
+    if (!m_pServerInfo)
+        return;
+
+    CServerInfoQuery& query = *m_pServerInfo;
+    double now = system()->GetCurrentTime();
+
+    // a new answer: once a slot is free the full notice goes, and auto-retry joins
+    if (query.GetResponseCount() != m_iInfoResponsesSeen)
+    {
+        m_iInfoResponsesSeen = query.GetResponseCount();
+        if (!query.IsNotResponding() && !IsServerFull(query.GetServer()))
+        {
+            m_bInfoFull = false;
+            if (m_bAutoJoin)
+            {
+                m_bAutoJoin = false;
+                surface()->PlaySound("servers/game_ready.wav");
+
+                // joining may close the window and delete the query, so nothing of it is used after
+                JoinServer(serveritem_t(true, -1, query.GetServer(), m_InfoDetails), m_InfoSource);
+                if (m_pServerInfo.get() != &query)
+                    return;
+            }
+        }
+    }
+
+    if (m_bAutoJoin && !query.IsBusy() && now >= m_flNextInfoRetry)
+    {
+        query.Refresh();
+        m_flNextInfoRetry = now + kInfoRetryInterval;
+    }
+
+    if (m_bInfoAppearing)
+    {
+        ImGui::SetNextWindowPos(ImGui::GetMainViewport()->GetCenter(), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
+        ImGui::SetNextWindowFocus();
+        m_bInfoAppearing = false;
+    }
+    ImGui::SetNextWindowSize(ImVec2(600, 520), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSizeConstraints(ImVec2(480, 380), ImVec2(FLT_MAX, FLT_MAX));
+
+    bool open = true;
+    std::string title = Localized("#ServerBrowser_GameInfoTitle") + "###ServerInfo";
+    if (ImGui::Begin(title.c_str(), &open, ImGuiWindowFlags_NoCollapse))
+    {
+        const gameserveritem_t& gs = query.GetServer();
+        DrawServerDetails(gs);
+
+        if (query.IsNotResponding())
+            ImGui::TextColored(kBadColor, "%s", Localized("#ServerBrowser_ServerNotResponding").c_str());
+        else if (m_bAutoJoin)
+            ImGui::TextColored(kFairColor, "%s", Localized("#ServerBrowser_JoinWhenSlotIsFree").c_str());
+        else if (m_bInfoFull)
+            ImGui::TextColored(kBadColor, "%s", Localized("#ServerBrowser_CouldNotConnectServerFull").c_str());
+
+        // the buttons sit under a separator at the bottom, the players take the rest
+        float footer = ImGui::GetFrameHeightWithSpacing() + ImGui::GetStyle().ItemSpacing.y + 1.0f;
+        DrawPlayers(query, -footer);
+        ImGui::Separator();
+
+        bool join = ImGui::Button(Localized("#ServerBrowser_JoinGame").c_str());
+        ImGui::SameLine();
+        ImGui::BeginDisabled(query.IsBusy());
+        if (ImGui::Button(Localized("#ServerBrowser_Refresh").c_str()))
+            query.Refresh();
+        ImGui::EndDisabled();
+        ImGui::SameLine();
+        if (ImGui::Checkbox(Localized("#ServerBrowser_AutoRetry").c_str(), &m_bAutoJoin))
+            m_flNextInfoRetry = 0.0;
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("%s", Localized("#ServerBrowser_JoinWhenSlotOpens").c_str());
+
+        std::string closeLabel = Localized("#ServerBrowser_Close");
+        float closeWidth = ImGui::CalcTextSize(closeLabel.c_str()).x + ImGui::GetStyle().FramePadding.x * 2;
+        ImGui::SameLine(ImGui::GetWindowContentRegionMax().x - closeWidth);
+        if (ImGui::Button(closeLabel.c_str()))
+            open = false;
+
+        bool focused = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);
+        if (focused && !ImGui::GetIO().WantTextInput && ImGui::IsKeyPressed(ImGuiKey_Escape))
+            open = false;
+
+        ImGui::End();
+
+        // joining may delete the query, so it goes last
+        if (join && open)
+        {
+            JoinServer(serveritem_t(true, -1, gs, m_InfoDetails), m_InfoSource);
+            return;
+        }
+    }
+    else
+    {
+        ImGui::End();
+    }
+
+    if (!open)
+    {
+        m_pServerInfo.reset();
+        m_bAutoJoin = false;
+    }
+}
+
+void CImGuiServerBrowser::DrawServerDetails(const gameserveritem_t& gs)
+{
+    if (int flag = FlagTexture(m_InfoDetails.country_code))
+    {
+        DrawIcon(flag);
+        ImGui::SameLine();
+    }
+    ImGui::TextColored(kTitleColor, "%s", ServerBrowserText_ToVisualOrder(gs.GetName()).c_str());
+
+    // the address copies itself on a click, so it needs no button of its own
+    std::string address = gs.m_NetAdr.GetConnectionAddressString();
+    ImGui::TextDisabled("%s", address.c_str());
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("%s", LocalizedOr("#ServerBrowser_CopyAddress", "Copy address").c_str());
+    if (ImGui::IsItemClicked())
+        ImGui::SetClipboardText(address.c_str());
+
+    ImGui::Separator();
+
+    // two pairs of name and value a row keep the details short, leaving the room to the players
+    ImGuiTableFlags flags = ImGuiTableFlags_SizingStretchProp;
+    if (!ImGui::BeginTable("Details", 4, flags))
+        return;
+
+    ImGui::TableSetupColumn("Name1", ImGuiTableColumnFlags_WidthFixed);
+    ImGui::TableSetupColumn("Value1", ImGuiTableColumnFlags_WidthStretch);
+    ImGui::TableSetupColumn("Name2", ImGuiTableColumnFlags_WidthFixed);
+    ImGui::TableSetupColumn("Value2", ImGuiTableColumnFlags_WidthStretch);
+
+    int cell = 0;
+    auto name = [&cell](const char* token)
+    {
+        if (cell % 4 == 0)
+            ImGui::TableNextRow();
+        ImGui::TableSetColumnIndex(cell % 4);
+        ImGui::TextDisabled("%s", Localized(token).c_str());
+        ImGui::TableSetColumnIndex(cell % 4 + 1);
+        cell += 2;
+    };
+
+    name("#ServerBrowser_Map");
+    ImGui::TextUnformatted(gs.m_szMap);
+
+    name("#ServerBrowser_GameMode");
+    ImGui::TextUnformatted(m_InfoDetails.game_mode[0] ? GameModeText(m_InfoDetails.game_mode).c_str() : "-");
+
+    name("#ServerBrowser_Players");
+    DrawPlayerCount(gs);
+    if (gs.m_nBotPlayers > 0)
+    {
+        ImGui::SameLine();
+        ImGui::TextDisabled("+%d %s", gs.m_nBotPlayers, Localized("#ServerBrowser_Bots").c_str());
+    }
+
+    name("#ServerBrowser_Country");
+    ImGui::TextUnformatted(m_InfoDetails.country_name[0] ? m_InfoDetails.country_name : m_InfoDetails.country_code[0] ? m_InfoDetails.country_code : "-");
+
+    name("#ServerBrowser_Latency");
+    DrawPing(gs);
+
+    name("#ServerBrowser_Secure");
+    if (gs.m_bSecure)
+        DrawIcon(Texture("servers/icon_robotron"));
+    else
+        ImGui::TextDisabled("-");
+
+    ImGui::EndTable();
+    ImGui::Spacing();
+}
+
+void CImGuiServerBrowser::DrawPlayers(const CServerInfoQuery& query, float height)
+{
+    // on the field color, like the server list
+    ImGui::BeginChild("Players", ImVec2(0, height));
+    ImGuiTableFlags flags = ImGuiTableFlags_Sortable | ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV |
+                            ImGuiTableFlags_ScrollY | ImGuiTableFlags_Resizable | ImGuiTableFlags_SizingFixedFit;
+    if (!ImGui::BeginTable("PlayerList", 3, flags))
+    {
+        ImGui::EndChild();
+        return;
+    }
+
+    enum { kPlayerName, kPlayerScore, kPlayerTime };
+    float charWidth = ImGui::CalcTextSize("0").x;
+    ImGui::TableSetupScrollFreeze(0, 1);
+    ImGui::TableSetupColumn(Localized("#ServerBrowser_PlayerName").c_str(), ImGuiTableColumnFlags_WidthStretch, 0.0f, kPlayerName);
+    ImGui::TableSetupColumn(Localized("#ServerBrowser_Score").c_str(), ImGuiTableColumnFlags_PreferSortDescending | ImGuiTableColumnFlags_DefaultSort, charWidth * 7, kPlayerScore);
+    ImGui::TableSetupColumn(Localized("#ServerBrowser_Time").c_str(), ImGuiTableColumnFlags_PreferSortDescending, charWidth * 11, kPlayerTime);
+    ImGui::TableHeadersRow();
+
+    // a server has a few dozen players at most, so they're sorted on every frame
+    const std::vector<CServerInfoQuery::Player>& players = query.GetPlayers();
+    std::vector<const CServerInfoQuery::Player*> sorted;
+    for (const auto& player : players)
+        sorted.push_back(&player);
+
+    if (ImGuiTableSortSpecs* specs = ImGui::TableGetSortSpecs(); specs && specs->SpecsCount > 0)
+    {
+        const ImGuiTableColumnSortSpecs& spec = specs->Specs[0];
+        bool ascending = spec.SortDirection == ImGuiSortDirection_Ascending;
+        std::stable_sort(sorted.begin(), sorted.end(), [&spec, ascending](const auto* a, const auto* b)
+        {
+            int order = 0;
+            if (spec.ColumnUserID == kPlayerName)
+                order = V_stricmp(a->name.c_str(), b->name.c_str());
+            else if (spec.ColumnUserID == kPlayerScore)
+                order = a->score - b->score;
+            else
+                order = a->seconds < b->seconds ? -1 : a->seconds > b->seconds;
+            return ascending ? order < 0 : order > 0;
+        });
+    }
+
+    for (const auto* player : sorted)
+    {
+        ImGui::TableNextRow();
+        ImGui::TableSetColumnIndex(kPlayerName);
+        ImGui::TextUnformatted(ServerBrowserText_ToVisualOrder(player->name).c_str());
+        ImGui::TableSetColumnIndex(kPlayerScore);
+        ImGui::Text("%d", player->score);
+        ImGui::TableSetColumnIndex(kPlayerTime);
+        ImGui::TextUnformatted(FormatPlayedTime(player->seconds).c_str());
+    }
+
+    ImGui::EndTable();
+    ImGui::EndChild();
 }

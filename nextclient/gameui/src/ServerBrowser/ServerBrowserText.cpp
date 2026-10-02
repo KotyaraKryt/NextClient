@@ -17,6 +17,45 @@ namespace
     {
         return nitro_utils::to_lower_copy(nitro_utils::utf8_to_wide(utf8));
     }
+
+    bool IsRightToLeft(wchar_t c)
+    {
+        // Hebrew, and its presentation forms
+        return (c >= 0x0590 && c <= 0x05FF) || (c >= 0xFB1D && c <= 0xFB4F);
+    }
+
+    bool IsDigit(wchar_t c)
+    {
+        return c >= L'0' && c <= L'9';
+    }
+
+    // what can stand between two Hebrew words and still be read with them
+    bool JoinsRightToLeftRun(wchar_t c)
+    {
+        return IsRightToLeft(c) || IsDigit(c) || (c != L'\0' && wcschr(L" -.,:;!?'\"()[]{}<>/", c));
+    }
+
+    // a separator inside a number, which keeps it one number: 24/7, 1.5, 12:00
+    bool IsNumberSeparator(wchar_t c)
+    {
+        return c == L'.' || c == L',' || c == L'/' || c == L':';
+    }
+
+    wchar_t Mirrored(wchar_t c)
+    {
+        switch (c)
+        {
+            case L'(': return L')';
+            case L')': return L'(';
+            case L'[': return L']';
+            case L']': return L'[';
+            case L'{': return L'}';
+            case L'}': return L'{';
+            case L'<': return L'>';
+            case L'>': return L'<';
+            default: return c;
+        }
+    }
 } // namespace
 
 int ServerBrowserText_CompareUnknownLast(const char* v1, const char* v2)
@@ -37,6 +76,62 @@ int ServerBrowserText_CompareUnknownLast(const wchar_t* v1, const wchar_t* v2)
     }
 
     return _wcsicmp(v1, v2);
+}
+
+std::string ServerBrowserText_ToVisualOrder(std::string_view utf8)
+{
+    std::wstring text = nitro_utils::utf8_to_wide(utf8);
+    if (std::none_of(text.begin(), text.end(), IsRightToLeft))
+    {
+        return std::string(utf8);
+    }
+
+    size_t start = 0;
+    while (start < text.size())
+    {
+        if (!IsRightToLeft(text[start]))
+        {
+            start++;
+            continue;
+        }
+
+        // the run ends at its last Hebrew letter, what follows it reads left to right again
+        size_t end = start + 1;
+        for (size_t i = start; i < text.size() && JoinsRightToLeftRun(text[i]); i++)
+        {
+            if (IsRightToLeft(text[i]))
+            {
+                end = i + 1;
+            }
+        }
+
+        std::reverse(text.begin() + start, text.begin() + end);
+        std::transform(text.begin() + start, text.begin() + end, text.begin() + start, Mirrored);
+
+        // the reversal turned the numbers around too
+        for (size_t i = start; i < end;)
+        {
+            if (!IsDigit(text[i]))
+            {
+                i++;
+                continue;
+            }
+
+            size_t number_end = i;
+            while (number_end < end &&
+                   (IsDigit(text[number_end]) || (IsNumberSeparator(text[number_end]) && number_end + 1 < end && IsDigit(text[number_end + 1]))))
+            {
+                number_end++;
+            }
+
+            std::reverse(text.begin() + i, text.begin() + number_end);
+            i = number_end;
+        }
+
+        start = end;
+    }
+
+    return nitro_utils::wide_to_utf8(text);
 }
 
 std::string ServerBrowserText_GetCountryLabel(const std::string& code, const std::string& name)
