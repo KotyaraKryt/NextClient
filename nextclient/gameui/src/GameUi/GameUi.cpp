@@ -36,6 +36,7 @@
 #include "ImGuiCreateServer.h"
 #include "ImGuiLoadingDialog.h"
 #include "ImGuiPlayerList.h"
+#include "ImGuiDemoPlayer.h"
 #include "OptionsSubMiscellaneous.h"
 #include "IClientVGUI.h"
 
@@ -62,6 +63,7 @@ static IGameClientExports* g_pGameClientExports = nullptr;
 static EngineMiniInterface* g_pEngineMini = nullptr;
 static ScenePreviewInterface* g_pScenePreview;
 static vgui2::DHANDLE<CDemoPlayerDialog> g_hDemoPlayerDialog;
+static vgui2::DHANDLE<CImGuiDemoPlayer> g_hImGuiDemoPlayer;
 static vgui2::DHANDLE<CLoadingDialog> g_hLoadingDialog;
 static vgui2::DHANDLE<CImGuiLoadingDialog> g_hImGuiLoadingDialog;
 
@@ -169,7 +171,10 @@ LRESULT CALLBACK WindowGlobalProcedure(HWND hwnd, UINT uMsg, WPARAM wParam, LPAR
                 {
                     g_pFullFileSystem->AddSearchPathNoWrite(fs::path(wszFilePath).parent_path().string().c_str(), "GAME");
                     g_GameUI.ActivateDemoUI();
-                    g_hDemoPlayerDialog->DemoSelected(fs::path(wszFilePath).filename().string().c_str());
+                    if (g_hImGuiDemoPlayer.Get())
+                        g_hImGuiDemoPlayer->DemoSelected(fs::path(wszFilePath).filename().string().c_str());
+                    else if (g_hDemoPlayerDialog.Get())
+                        g_hDemoPlayerDialog->DemoSelected(fs::path(wszFilePath).filename().string().c_str());
                     bIsDemoFound = true;
                     break;
                 }
@@ -288,6 +293,11 @@ void CGameUI::Start(cl_enginefuncs_s *engineFuncs, int interfaceVersion, void *s
     CImGuiCreateServer::RegisterCvars();
     CImGuiLoadingDialog::RegisterCvars();
     CImGuiPlayerList::RegisterCvars();
+    CImGuiDemoPlayer::RegisterCvars();
+#ifndef _WIN32
+    // the Linux engine has no demoui command of its own, only the call into ActivateDemoUI
+    engine->pfnAddCommand("demoui", [] { g_GameUI.ActivateDemoUI(); });
+#endif
 
     if (g_pServerBrowser)
     {
@@ -355,6 +365,19 @@ int CGameUI::ActivateGameUI(void)
 
 int CGameUI::ActivateDemoUI(void)
 {
+    if (!CImGuiDemoPlayer::UseLegacyDialog())
+    {
+        // under the root panel, since the menu and its children are hidden while the demo plays
+        if (!g_hImGuiDemoPlayer.Get())
+        {
+            g_hImGuiDemoPlayer = vgui2::SETUP_PANEL(new CImGuiDemoPlayer());
+            g_hImGuiDemoPlayer->SetParent(vgui2::surface()->GetEmbeddedPanel());
+        }
+
+        g_hImGuiDemoPlayer->Activate();
+        return 1;
+    }
+
 	if (!g_hDemoPlayerDialog.Get())
 	{
         g_hDemoPlayerDialog = new CDemoPlayerDialog(BasePanel());
