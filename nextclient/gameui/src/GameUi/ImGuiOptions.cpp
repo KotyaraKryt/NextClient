@@ -1,7 +1,13 @@
 #include "ImGuiOptions.h"
 #include "BasePanel.h"
 #include "GameUi.h"
+#include "IGameUIFuncs.h"
+#include "ivoicetweak.h"
 #include "ModInfo.h"
+#include "OptionsDialog/OptionsSubMiscellaneous.h"
+
+#include <FileSystem.h>
+#include <KeyValues.h>
 
 #include <cvardef.h>
 #include <tier1/strtools.h>
@@ -80,18 +86,23 @@ CImGuiOptions::CImGuiOptions() : BaseClass("options_layout.ini")
         m_Pages.push_back({ "multiplayer", "#GameUI_Multiplayer", kGroupPlayer });
     m_Pages.push_back({ "game", "#GameUI_Game", kGroupPlayer });
     m_Pages.push_back({ "keyboard", "#GameUI_Keyboard", kGroupControls });
-    m_Pages.push_back({ "mouse", "#GameUI_Mouse", kGroupControls });
+    m_Pages.push_back({ "mouse", "#GameUI_Mouse", kGroupControls, &CImGuiOptions::DrawMouse, "#GameUI_OptionsMouseHint", "Sensitivity, looking around and the joystick" });
     m_Pages.push_back({ "audio", "#GameUI_Audio", kGroupSystem, &CImGuiOptions::DrawAudio, "#GameUI_OptionsAudioHint", "Volume and sound quality" });
     m_Pages.push_back({ "video", "#GameUI_Video", kGroupSystem });
     if (!singlePlayerOnly)
-        m_Pages.push_back({ "voice", "#GameUI_Voice", kGroupSystem });
-    m_Pages.push_back({ "miscellaneous", "#GameUI_Miscellaneous", kGroupSystem });
+        m_Pages.push_back({ "voice", "#GameUI_Voice", kGroupSystem, &CImGuiOptions::DrawVoice, "#GameUI_OptionsVoiceHint", "Voice chat and the microphone" });
+    m_Pages.push_back({ "miscellaneous", "#GameUI_Miscellaneous", kGroupSystem, &CImGuiOptions::DrawMisc, "#GameUI_OptionsMiscHint", "Look of the menus and the server browser" });
 
     for (const Page& page : m_Pages)
     {
         if (page.draw && !m_pSelected)
             m_pSelected = &page;
     }
+}
+
+CImGuiOptions::~CImGuiOptions()
+{
+    StopMicrophoneTest();
 }
 
 void CImGuiOptions::RegisterCvars()
@@ -108,7 +119,12 @@ void CImGuiOptions::Activate(const char* tabName)
 {
     // like the old dialog, every opening starts from what the cvars are now
     if (!IsVisible())
+    {
         m_Pending.clear();
+        m_PendingKeys.clear();
+        LoadMiscSettings();
+        LoadVoiceSettings();
+    }
 
     if (tabName)
     {
@@ -128,7 +144,11 @@ void CImGuiOptions::Activate(const char* tabName)
 
 void CImGuiOptions::Close()
 {
+    StopMicrophoneTest();
+    m_VoiceEdited = m_VoiceSaved;
     m_Pending.clear();
+    m_PendingKeys.clear();
+    m_MiscEdited = m_MiscSaved;
     SetVisible(false);
 }
 
@@ -177,6 +197,10 @@ void CImGuiOptions::DrawImGui()
         }
         ImGui::EndChild();
         ImGui::PopStyleVar(2);
+
+        // the test keeps the microphone open, so it ends with the page
+        if (m_bTestingMicrophone && (!m_pSelected || m_pSelected->draw != &CImGuiOptions::DrawVoice))
+            StopMicrophoneTest();
 
         DrawFooter();
 
@@ -272,13 +296,13 @@ void CImGuiOptions::DrawFooter()
     const ImGuiStyle& style = ImGui::GetStyle();
     ImGui::Dummy(ImVec2(0, style.ItemSpacing.y));
 
-    if (!m_Pending.empty())
+    if (PendingCount() > 0)
     {
         // the localized text says where the number goes with a %d
         std::string text = Localized("#GameUI_OptionsUnapplied", "Unapplied changes: %d");
         size_t at = text.find("%d");
         if (at != std::string::npos)
-            text.replace(at, 2, std::to_string(m_Pending.size()));
+            text.replace(at, 2, std::to_string(PendingCount()));
 
         ImGui::AlignTextToFramePadding();
         ImGui::TextColored(ImGui::GetStyleColorVec4(ImGuiCol_CheckMark), "%s", text.c_str());
@@ -309,7 +333,7 @@ void CImGuiOptions::DrawFooter()
 
     // Apply stands out while there is something for it to do
     ImGui::SameLine();
-    bool pending = !m_Pending.empty();
+    bool pending = PendingCount() > 0;
     if (pending)
     {
         ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyleColorVec4(ImGuiCol_CheckMark));
@@ -371,6 +395,158 @@ void CImGuiOptions::DrawAudio()
     ImGui::PopTextWrapPos();
 }
 
+void CImGuiOptions::DrawMouse()
+{
+    BeginCard("#GameUI_Mouse", "Mouse");
+    // most players sit between 1 and 5, which a logarithmic slider gives the most room to
+    CvarSlider("#GameUI_MouseSensitivity", "sensitivity", 0.2f, 20.0f, "%.2f", 1.0f, ImGuiSliderFlags_Logarithmic);
+
+    SetNextRowHint("#GameUI_ReverseMouseLabel");
+    CvarNegateCheckbox("#GameUI_ReverseMouse", "m_pitch");
+    SetNextRowHint("#GameUI_MouseLookLabel");
+    KeyToggleCheckbox("#GameUI_MouseLook", "in_mlook", "mlook");
+    SetNextRowHint("#GameUI_MouseFilterLabel");
+    CvarCheckbox("#GameUI_MouseFilter", "m_filter");
+    SetNextRowHint("#GameUI_RawInputLabel");
+    CvarCheckbox("#GameUI_RawInput", "m_rawinput");
+    SetNextRowHint("#GameUI_AutoaimLabel");
+    CvarCheckbox("#GameUI_AutoAim", "sv_aim");
+    EndCard();
+
+    BeginCard("#GameUI_Joystick", "Joystick");
+    SetNextRowHint("#GameUI_JoystickLabel");
+    CvarCheckbox("#GameUI_Joystick", "joystick");
+    SetNextRowHint("#GameUI_JoystickLookLabel");
+    KeyToggleCheckbox("#GameUI_JoystickLook", "in_jlook", "jlook");
+    EndCard();
+
+    ImGui::TextDisabled("%s", Localized("#GameUI_OptionsSliderTyping", "Ctrl+click a slider to type a value").c_str());
+}
+
+void CImGuiOptions::DrawMisc()
+{
+    BeginCard("#GameUI_OptionsLook", "Look");
+
+    BeginRow("#GameUI_ColorScheme", m_MiscEdited.scheme != m_MiscSaved.scheme);
+    std::string current = OptionsSubMiscellaneous::MakeSchemeName(m_MiscEdited.scheme);
+    if (ImGui::BeginCombo("##Scheme", current.c_str()))
+    {
+        for (const std::string& scheme : m_Schemes)
+        {
+            bool selected = scheme == m_MiscEdited.scheme;
+            if (ImGui::Selectable(OptionsSubMiscellaneous::MakeSchemeName(scheme).c_str(), selected))
+                m_MiscEdited.scheme = scheme;
+        }
+        ImGui::EndCombo();
+    }
+    SetNextRowHint("#GameUI_OptionsSchemeRestart");
+    EndRow();
+    EndCard();
+
+    BeginCard("#ServerBrowser_Servers", "Servers");
+
+    static const struct
+    {
+        const char* token;
+        ServerBrowserTab tab;
+    } kTabs[] = {
+        { "#ServerBrowser_InternetTab", ServerBrowserTab::Internet },
+        { "#ServerBrowser_FavoritesTab", ServerBrowserTab::Favorites },
+        { "#ServerBrowser_HistoryTab", ServerBrowserTab::History },
+        { "#ServerBrowser_LanTab", ServerBrowserTab::LAN },
+    };
+
+    BeginRow("#GameUI_ServerBrowserInitialTab", m_MiscEdited.serverBrowserTab != m_MiscSaved.serverBrowserTab);
+    std::string tabPreview;
+    for (const auto& tab : kTabs)
+    {
+        if ((int)tab.tab == m_MiscEdited.serverBrowserTab)
+            tabPreview = Localized(tab.token);
+    }
+    if (ImGui::BeginCombo("##InitialTab", tabPreview.c_str()))
+    {
+        for (const auto& tab : kTabs)
+        {
+            if (ImGui::Selectable(Localized(tab.token).c_str(), (int)tab.tab == m_MiscEdited.serverBrowserTab))
+                m_MiscEdited.serverBrowserTab = (int)tab.tab;
+        }
+        ImGui::EndCombo();
+    }
+    EndRow();
+
+    BeginRow("#GameUI_DisableAutoOpenServerBrowser", m_MiscEdited.disableAutoOpenServerBrowser != m_MiscSaved.disableAutoOpenServerBrowser);
+    ImGui::Checkbox("##DisableAutoOpen", &m_MiscEdited.disableAutoOpenServerBrowser);
+    EndRow();
+    EndCard();
+
+    // the ImGui windows each keep their VGUI predecessor behind a cvar
+    BeginCard("#GameUI_OptionsClassicWindows", "Classic windows");
+    ImGui::TextDisabled("%s", Localized("#GameUI_OptionsClassicHint", "The old windows instead of the new ones").c_str());
+    CvarCheckbox("#GameUI_OptionsClassicConsole", "con_legacy");
+    CvarCheckbox("#GameUI_OptionsClassicBrowser", "sb_legacy");
+    CvarCheckbox("#GameUI_OptionsClassicOptions", "opt_legacy");
+    EndCard();
+}
+
+void CImGuiOptions::DrawVoice()
+{
+    IVoiceTweak* tweak = engine->pVoiceTweak;
+
+    // while the microphone is tested, the settings stay as the test started with them
+    ImGui::BeginDisabled(m_bTestingMicrophone);
+
+    BeginCard("#GameUI_OptionsVoiceChat", "Voice chat");
+    CvarCheckbox("#GameUI_EnableVoice", "voice_modenable");
+    CvarSlider("#GameUI_VoiceReceiveVolume", "voice_scale", 0.0f, 1.0f, "%.0f%%", 100.0f);
+    CvarSlider("#GameUI_VoiceOverdrive", "voice_overdrive", 1.0f, 10.0f, "%.1f");
+    EndCard();
+
+    BeginCard("#GameUI_OptionsMicrophone", "Microphone");
+    ImGui::BeginDisabled(!tweak);
+    BeginRow("#GameUI_VoiceTransmitVolume", m_VoiceEdited.microphoneVolume != m_VoiceSaved.microphoneVolume);
+    ImGui::SliderInt("##MicrophoneVolume", &m_VoiceEdited.microphoneVolume, 0, 100, "%d%%", ImGuiSliderFlags_AlwaysClamp);
+    EndRow();
+
+    BeginRow("#GameUI_BoostMicrophone", m_VoiceEdited.microphoneBoost != m_VoiceSaved.microphoneBoost);
+    ImGui::Checkbox("##MicrophoneBoost", &m_VoiceEdited.microphoneBoost);
+    EndRow();
+    ImGui::EndDisabled();
+
+    ImGui::EndDisabled();
+
+    // the test button and the meter work while everything else is locked
+    BeginRow(m_bTestingMicrophone ? "#GameUI_StopTestMicrophone" : "#GameUI_TestMicrophone", false);
+    ImGui::BeginDisabled(!tweak);
+    float meterWidth = ImGui::CalcItemWidth();
+    if (ImGui::Button(Localized(m_bTestingMicrophone ? "#GameUI_StopTestMicrophone" : "#GameUI_TestMicrophone").c_str(), ImVec2(meterWidth, 0)))
+    {
+        if (m_bTestingMicrophone)
+            StopMicrophoneTest();
+        else
+            StartMicrophoneTest();
+    }
+    ImGui::EndDisabled();
+    EndRow();
+
+    if (m_bTestingMicrophone)
+    {
+        // the speaking volume is a 16-bit sample's size
+        float level = std::clamp(tweak->GetSpeakingVolume() / 32768.0f, 0.0f, 1.0f);
+        BeginRow("#GameUI_OptionsMicrophoneLevel", false);
+        ImGui::ProgressBar(level, ImVec2(meterWidth, ImGui::GetFrameHeight()), "");
+        EndRow();
+    }
+    EndCard();
+
+    if (!tweak)
+        ImGui::TextDisabled("%s", Localized("#GameUI_OptionsNoVoiceTweak", "The engine gave no access to the microphone").c_str());
+
+    // the captions with a * point at this
+    ImGui::PushTextWrapPos(0.0f);
+    ImGui::TextDisabled("%s", Localized("#GameUI_Miles_Voice").c_str());
+    ImGui::PopTextWrapPos();
+}
+
 void CImGuiOptions::BeginCard(const char* token, const char* english)
 {
     // the content goes on the top channel, so the background can be drawn under it once its height is known
@@ -408,15 +584,23 @@ void CImGuiOptions::EndCard()
     ImGui::Dummy(ImVec2(0, 4));
 }
 
-void CImGuiOptions::SettingRow(const char* token, const char* cvar)
+void CImGuiOptions::SetNextRowHint(const char* token)
+{
+    m_pszRowHint = token;
+}
+
+void CImGuiOptions::BeginRow(const char* token, bool pending)
 {
     ImVec2 pos = ImGui::GetCursorScreenPos();
     float innerWidth = m_flCardRight - pos.x;
     float controlWidth = std::clamp(innerWidth * 0.5f, 180.0f, 340.0f);
     float controlX = m_flCardRight - controlWidth;
 
-    // a dot in the card's padding marks a row that Apply would change
-    if (m_Pending.count(cvar))
+    m_flRowLeft = pos.x;
+    m_flRowTop = pos.y;
+    m_flRowCaptionRight = controlX - ImGui::GetStyle().ItemSpacing.x;
+
+    if (pending)
     {
         ImVec2 dot(pos.x - kCardPadding * 0.5f, pos.y + ImGui::GetFrameHeight() * 0.5f);
         ImGui::GetWindowDrawList()->AddCircleFilled(dot, 3.0f, ImGui::GetColorU32(ImGuiCol_CheckMark));
@@ -424,9 +608,9 @@ void CImGuiOptions::SettingRow(const char* token, const char* cvar)
 
     // a caption longer than its room is cut off and shown whole on hover
     std::string caption = Localized(token);
-    float captionRoom = controlX - pos.x - ImGui::GetStyle().ItemSpacing.x;
+    float captionRoom = m_flRowCaptionRight - pos.x;
     ImGui::AlignTextToFramePadding();
-    ImGui::PushClipRect(pos, ImVec2(pos.x + captionRoom, pos.y + ImGui::GetFrameHeight()), true);
+    ImGui::PushClipRect(pos, ImVec2(m_flRowCaptionRight, pos.y + ImGui::GetFrameHeight()), true);
     ImGui::TextUnformatted(caption.c_str());
     ImGui::PopClipRect();
     if (ImGui::CalcTextSize(caption.c_str()).x > captionRoom && ImGui::IsItemHovered())
@@ -437,34 +621,116 @@ void CImGuiOptions::SettingRow(const char* token, const char* cvar)
     ImGui::SetNextItemWidth(controlWidth);
 }
 
+void CImGuiOptions::EndRow()
+{
+    const char* hint = m_pszRowHint;
+    m_pszRowHint = nullptr;
+    if (!hint)
+        return;
+
+    // the control has moved the cursor below itself; the hint goes under the caption instead
+    ImGui::SetCursorScreenPos(ImVec2(m_flRowLeft, m_flRowTop + ImGui::GetFrameHeight()));
+    ImGui::PushTextWrapPos(ImGui::GetCursorPosX() + (m_flRowCaptionRight - m_flRowLeft));
+    ImGui::TextDisabled("%s", Localized(hint).c_str());
+    ImGui::PopTextWrapPos();
+    ImGui::Dummy(ImVec2(0, 2));
+}
+
 bool CImGuiOptions::CvarCheckbox(const char* token, const char* cvar)
 {
     if (!engine->pfnGetCvarPointer(cvar))
+    {
+        m_pszRowHint = nullptr;
         return false;
+    }
 
-    SettingRow(token, cvar);
+    BeginRow(token, m_Pending.count(cvar) != 0);
 
     bool value = PendingValue(cvar) != 0.0f;
     ImGui::PushID(cvar);
     bool changed = ImGui::Checkbox("##Value", &value);
     ImGui::PopID();
+    EndRow();
 
     if (changed)
         SetPending(cvar, value ? "1" : "0");
     return changed;
 }
 
-bool CImGuiOptions::CvarSlider(const char* token, const char* cvar, float min, float max, const char* format, float displayScale)
+bool CImGuiOptions::CvarNegateCheckbox(const char* token, const char* cvar)
 {
     if (!engine->pfnGetCvarPointer(cvar))
+    {
+        m_pszRowHint = nullptr;
         return false;
+    }
 
-    SettingRow(token, cvar);
+    BeginRow(token, m_Pending.count(cvar) != 0);
+
+    float current = PendingValue(cvar);
+    bool negative = current < 0.0f;
+    ImGui::PushID(cvar);
+    bool changed = ImGui::Checkbox("##Value", &negative);
+    ImGui::PopID();
+    EndRow();
+
+    if (changed)
+    {
+        // a zero has no sign to flip, so it starts over from the engine's default
+        float magnitude = std::fabs(current);
+        if (magnitude < 0.00001f)
+            magnitude = 0.022f;
+
+        char value[32];
+        snprintf(value, sizeof(value), "%g", negative ? -magnitude : magnitude);
+        SetPending(cvar, value);
+    }
+    return changed;
+}
+
+bool CImGuiOptions::KeyToggleCheckbox(const char* token, const char* keyName, const char* command)
+{
+    bool down;
+    if (!g_pGameUIFuncs->IsKeyDown(keyName, down))
+    {
+        m_pszRowHint = nullptr;
+        return false;
+    }
+
+    auto pending = m_PendingKeys.find(command);
+    BeginRow(token, pending != m_PendingKeys.end());
+
+    bool value = pending != m_PendingKeys.end() ? pending->second : down;
+    ImGui::PushID(command);
+    bool changed = ImGui::Checkbox("##Value", &value);
+    ImGui::PopID();
+    EndRow();
+
+    if (changed)
+    {
+        if (value == down)
+            m_PendingKeys.erase(command);
+        else
+            m_PendingKeys[command] = value;
+    }
+    return changed;
+}
+
+bool CImGuiOptions::CvarSlider(const char* token, const char* cvar, float min, float max, const char* format, float displayScale, int flags)
+{
+    if (!engine->pfnGetCvarPointer(cvar))
+    {
+        m_pszRowHint = nullptr;
+        return false;
+    }
+
+    BeginRow(token, m_Pending.count(cvar) != 0);
 
     float shown = PendingValue(cvar) * displayScale;
     ImGui::PushID(cvar);
-    bool changed = ImGui::SliderFloat("##Value", &shown, min * displayScale, max * displayScale, format, ImGuiSliderFlags_AlwaysClamp);
+    bool changed = ImGui::SliderFloat("##Value", &shown, min * displayScale, max * displayScale, format, ImGuiSliderFlags_AlwaysClamp | flags);
     ImGui::PopID();
+    EndRow();
 
     if (changed)
     {
@@ -478,9 +744,12 @@ bool CImGuiOptions::CvarSlider(const char* token, const char* cvar, float min, f
 bool CImGuiOptions::CvarCombo(const char* token, const char* cvar, const std::vector<Choice>& choices)
 {
     if (!engine->pfnGetCvarPointer(cvar))
+    {
+        m_pszRowHint = nullptr;
         return false;
+    }
 
-    SettingRow(token, cvar);
+    BeginRow(token, m_Pending.count(cvar) != 0);
 
     // a value none of the choices give, set from the console, shows as it is
     std::string current = PendingString(cvar);
@@ -507,6 +776,7 @@ bool CImGuiOptions::CvarCombo(const char* token, const char* cvar, const std::ve
         ImGui::EndCombo();
     }
     ImGui::PopID();
+    EndRow();
 
     return changed;
 }
@@ -536,10 +806,132 @@ void CImGuiOptions::SetPending(const char* cvar, const std::string& value)
         m_Pending[cvar] = value;
 }
 
+size_t CImGuiOptions::PendingCount() const
+{
+    size_t misc = (m_MiscEdited.scheme != m_MiscSaved.scheme)
+        + (m_MiscEdited.serverBrowserTab != m_MiscSaved.serverBrowserTab)
+        + (m_MiscEdited.disableAutoOpenServerBrowser != m_MiscSaved.disableAutoOpenServerBrowser);
+    size_t voice = (m_VoiceEdited.microphoneVolume != m_VoiceSaved.microphoneVolume)
+        + (m_VoiceEdited.microphoneBoost != m_VoiceSaved.microphoneBoost);
+
+    return m_Pending.size() + m_PendingKeys.size() + misc + voice;
+}
+
+void CImGuiOptions::LoadMiscSettings()
+{
+    KeyValues* settings = OptionsSubMiscellaneous::GetSettings();
+    m_MiscSaved.scheme = settings->GetString(OptionsSubMiscellaneous::kSchemeKey, OptionsSubMiscellaneous::kDefaultScheme);
+    m_MiscSaved.serverBrowserTab = settings->GetInt(OptionsSubMiscellaneous::kServerBrowserInitialTabKey, (int)ServerBrowserTab::Internet);
+    m_MiscSaved.disableAutoOpenServerBrowser = settings->GetBool(OptionsSubMiscellaneous::kDisableAutoOpenServerBrowserKey);
+    settings->deleteThis();
+    m_MiscEdited = m_MiscSaved;
+
+    m_Schemes.clear();
+    FileFindHandle_t handle = 0;
+    for (const char* file = g_pFullFileSystem->FindFirst("resource/schemes/*.res", &handle, "GAME"); file; file = g_pFullFileSystem->FindNext(handle))
+    {
+        if (!g_pFullFileSystem->FindIsDirectory(handle))
+            m_Schemes.push_back(file);
+    }
+    g_pFullFileSystem->FindClose(handle);
+}
+
+void CImGuiOptions::SaveMiscSettings()
+{
+    if (m_MiscEdited == m_MiscSaved)
+        return;
+
+    KeyValues* settings = OptionsSubMiscellaneous::GetSettings();
+    settings->SetString(OptionsSubMiscellaneous::kSchemeKey, m_MiscEdited.scheme.c_str());
+    settings->SetInt(OptionsSubMiscellaneous::kServerBrowserInitialTabKey, m_MiscEdited.serverBrowserTab);
+    settings->SetBool(OptionsSubMiscellaneous::kDisableAutoOpenServerBrowserKey, m_MiscEdited.disableAutoOpenServerBrowser);
+    settings->SaveToFile(g_pFullFileSystem, OptionsSubMiscellaneous::kUserSaveDataPath, "GAMECONFIG");
+    settings->deleteThis();
+
+    bool schemeChanged = m_MiscEdited.scheme != m_MiscSaved.scheme;
+    m_MiscSaved = m_MiscEdited;
+
+    // VGUI loads its scheme once, so a new one needs the game restarted, as the old dialog did
+    if (schemeChanged)
+    {
+        engine->pfnClientCmd("fmod stop\n");
+        engine->pfnClientCmd("_restart\n");
+    }
+}
+
 void CImGuiOptions::ApplyChanges()
 {
+    // stopping restores what the test changed, so it has to come before the new values
+    StopMicrophoneTest();
+
     for (const auto& [cvar, value] : m_Pending)
         engine->Cvar_Set(cvar.c_str(), value.c_str());
 
+    for (const auto& [command, on] : m_PendingKeys)
+    {
+        char text[64];
+        snprintf(text, sizeof(text), "%c%s\n", on ? '+' : '-', command.c_str());
+        engine->pfnClientCmd(text);
+    }
+
     m_Pending.clear();
+    m_PendingKeys.clear();
+    SaveMiscSettings();
+    SaveVoiceSettings();
+}
+
+void CImGuiOptions::LoadVoiceSettings()
+{
+    IVoiceTweak* tweak = engine->pVoiceTweak;
+    if (!tweak)
+        return;
+
+    // the old dialog did this too: the tweak's own copy of voice_scale may be stale
+    tweak->SetControlFloat(OtherSpeakerScale, engine->pfnGetCvarFloat("voice_scale"));
+
+    m_VoiceSaved.microphoneVolume = static_cast<int>(std::round(tweak->GetControlFloat(MicrophoneVolume) * 100.0f));
+    m_VoiceSaved.microphoneBoost = tweak->GetControlFloat(MicBoost) != 0.0f;
+    m_VoiceEdited = m_VoiceSaved;
+}
+
+void CImGuiOptions::SaveVoiceSettings()
+{
+    IVoiceTweak* tweak = engine->pVoiceTweak;
+    if (!tweak || m_VoiceEdited == m_VoiceSaved)
+        return;
+
+    tweak->SetControlFloat(MicrophoneVolume, m_VoiceEdited.microphoneVolume / 100.0f);
+    tweak->SetControlFloat(MicBoost, m_VoiceEdited.microphoneBoost ? 1.0f : 0.0f);
+    m_VoiceSaved = m_VoiceEdited;
+}
+
+void CImGuiOptions::StartMicrophoneTest()
+{
+    IVoiceTweak* tweak = engine->pVoiceTweak;
+    if (!tweak || m_bTestingMicrophone)
+        return;
+
+    // the test plays what the page shows, applied or not
+    tweak->SetControlFloat(MicrophoneVolume, m_VoiceEdited.microphoneVolume / 100.0f);
+    tweak->SetControlFloat(MicBoost, m_VoiceEdited.microphoneBoost ? 1.0f : 0.0f);
+    m_VoiceScaleBeforeTest = engine->pfnGetCvarString("voice_scale");
+    engine->Cvar_Set("voice_scale", PendingString("voice_scale").c_str());
+
+    m_bTestingMicrophone = true;
+    if (!tweak->StartVoiceTweakMode())
+        StopMicrophoneTest();
+}
+
+void CImGuiOptions::StopMicrophoneTest()
+{
+    IVoiceTweak* tweak = engine->pVoiceTweak;
+    if (!tweak || !m_bTestingMicrophone)
+        return;
+
+    m_bTestingMicrophone = false;
+    tweak->EndVoiceTweakMode();
+
+    tweak->SetControlFloat(MicrophoneVolume, m_VoiceSaved.microphoneVolume / 100.0f);
+    tweak->SetControlFloat(MicBoost, m_VoiceSaved.microphoneBoost ? 1.0f : 0.0f);
+    engine->Cvar_Set("voice_scale", m_VoiceScaleBeforeTest.c_str());
 }

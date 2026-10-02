@@ -32,9 +32,9 @@ private:
     void PrepareColorSchemesList() const;
     void ActivateServerBrowserTab(ServerBrowserTab tab) const;
 
+public:
     static std::string MakeSchemeName(std::string_view scheme_path);
 
-public:
     constexpr static char kUserSaveDataPath[] = "MiscellaneousSettings.vdf";
 
     constexpr static char kSchemeKey[] = "Scheme";
