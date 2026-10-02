@@ -177,6 +177,7 @@ void CGameUI::Initialize(CreateInterfaceFn *factories, int count)
     g_pVGuiLocalize->AddFile(g_pFullFileSystem, "resource/valve_%language%.txt");
     g_pVGuiLocalize->AddFile(g_pFullFileSystem, "resource/vgui_%language%.txt");
     g_pVGuiLocalize->AddFile(g_pFullFileSystem, "resource/nextclient_%language%.txt");
+    g_pVGuiLocalize->AddFile(g_pFullFileSystem, "resource/console_%language%.txt");
 
     if (FindPlatformDirectory(m_szPlatformDir, ARRAYSIZE(m_szPlatformDir)))
     {

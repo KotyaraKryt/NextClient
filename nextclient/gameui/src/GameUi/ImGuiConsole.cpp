@@ -5,6 +5,9 @@
 #include "IGameUIFuncs.h"
 #include "LoadingDialog.h"
 #include <FileSystem.h>
+#include <tier1/strtools.h>
+#include <vgui/ILocalize.h>
+#include <cvardef.h>
 
 #include <vgui/IInput.h>
 #include <vgui/IInputInternal.h>
@@ -12,6 +15,7 @@
 #include <vgui_controls/Controls.h>
 
 #include <console_buffer/console_buffer.h>
+#include <console_buffer/completion.h>
 #include <console_buffer/selection.h>
 #include <imgui/imgui.h>
 #include <imgui/imgui_internal.h>
@@ -29,6 +33,7 @@
 using namespace vgui2;
 
 static const char* const kHistoryFile = "console_history.txt";
+static const size_t kMaxSuggestions = 10;
 
 CImGuiConsole::CImGuiConsole(console_buffer::ConsoleBuffer& scrollback) : m_Scrollback(scrollback)
 {
@@ -60,21 +65,176 @@ void CImGuiConsole::SaveHistory()
     g_pFullFileSystem->Close(file);
 }
 
+static void ReplaceInput(ImGuiInputTextCallbackData* data, const std::string& text)
+{
+    data->DeleteChars(0, data->BufTextLen);
+    data->InsertChars(0, text.c_str());
+}
+
 int CImGuiConsole::OnInputCallback(ImGuiInputTextCallbackData* data)
 {
     auto* console = static_cast<CImGuiConsole*>(data->UserData);
+    bool up = data->EventKey == ImGuiKey_UpArrow;
 
-    if (data->EventFlag == ImGuiInputTextFlags_CallbackHistory)
+    switch (data->EventFlag)
     {
-        std::optional<std::string> entry = data->EventKey == ImGuiKey_UpArrow ? console->m_History.Older() : console->m_History.Newer();
-        if (entry)
-        {
-            data->DeleteChars(0, data->BufTextLen);
-            data->InsertChars(0, entry->c_str());
-        }
+        case ImGuiInputTextFlags_CallbackAlways:
+            if (console->m_bCursorToEnd)
+            {
+                data->CursorPos = data->SelectionStart = data->SelectionEnd = data->BufTextLen;
+                console->m_bCursorToEnd = false;
+            }
+            break;
+
+        case ImGuiInputTextFlags_CallbackCompletion:
+            if (!console->m_Suggestions.empty())
+                ReplaceInput(data, console->m_Suggestions[console->m_iSuggestion] + " ");
+            break;
+
+        case ImGuiInputTextFlags_CallbackHistory:
+            // Up and Down pick a suggestion while there are any, and walk the history otherwise
+            if (!console->m_Suggestions.empty())
+            {
+                int last = static_cast<int>(console->m_Suggestions.size()) - 1;
+                console->m_iSuggestion = std::clamp(console->m_iSuggestion + (up ? -1 : 1), 0, last);
+            }
+            else if (std::optional<std::string> entry = up ? console->m_History.Older() : console->m_History.Newer())
+            {
+                ReplaceInput(data, *entry);
+                console->m_RecalledText = *entry;
+            }
+            break;
     }
 
     return 0;
+}
+
+void CImGuiConsole::RebuildCompletionNames()
+{
+    m_CompletionNames.clear();
+
+    for (auto cmd = engine->GetFirstCmdFunctionHandle(); cmd; cmd = engine->GetNextCmdFunctionHandle(cmd))
+        m_CompletionNames.emplace_back(engine->GetCmdFunctionName(cmd));
+
+    for (cvar_t* cvar = engine->GetFirstCvarPtr(); cvar; cvar = cvar->next)
+        m_CompletionNames.emplace_back(cvar->name);
+
+    std::sort(m_CompletionNames.begin(), m_CompletionNames.end());
+    m_CompletionNames.erase(std::unique(m_CompletionNames.begin(), m_CompletionNames.end()), m_CompletionNames.end());
+}
+
+// the description from resource/console_<language>.txt, "" for names it doesn't cover
+const std::string& CImGuiConsole::Describe(const std::string& name)
+{
+    auto found = m_Descriptions.find(name);
+    if (found != m_Descriptions.end())
+        return found->second;
+
+    std::string utf8;
+    std::string token = "#Console_Help_" + name;
+    if (const wchar_t* wide = g_pVGuiLocalize->Find(token.c_str()))
+    {
+        utf8.resize(wcslen(wide) * 4 + 1);
+        V_UnicodeToUTF8(wide, utf8.data(), static_cast<int>(utf8.size()));
+        utf8.resize(strlen(utf8.c_str()));
+    }
+
+    return m_Descriptions.emplace(name, std::move(utf8)).first->second;
+}
+
+void CImGuiConsole::UpdateSuggestions()
+{
+    std::string_view typed = m_szInput;
+    if (typed.empty())
+        m_RecalledText.clear();
+
+    // suggest while the first word is being typed, not over its arguments
+    bool typingName = !typed.empty() && typed.find(' ') == std::string_view::npos && typed != m_RecalledText;
+    if (!typingName)
+    {
+        m_Suggestions.clear();
+        m_SuggestionsFor.clear();
+        return;
+    }
+
+    if (typed == m_SuggestionsFor)
+        return;
+
+    m_SuggestionsFor = typed;
+    m_Suggestions = console_buffer::MatchNames(m_CompletionNames, typed, kMaxSuggestions);
+    m_iSuggestion = 0;
+}
+
+void CImGuiConsole::AcceptSuggestion(const std::string& name)
+{
+    V_snprintf(m_szInput, sizeof(m_szInput), "%s ", name.c_str());
+    m_Suggestions.clear();
+    m_bFocusInput = true;
+}
+
+void CImGuiConsole::DrawSuggestions()
+{
+    // the matches while a name is typed, or what the typed command is once it has a space after it
+    std::vector<std::string> rows = m_Suggestions;
+    bool picking = !rows.empty();
+    if (!picking)
+    {
+        std::string_view typed = m_szInput;
+        size_t space = typed.find(' ');
+        if (space == std::string_view::npos || space == 0)
+            return;
+
+        std::string name(typed.substr(0, space));
+        if (!std::binary_search(m_CompletionNames.begin(), m_CompletionNames.end(), name))
+            return;
+
+        rows.push_back(name);
+    }
+
+    // above the input line, as wide as the console at most
+    ImGui::SetNextWindowPos(ImVec2(m_flInputX, m_flInputTop - ImGui::GetStyle().ItemSpacing.y), ImGuiCond_Always, ImVec2(0.0f, 1.0f));
+    ImGui::SetNextWindowSizeConstraints(ImVec2(0, 0), ImVec2(m_flConsoleWidth, FLT_MAX));
+
+    ImGuiWindowFlags flags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove |
+        ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav |
+        ImGuiWindowFlags_AlwaysAutoResize;
+
+    if (ImGui::Begin("##Suggestions", nullptr, flags))
+    {
+        // clicking the console would otherwise put it over the list
+        ImGui::BringWindowToDisplayFront(ImGui::GetCurrentWindow());
+
+        if (ImGui::BeginTable("##Rows", 3, ImGuiTableFlags_SizingFixedFit))
+        {
+            for (int i = 0; i < static_cast<int>(rows.size()); i++)
+            {
+                const std::string& name = rows[i];
+                ImGui::TableNextRow();
+
+                ImGui::TableNextColumn();
+                if (picking)
+                {
+                    if (ImGui::Selectable(name.c_str(), i == m_iSuggestion, ImGuiSelectableFlags_SpanAllColumns))
+                        AcceptSuggestion(name);
+                }
+                else
+                {
+                    ImGui::TextUnformatted(name.c_str());
+                }
+
+                ImGui::TableNextColumn();
+                if (cvar_t* cvar = engine->pfnGetCvarPointer(name.c_str()))
+                    ImGui::TextColored(ImGui::GetStyle().Colors[ImGuiCol_CheckMark], "%s", cvar->string);
+
+                ImGui::TableNextColumn();
+                ImGui::TextDisabled("%s", Describe(name).c_str());
+            }
+
+            ImGui::EndTable();
+        }
+    }
+
+    ImGui::End();
 }
 
 void CImGuiConsole::Activate()
@@ -84,6 +244,7 @@ void CImGuiConsole::Activate()
     RequestFocus();
 
     ResetInput();
+    RebuildCompletionNames();
     m_bFocusWindow = true;
     m_bFocusInput = true;
     m_bIgnoreNextChar = false;
@@ -121,6 +282,7 @@ void CImGuiConsole::DrawImGui()
         {
             ImGui::SetKeyboardFocusHere();
             m_bFocusInput = false;
+            m_bCursorToEnd = true;
         }
 
         const char* submitLabel = "Submit";
@@ -128,7 +290,11 @@ void CImGuiConsole::DrawImGui()
 
         ImGui::SetNextItemWidth(-(submitWidth + ImGui::GetStyle().ItemSpacing.x));
         bool submitted = ImGui::InputText("##Input", m_szInput, sizeof(m_szInput),
-            ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_CallbackHistory, OnInputCallback, this);
+            ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_CallbackHistory | ImGuiInputTextFlags_CallbackCompletion |
+            ImGuiInputTextFlags_CallbackAlways, OnInputCallback, this);
+        m_flInputX = ImGui::GetItemRectMin().x;
+        m_flInputTop = ImGui::GetItemRectMin().y;
+        m_flConsoleWidth = ImGui::GetWindowWidth();
         ImGui::SameLine();
         submitted |= ImGui::Button(submitLabel, ImVec2(submitWidth, 0));
 
@@ -144,6 +310,12 @@ void CImGuiConsole::DrawImGui()
     }
 
     ImGui::End();
+
+    if (expanded)
+    {
+        UpdateSuggestions();
+        DrawSuggestions();
+    }
 
     if (!open)
         SetVisible(false);

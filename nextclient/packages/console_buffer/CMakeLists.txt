@@ -7,6 +7,7 @@ add_library(${PROJECT_NAME} STATIC
     src/console_buffer.cpp
     src/selection.cpp
     src/command_history.cpp
+    src/completion.cpp
 )
 add_library(console_buffer::console_buffer ALIAS ${PROJECT_NAME})
 

@@ -8,6 +8,7 @@ add_executable(${TARGET_NAME}
         ConsoleBufferTests.cpp
         SelectionTests.cpp
         CommandHistoryTests.cpp
+        CompletionTests.cpp
 )
 
 target_link_libraries(${TARGET_NAME} PRIVATE
