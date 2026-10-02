@@ -8,6 +8,7 @@
 #include <ModInfo.h>
 
 #include <cvardef.h>
+#include <nitro_utils/net_utils.h>
 #include <nitro_utils/string_utils.h>
 #include <tier1/strtools.h>
 #include <FileSystem.h>
@@ -624,6 +625,7 @@ void CImGuiServerBrowser::DrawImGui()
         }
 
         DrawPasswordPopup();
+        DrawAddServerPopup();
 
         // a popup takes its own Escape; in a level, Escape belongs to the game menu
         bool focused = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows) && !ImGui::IsPopupOpen("", ImGuiPopupFlags_AnyPopupId);
@@ -656,6 +658,25 @@ void CImGuiServerBrowser::DrawToolbar(Tab& tab)
     if (ImGui::Button(Localized("#ServerBrowser_Connect").c_str()))
         Connect(tab, tab.selected);
     ImGui::EndDisabled();
+
+    if (tab.id == ServerBrowserTab::Favorites)
+    {
+        ImGui::SameLine();
+        if (ImGui::Button(Localized("#ServerBrowser_AddServer").c_str()))
+        {
+            m_szAddServer[0] = '\0';
+            m_bAddServerFailed = false;
+            m_bOpenAddServerPopup = true;
+        }
+
+        // the server the game is on now, which the old browser kept track of
+        servernetadr_t& current = ServerBrowserDialog().GetCurrentConnectedServer();
+        ImGui::SameLine();
+        ImGui::BeginDisabled(current.GetIP() == 0);
+        if (ImGui::Button(Localized("#ServerBrowser_AddCurrentServer").c_str()))
+            AddFavorite(current.GetIP(), current.GetConnectionPort());
+        ImGui::EndDisabled();
+    }
 
     ImGui::SameLine();
     ImGui::SetNextItemWidth(-FLT_MIN);
@@ -920,6 +941,8 @@ void CImGuiServerBrowser::DrawTable(Tab& tab)
             MoveSelection(tab, 1), scrollToSelected = true;
         if ((ImGui::IsKeyPressed(ImGuiKey_Enter) || ImGui::IsKeyPressed(ImGuiKey_KeypadEnter)) && tab.selected >= 0)
             Connect(tab, tab.selected);
+        if (ImGui::IsKeyPressed(ImGuiKey_Delete) && tab.id == ServerBrowserTab::Favorites && tab.servers.IsServerExists(tab.selected))
+            RemoveFavorite(tab.servers.GetServer(tab.selected).gs);
     }
 
     ImGuiListClipper clipper;
@@ -949,6 +972,8 @@ void CImGuiServerBrowser::DrawTable(Tab& tab)
 
     ImGui::EndTable();
     ImGui::PopID();
+
+    DrawEmptyListText(tab);
 }
 
 void CImGuiServerBrowser::DrawRow(Tab& tab, const serveritem_t& server)
@@ -1066,16 +1091,10 @@ void CImGuiServerBrowser::DrawContextMenu(Tab& tab)
         ImGui::SetClipboardText(server.m_NetAdr.GetConnectionAddressString().c_str());
 
     if (tab.id != ServerBrowserTab::Favorites && ImGui::MenuItem(Localized("#ServerBrowser_AddServerToFavorites").c_str()))
-    {
-        ServerBrowserDialog().AddServerToFavorites(server);
+        AddFavorite(server.m_NetAdr.GetIP(), server.m_NetAdr.GetConnectionPort());
 
-        // the favorites tab asks Steam again once it's opened
-        for (auto& other : m_Tabs)
-        {
-            if (other->id == ServerBrowserTab::Favorites)
-                other->requested = false;
-        }
-    }
+    if (tab.id == ServerBrowserTab::Favorites && ImGui::MenuItem(Localized("#ServerBrowser_RemoveServerFromFavorites").c_str(), "Del"))
+        RemoveFavorite(server);
 }
 
 void CImGuiServerBrowser::DrawStatus(Tab& tab)
@@ -1371,4 +1390,110 @@ void CImGuiServerBrowser::DrawPlayers(const CServerInfoQuery& query, float heigh
 
     ImGui::EndTable();
     ImGui::EndChild();
+}
+
+void CImGuiServerBrowser::InvalidateFavorites()
+{
+    for (auto& tab : m_Tabs)
+    {
+        if (tab->id == ServerBrowserTab::Favorites)
+            tab->requested = false;
+    }
+}
+
+void CImGuiServerBrowser::AddFavorite(uint32_t ip, uint16_t connectionPort)
+{
+    // through the old browser, so its favorites page stays in step
+    ServerBrowserDialog().AddServerToFavorites(ip, connectionPort);
+    InvalidateFavorites();
+}
+
+void CImGuiServerBrowser::RemoveFavorite(const gameserveritem_t& server)
+{
+    uint32_t ip = server.m_NetAdr.GetIP();
+    uint16_t port = server.m_NetAdr.GetConnectionPort();
+    SteamMatchmaking()->RemoveFavoriteGame(SteamUtils()->GetAppID(), ip, port, port, k_unFavoriteFlagFavorite);
+    InvalidateFavorites();
+}
+
+void CImGuiServerBrowser::DrawEmptyListText(Tab& tab)
+{
+    if (!tab.rows.empty() || tab.servers.IsRefreshing())
+        return;
+
+    // nothing answered at all, or everything that did is filtered out
+    const char* token = "#ServerBrowser_NoInternetGames";
+    if (tab.servers.AnsweredCount() == 0)
+    {
+        switch (tab.id)
+        {
+            case ServerBrowserTab::Internet: token = "#ServerBrowser_NoInternetGamesResponded"; break;
+            case ServerBrowserTab::Favorites: token = "#ServerBrowser_NoFavoriteServers"; break;
+            case ServerBrowserTab::History: token = "#ServerBrowser_NoServersPlayed"; break;
+            case ServerBrowserTab::LAN: token = "#ServerBrowser_NoLanServers"; break;
+            case ServerBrowserTab::Friends: token = "#ServerBrowser_NoFriendsServers"; break;
+            default: break;
+        }
+    }
+
+    std::string text = Localized(token);
+    ImVec2 size = ImGui::CalcTextSize(text.c_str());
+    ImVec2 pos = ImGui::GetWindowPos();
+    ImVec2 window = ImGui::GetWindowSize();
+    ImVec2 corner(pos.x + (window.x - size.x) * 0.5f, pos.y + (window.y - size.y) * 0.5f);
+    ImGui::GetWindowDrawList()->AddText(corner, ImGui::GetColorU32(ImGuiCol_TextDisabled), text.c_str());
+}
+
+void CImGuiServerBrowser::DrawAddServerPopup()
+{
+    const char* popupId = "###AddServer";
+    if (m_bOpenAddServerPopup)
+    {
+        ImGui::OpenPopup(popupId);
+        m_bOpenAddServerPopup = false;
+    }
+
+    ImGui::PushStyleColor(ImGuiCol_ModalWindowDimBg, IM_COL32(0, 0, 0, 0));
+    ImGui::SetNextWindowPos(ImGui::GetMainViewport()->GetCenter(), ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
+    std::string title = Localized("#ServerBrowser_AddServerByIP") + popupId;
+    if (ImGui::BeginPopupModal(title.c_str(), nullptr, ImGuiWindowFlags_AlwaysAutoResize))
+    {
+        if (ImGui::IsWindowAppearing())
+            ImGui::SetKeyboardFocusHere();
+        ImGui::SetNextItemWidth(ImGui::CalcTextSize("0").x * 36);
+        bool submitted = ImGui::InputTextWithHint("##Address", "1.2.3.4:27015", m_szAddServer, sizeof(m_szAddServer),
+                                                  ImGuiInputTextFlags_EnterReturnsTrue);
+        if (ImGui::IsItemEdited())
+            m_bAddServerFailed = false;
+
+        if (m_bAddServerFailed)
+            ImGui::TextColored(kBadColor, "%s", Localized("#ServerBrowser_AddServerError").c_str());
+
+        submitted |= ImGui::Button(Localized("#ServerBrowser_AddServer").c_str());
+        ImGui::SameLine();
+        bool cancelled = ImGui::Button(Localized("#ServerBrowser_Cancel").c_str()) || ImGui::IsKeyPressed(ImGuiKey_Escape);
+
+        if (submitted)
+        {
+            // a name is looked up too, as the old dialog did; the port defaults to 27015
+            uint32_t ip = 0;
+            uint16_t port = 0;
+            if (nitro_utils::ParseAddress(m_szAddServer, ip, port, true) && ip && port)
+            {
+                AddFavorite(ip, port);
+                ImGui::CloseCurrentPopup();
+            }
+            else
+            {
+                m_bAddServerFailed = true;
+            }
+        }
+        else if (cancelled)
+        {
+            ImGui::CloseCurrentPopup();
+        }
+
+        ImGui::EndPopup();
+    }
+    ImGui::PopStyleColor();
 }

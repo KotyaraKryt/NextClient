@@ -68,6 +68,9 @@ private:
     void DrawContextMenu(Tab& tab);
     void DrawStatus(Tab& tab);
     void DrawPasswordPopup();
+    void DrawAddServerPopup();
+    // over an empty list, why it's empty
+    void DrawEmptyListText(Tab& tab);
     void DrawServerInfo();
     void DrawServerDetails(const gameserveritem_t& server);
     // height as ImGui takes it, negative for all but that much of the window
@@ -87,6 +90,11 @@ private:
     // a full server opens its info instead, where auto-retry can wait for a free slot
     void JoinServer(const serveritem_t& server, GuiConnectionSource source);
     void OpenServerInfo(const serveritem_t& server, GuiConnectionSource source);
+
+    void AddFavorite(uint32_t ip, uint16_t connectionPort);
+    void RemoveFavorite(const gameserveritem_t& server);
+    // the favorites tab asks Steam again the next time it's shown
+    void InvalidateFavorites();
     void ConnectWithPassword(const gameserveritem_t& server, GuiConnectionSource source, const char* password);
     void Close();
 
@@ -137,6 +145,10 @@ private:
     bool m_bAutoJoin = false;
     double m_flNextInfoRetry = 0.0;
     uint32_t m_iInfoResponsesSeen = 0;
+
+    bool m_bOpenAddServerPopup = false;
+    bool m_bAddServerFailed = false;
+    char m_szAddServer[128] = {};
 
     std::unordered_map<std::string, std::string> m_GameModeTexts;
     // by path
