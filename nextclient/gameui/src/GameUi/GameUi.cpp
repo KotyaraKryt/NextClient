@@ -34,6 +34,7 @@
 #include "DemoPlayerDialog.h"
 #include "ImGuiOptions.h"
 #include "ImGuiCreateServer.h"
+#include "ImGuiLoadingDialog.h"
 #include "OptionsSubMiscellaneous.h"
 #include "IClientVGUI.h"
 
@@ -60,7 +61,53 @@ static IGameClientExports* g_pGameClientExports = nullptr;
 static EngineMiniInterface* g_pEngineMini = nullptr;
 static ScenePreviewInterface* g_pScenePreview;
 static vgui2::DHANDLE<CDemoPlayerDialog> g_hDemoPlayerDialog;
-vgui2::DHANDLE<CLoadingDialog> g_hLoadingDialog;
+static vgui2::DHANDLE<CLoadingDialog> g_hLoadingDialog;
+static vgui2::DHANDLE<CImGuiLoadingDialog> g_hImGuiLoadingDialog;
+
+ILoadingDialog *LoadingDialog(void)
+{
+    if (g_hLoadingDialog.Get())
+        return g_hLoadingDialog.Get();
+
+    if (g_hImGuiLoadingDialog.Get() && g_hImGuiLoadingDialog->IsOpen())
+        return g_hImGuiLoadingDialog.Get();
+
+    return NULL;
+}
+
+ILoadingDialog *CreateLoadingDialog(void)
+{
+    if (ILoadingDialog *dialog = LoadingDialog())
+        return dialog;
+
+    if (CImGuiLoadingDialog::UseLegacyDialog())
+    {
+        g_hLoadingDialog = new CLoadingDialog(BasePanel());
+        return g_hLoadingDialog.Get();
+    }
+
+    // the ImGui one is kept, so its fonts aren't built again for every connection
+    if (!g_hImGuiLoadingDialog.Get())
+    {
+        g_hImGuiLoadingDialog = vgui2::SETUP_PANEL(new CImGuiLoadingDialog());
+        g_hImGuiLoadingDialog->SetParent(BasePanel()->GetVPanel());
+    }
+
+    g_hImGuiLoadingDialog->Reset();
+    return g_hImGuiLoadingDialog.Get();
+}
+
+void CloseLoadingDialog(void)
+{
+    if (g_hLoadingDialog.Get())
+    {
+        g_hLoadingDialog->Close();
+        g_hLoadingDialog = NULL;
+    }
+
+    if (g_hImGuiLoadingDialog.Get() && g_hImGuiLoadingDialog->IsOpen())
+        g_hImGuiLoadingDialog->CloseLoading();
+}
 static CGameUI g_GameUI;
 #ifdef _WIN32
 static HWND g_MainWindow = nullptr;
@@ -238,6 +285,7 @@ void CGameUI::Start(cl_enginefuncs_s *engineFuncs, int interfaceVersion, void *s
     ModInfo().LoadCurrentGameInfo();
     CImGuiOptions::RegisterCvars();
     CImGuiCreateServer::RegisterCvars();
+    CImGuiLoadingDialog::RegisterCvars();
 
     if (g_pServerBrowser)
     {
@@ -283,11 +331,8 @@ void CGameUI::Shutdown(void)
 
 int CGameUI::ActivateGameUI(void)
 {
-    if (!m_bLoadlingLevel && g_hLoadingDialog.Get() && IsInLevel())
-    {
-        g_hLoadingDialog->Close();
-        g_hLoadingDialog = NULL;
-    }
+    if (!m_bLoadlingLevel && LoadingDialog() && IsInLevel())
+        CloseLoadingDialog();
 
 #ifdef _WIN32
     if(!IsGameUIActive())
@@ -379,11 +424,8 @@ void CGameUI::HideGameUI()
     if (GameConsole().IsConsoleVisible())
         GameConsole().Hide();
 
-    if (!m_bLoadlingLevel && g_hLoadingDialog.Get())
-    {
-        g_hLoadingDialog->Close();
-        g_hLoadingDialog = NULL;
-    }
+    if (!m_bLoadlingLevel && LoadingDialog())
+        CloseLoadingDialog();
 
 #ifdef _WIN32
     browserExtensionGameUiApi->OnHideGameUI();
@@ -413,46 +455,35 @@ void CGameUI::LoadingFinished(const char *resourceType, const char *resourceName
 
 void CGameUI::StartProgressBar(const char *progressType, int progressSteps)
 {
-    if (!g_hLoadingDialog.Get())
-        g_hLoadingDialog = new CLoadingDialog(BasePanel());
+    ILoadingDialog *dialog = CreateLoadingDialog();
 
     m_szPreviousStatusText[0] = 0;
-    g_hLoadingDialog->SetProgressRange(0, progressSteps);
-    g_hLoadingDialog->SetProgressPoint(0.0f);
-    g_hLoadingDialog->Open();
+    dialog->SetProgressRange(0, progressSteps);
+    dialog->SetProgressPoint(0.0f);
+    dialog->Open();
 }
 
 int CGameUI::ContinueProgressBar(int progressPoint, float progressFraction)
 {
-    if (!g_hLoadingDialog.Get())
+    ILoadingDialog *dialog = LoadingDialog();
+    if (!dialog)
         return 0;
 
-    g_hLoadingDialog->Activate();
-    return g_hLoadingDialog->SetProgressPoint(progressPoint);
+    dialog->ShowLoading();
+    return dialog->SetProgressPoint(progressPoint);
 }
 
 void CGameUI::StopProgressBar(bool bError, const char *failureReason, const char *extendedReason)
 {
-    if (!g_hLoadingDialog.Get() && bError)
-        g_hLoadingDialog = new CLoadingDialog(BasePanel());
-
-    if (!g_hLoadingDialog.Get())
-        return;
-
     if (bError)
-    {
-        g_hLoadingDialog->DisplayGenericError(failureReason, extendedReason);
-    }
+        CreateLoadingDialog()->DisplayGenericError(failureReason, extendedReason);
     else
-    {
-        g_hLoadingDialog->Close();
-        g_hLoadingDialog = NULL;
-    }
+        CloseLoadingDialog();
 }
 
 int CGameUI::SetProgressBarStatusText(const char *statusText)
 {
-    if (!g_hLoadingDialog.Get())
+    if (!LoadingDialog())
         return false;
 
     if (!statusText)
@@ -461,25 +492,21 @@ int CGameUI::SetProgressBarStatusText(const char *statusText)
     if (!stricmp(statusText, m_szPreviousStatusText))
         return false;
 
-    g_hLoadingDialog->SetStatusText(statusText);
+    LoadingDialog()->SetStatusText(statusText);
     Q_strncpy(m_szPreviousStatusText, statusText, sizeof(m_szPreviousStatusText));
     return true;
 }
 
 void CGameUI::SetSecondaryProgressBar(float progress)
 {
-    if (!g_hLoadingDialog.Get())
-        return;
-
-    g_hLoadingDialog->SetSecondaryProgress(progress);
+    if (ILoadingDialog *dialog = LoadingDialog())
+        dialog->SetSecondaryProgress(progress);
 }
 
 void CGameUI::SetSecondaryProgressBarText(const char *statusText)
 {
-    if (!g_hLoadingDialog.Get())
-        return;
-
-    g_hLoadingDialog->SetSecondaryProgressText(statusText);
+    if (ILoadingDialog *dialog = LoadingDialog())
+        dialog->SetSecondaryProgressText(statusText);
 }
 
 void CGameUI::ValidateCDKey(bool force, bool inConnect)

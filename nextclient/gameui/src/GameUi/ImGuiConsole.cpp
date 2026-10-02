@@ -976,7 +976,7 @@ void CImGuiConsole::CloseToGame()
         return;
 
     if (LoadingDialog())
-        surface()->RestrictPaintToSinglePanel(LoadingDialog()->GetVPanel());
+        surface()->RestrictPaintToSinglePanel(LoadingDialog()->GetLoadingPanel());
     else
         g_pBaseUI->HideGameUI();
 }

@@ -207,6 +207,8 @@ private:
 
 public:
     void ApplyMultiplayerGameSettings();
+    // the menu's background pictures alone, for the loading screen to draw under itself
+    void DrawMenuBackground(void);
 
 private:
     virtual void OnCommand(const char *command);

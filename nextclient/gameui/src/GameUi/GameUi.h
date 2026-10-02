@@ -82,7 +82,6 @@ extern CGameUI& GameUI();
 extern vgui2::Panel* StaticPanel();
 extern IBaseSystem* SystemWrapper();
 extern cl_enginefunc_t* engine;
-extern vgui2::DHANDLE<CLoadingDialog> g_hLoadingDialog;
 extern IGameClientExports* GameClientExports();
 extern EngineMiniInterface* EngineMini();
 extern ScenePreviewInterface* ScenePreview();

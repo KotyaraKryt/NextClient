@@ -14,8 +14,9 @@ class CImGuiPanel : public vgui2::Panel
     DECLARE_CLASS_SIMPLE(CImGuiPanel, vgui2::Panel);
 
 public:
-    // layoutFile keeps where the windows were and how big, between runs
-    explicit CImGuiPanel(const char* layoutFile = nullptr);
+    // layoutFile keeps where the windows were and how big, between runs; titleFontScale > 0
+    // adds a third font that many times the normal size, for TitleFont
+    explicit CImGuiPanel(const char* layoutFile = nullptr, float titleFontScale = 0.0f);
 
     // takes effect on the next frame, when the font atlas can be rebuilt
     void SetFontSize(float size);
@@ -27,6 +28,8 @@ public:
 
     // the bigger font of the current context, nullptr (which ImGui::PushFont takes as the default) if it failed to load
     static ImFont* HeadingFont();
+    // the panel's title font, or the heading one if it asked for none
+    static ImFont* TitleFont();
 
     ~CImGuiPanel() override;
 
@@ -64,6 +67,7 @@ private:
     int m_iFontTextureID = 0;
     double m_flLastFrameTime = 0.0;
     float m_flFontSize = 16.0f;
+    float m_flTitleFontScale = 0.0f;
     float m_flPendingFontSize = 0.0f;
     const char* m_pszLayoutFile;
 };

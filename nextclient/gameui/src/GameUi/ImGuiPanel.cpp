@@ -89,7 +89,7 @@ static void* ReadWholeFile(const char* path, int& size)
     return data;
 }
 
-static void LoadFonts(ImGuiIO& io, float size)
+static void LoadFonts(ImGuiIO& io, float size, float titleScale)
 {
     // Latin, Greek and Cyrillic, plus the punctuation, arrows, box drawing and shapes that servers
     // and plugins like to decorate their messages with
@@ -141,6 +141,8 @@ static void LoadFonts(ImGuiIO& io, float size)
     addFont(size);
     // a second, bigger size for headings and icons, since a scaled up font looks blurry
     addFont(std::round(size * 1.4f));
+    if (titleScale > 0.0f)
+        addFont(std::round(size * titleScale));
 }
 
 // ImGui speaks UTF-8, VGUI's clipboard speaks wchar_t
@@ -181,7 +183,7 @@ static int ToImGuiMouseButton(MouseCode code)
     }
 }
 
-CImGuiPanel::CImGuiPanel(const char* layoutFile) : BaseClass(nullptr, "ImGuiPanel"), m_pszLayoutFile(layoutFile)
+CImGuiPanel::CImGuiPanel(const char* layoutFile, float titleFontScale) : BaseClass(nullptr, "ImGuiPanel"), m_flTitleFontScale(titleFontScale), m_pszLayoutFile(layoutFile)
 {
     MakePopup();
     SetKeyBoardInputEnabled(true);
@@ -202,7 +204,7 @@ CImGuiPanel::CImGuiPanel(const char* layoutFile) : BaseClass(nullptr, "ImGuiPane
     io.SetClipboardTextFn = SetClipboard;
     io.GetClipboardTextFn = GetClipboard;
     ApplyNextClientTheme(ImGui::GetStyle());
-    LoadFonts(io, m_flFontSize);
+    LoadFonts(io, m_flFontSize, m_flTitleFontScale);
     ImGui_ImplOpenGL2_Init();
 
     int layoutSize;
@@ -233,6 +235,12 @@ std::string CImGuiPanel::Localized(const char* token, const char* english)
 {
     std::string text = Localized(token);
     return text.empty() ? english : text;
+}
+
+ImFont* CImGuiPanel::TitleFont()
+{
+    ImFontAtlas* atlas = ImGui::GetIO().Fonts;
+    return atlas->Fonts.Size > 2 ? atlas->Fonts[2] : HeadingFont();
 }
 
 ImFont* CImGuiPanel::HeadingFont()
@@ -308,7 +316,7 @@ void CImGuiPanel::Paint()
     {
         m_flFontSize = m_flPendingFontSize;
         ImGui::GetIO().Fonts->Clear();
-        LoadFonts(ImGui::GetIO(), m_flFontSize);
+        LoadFonts(ImGui::GetIO(), m_flFontSize, m_flTitleFontScale);
         CreateFontTexture();
     }
 

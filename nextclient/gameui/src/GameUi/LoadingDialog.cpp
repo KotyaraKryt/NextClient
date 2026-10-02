@@ -403,10 +403,3 @@ void CLoadingDialog::OnKeyCodePressed(vgui2::KeyCode code)
     else
         BaseClass::OnKeyCodePressed(code);
 }
-
-extern vgui2::DHANDLE<CLoadingDialog> g_hLoadingDialog;
-
-CLoadingDialog *LoadingDialog(void)
-{
-    return g_hLoadingDialog.Get();
-}

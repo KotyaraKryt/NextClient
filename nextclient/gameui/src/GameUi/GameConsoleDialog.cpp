@@ -721,7 +721,7 @@ void CGameConsoleDialog::OnKeyCodeTyped(vgui2::KeyCode code)
             {
                 if ( LoadingDialog() )
                 {
-                    vgui2::surface()->RestrictPaintToSinglePanel( LoadingDialog()->GetVPanel() );
+                    vgui2::surface()->RestrictPaintToSinglePanel( LoadingDialog()->GetLoadingPanel() );
                 }
                 else
                 {

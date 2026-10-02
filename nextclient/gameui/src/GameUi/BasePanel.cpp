@@ -398,7 +398,7 @@ void CBasePanel::PaintBackground(void)
         PositionDialog(m_hCreateMultiplayerGameDialog);
     }
 
-    if (!GameUI().IsInLevel() || g_hLoadingDialog.Get())
+    if (!GameUI().IsInLevel() || LoadingDialog())
     {
         DrawBackgroundImage();
     }
@@ -437,7 +437,7 @@ void CBasePanel::UpdateBackgroundState(void)
         if (IsPC())
             SetBackgroundRenderState(BACKGROUND_MAINMENU);
     }
-    else if (m_bLevelLoading && g_hLoadingDialog.Get())
+    else if (m_bLevelLoading && LoadingDialog())
     {
         SetBackgroundRenderState(BACKGROUND_LOADING);
     }
@@ -584,10 +584,9 @@ void CBasePanel::OnLevelLoadingStarted(const char *levelName)
     static char imageName[MAX_PATH];
     sprintf(imageName, "resource/maploading/loadingbg_%s", levelName);
 
-    if (!g_hLoadingDialog.Get())
-        g_hLoadingDialog = new CLoadingDialog(this);
-
-    g_hLoadingDialog->SetBackgroundImage(imageName);
+    ILoadingDialog *dialog = CreateLoadingDialog();
+    dialog->SetBackgroundImage(imageName);
+    dialog->SetLevelName(levelName);
 }
 
 void CBasePanel::OnLevelLoadingFinished(void)
@@ -595,24 +594,10 @@ void CBasePanel::OnLevelLoadingFinished(void)
     m_bLevelLoading = false;
 }
 
-void CBasePanel::DrawBackgroundImage(void)
+void CBasePanel::DrawMenuBackground(void)
 {
     int swide, stall;
     vgui2::surface()->GetScreenSize(swide, stall);
-
-    int wide, tall;
-    GetSize(wide, tall);
-
-    float frametime = engine->GetAbsoluteTime();
-    int alpha = 255;
-
-    if (m_bRenderingBackgroundTransition)
-    {
-        alpha = (m_flTransitionEndTime - frametime) / (m_flTransitionEndTime - m_flTransitionStartTime) * 255;
-        alpha = clamp(alpha, 0, 255);
-    }
-
-    int ypos = 0;
 
     float xScale, yScale;
     xScale = (float)swide / (float)m_iBaseResX;
@@ -641,7 +626,26 @@ void CBasePanel::DrawBackgroundImage(void)
         vgui2::surface()->DrawSetTexture(bimage.imageID);
         vgui2::surface()->DrawTexturedRect(dx, dy, dw, dt);
     }
+}
 
+void CBasePanel::DrawBackgroundImage(void)
+{
+    int swide, stall;
+    vgui2::surface()->GetScreenSize(swide, stall);
+
+    int wide, tall;
+    GetSize(wide, tall);
+
+    float frametime = engine->GetAbsoluteTime();
+    int alpha = 255;
+
+    if (m_bRenderingBackgroundTransition)
+    {
+        alpha = (m_flTransitionEndTime - frametime) / (m_flTransitionEndTime - m_flTransitionStartTime) * 255;
+        alpha = clamp(alpha, 0, 255);
+    }
+
+    DrawMenuBackground();
 
     if (IsPC() && (m_bRenderingBackgroundTransition || m_eBackgroundState == BACKGROUND_LOADING))
     {
