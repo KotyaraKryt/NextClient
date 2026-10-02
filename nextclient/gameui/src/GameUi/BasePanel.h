@@ -13,6 +13,7 @@
 #include "OptionsDialog.h"
 #include "ImGuiOptions.h"
 #include "ImGuiCreateServer.h"
+#include "ImGuiQueryBox.h"
 #include "KeyValues.h"
 #include "utlvector.h"
 
@@ -227,7 +228,7 @@ private:
     vgui2::DHANDLE<CCreateMultiplayerGameDialog> m_hCreateMultiplayerGameDialog;
     vgui2::DHANDLE<CImGuiCreateServer> m_hImGuiCreateServer;
     vgui2::DHANDLE<vgui2::Frame> m_hPlayerListDialog;;
-    vgui2::DHANDLE<vgui2::QueryBox> m_hQuitQueryBox;
+    vgui2::DHANDLE<CImGuiQueryBox> m_hImGuiQuitBox;
 
     vgui2::AnimationController *m_pConsoleAnimationController;
     KeyValues *m_pConsoleControlSettings;

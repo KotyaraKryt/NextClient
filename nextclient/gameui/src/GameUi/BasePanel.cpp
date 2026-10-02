@@ -20,7 +20,6 @@
 #include "vgui_controls/MenuItem.h"
 #include "vgui_controls/PHandle.h"
 #include "vgui_controls/MessageBox.h"
-#include "vgui_controls/QueryBox.h"
 #include "vgui_controls/ControllerMap.h"
 #include "vgui_controls/KeyRepeat.h"
 
@@ -1056,50 +1055,17 @@ void CBasePanel::RunAnimationWithCallback(vgui2::Panel *parent, const char *anim
         PostMessage(parent, msgFunc, sequenceLength);
 }
 
-class CQuitQueryBox : public vgui2::QueryBox
-{
-    DECLARE_CLASS_SIMPLE(CQuitQueryBox, vgui2::QueryBox);
-
-public:
-    CQuitQueryBox(const char *title, const char *info, Panel *parent) : BaseClass(title, info, parent)
-    {
-    }
-
-    void DoModal(Frame *pFrameOver)
-    {
-        BaseClass::DoModal(pFrameOver);
-        vgui2::surface()->RestrictPaintToSinglePanel(GetVPanel());
-    }
-
-    void OnKeyCodePressed(vgui2::KeyCode code)
-    {
-        if (code == vgui2::KeyCode::KEY_ESCAPE)
-        {
-            SetAlpha(0);
-            Close();
-        }
-        else
-            BaseClass::OnKeyCodePressed(code);
-    }
-
-    virtual void OnClose(void)
-    {
-        BaseClass::OnClose();
-        vgui2::surface()->RestrictPaintToSinglePanel(NULL);
-    }
-};
-
 void CBasePanel::OnOpenQuitConfirmationDialog(void)
 {
-    if (!m_hQuitQueryBox.Get())
+    if (!m_hImGuiQuitBox.Get())
     {
-        m_hQuitQueryBox = new CQuitQueryBox("#GameUI_QuitConfirmationTitle", "#GameUI_QuitConfirmationText", this);
-        m_hQuitQueryBox->SetOKButtonText("#GameUI_Quit");
-        m_hQuitQueryBox->SetOKCommand(new KeyValues("Command", "command", "QuitNoConfirm"));
-        m_hQuitQueryBox->SetCancelCommand(new KeyValues("Command", "command", "ReleaseModalWindow"));
-        m_hQuitQueryBox->AddActionSignalTarget(this);
-        m_hQuitQueryBox->DoModal();
+        m_hImGuiQuitBox = vgui2::SETUP_PANEL(new CImGuiQueryBox());
+        m_hImGuiQuitBox->SetParent(GetVPanel());
     }
+
+    m_hImGuiQuitBox->Show(CImGuiPanel::Localized("#GameUI_QuitConfirmationTitle", "Quit game"),
+        CImGuiPanel::Localized("#GameUI_QuitConfirmationText", "Do you wish to stop playing now?"),
+        CImGuiPanel::Localized("#GameUI_Quit", "Quit game"), [this] { RunMenuCommand("QuitNoConfirm"); });
 }
 
 void CBasePanel::OnOpenServerBrowser(void)
