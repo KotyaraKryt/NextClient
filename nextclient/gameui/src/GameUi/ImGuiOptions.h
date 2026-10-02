@@ -55,15 +55,18 @@ private:
     void DrawMouse();
     void DrawMisc();
     void DrawVoice();
+    void DrawVideo();
 
     // a titled box the settings rows go in; it has to be closed before the page's next one
     void BeginCard(const char* token, const char* english);
     void EndCard();
     // a line of smaller text under the next row's caption, like ImGui's SetNext* functions
     void SetNextRowHint(const char* token);
+    void SetNextRowHintText(const std::string& text);
     // a row's caption on the left, then the control comes in the right part of the card;
     // pending puts a dot by a row that Apply would change
     void BeginRow(const char* token, bool pending);
+    void BeginRowText(const std::string& caption, bool pending);
     void EndRow();
 
     bool CvarCheckbox(const char* token, const char* cvar);
@@ -88,6 +91,10 @@ private:
     void SaveVoiceSettings();
     void StartMicrophoneTest();
     void StopMicrophoneTest();
+    // the video mode and renderer come from the engine, the rest from two config files
+    void LoadVideoSettings();
+    // restartForCvars: brightness or gamma changed, which the engine only picks up on a restart
+    void SaveVideoSettings(bool restartForCvars);
     void ApplyChanges();
     void Close();
 
@@ -104,7 +111,7 @@ private:
     float m_flRowLeft = 0.0f;
     float m_flRowTop = 0.0f;
     float m_flRowCaptionRight = 0.0f;
-    const char* m_pszRowHint = nullptr;
+    std::string m_RowHint;
 
     // cvar name -> the value it gets on Apply
     std::map<std::string, std::string> m_Pending;
@@ -139,4 +146,27 @@ private:
     bool m_bTestingMicrophone = false;
     // voice_scale as it was before a test played the pending value
     std::string m_VoiceScaleBeforeTest;
+
+    struct VideoSettings
+    {
+        int width = 0;
+        int height = 0;
+        int bpp = 0;
+        std::string renderer;
+        int windowed = 0;
+        int hdModels = 0;
+        int addonsFolder = 0;
+        int lowDetail = 0;
+        int disableMultitexture = 0;
+        int stretchAspect = 0;
+        // VideoAdvancedSettings.vdf: the view model's FOV follows the main one
+        bool viewmodelFovAuto = true;
+
+        bool operator==(const VideoSettings&) const = default;
+    };
+
+    VideoSettings m_VideoSaved;
+    VideoSettings m_VideoEdited;
+    // width and height
+    std::vector<std::pair<int, int>> m_VideoModes;
 };

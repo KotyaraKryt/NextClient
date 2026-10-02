@@ -3,6 +3,9 @@
 #include "GameUi.h"
 #include "IGameUIFuncs.h"
 #include "ivoicetweak.h"
+#include "OptionsDialog/VideoAdvancedDialog.h"
+
+#include <nitro_utils/config/FileConfigProvider.h>
 #include "ModInfo.h"
 #include "OptionsDialog/OptionsSubMiscellaneous.h"
 
@@ -15,6 +18,7 @@
 #include <imgui/imgui.h>
 
 #include <algorithm>
+#include <numeric>
 #include <cfloat>
 #include <cmath>
 #include <cstdio>
@@ -88,7 +92,7 @@ CImGuiOptions::CImGuiOptions() : BaseClass("options_layout.ini")
     m_Pages.push_back({ "keyboard", "#GameUI_Keyboard", kGroupControls });
     m_Pages.push_back({ "mouse", "#GameUI_Mouse", kGroupControls, &CImGuiOptions::DrawMouse, "#GameUI_OptionsMouseHint", "Sensitivity, looking around and the joystick" });
     m_Pages.push_back({ "audio", "#GameUI_Audio", kGroupSystem, &CImGuiOptions::DrawAudio, "#GameUI_OptionsAudioHint", "Volume and sound quality" });
-    m_Pages.push_back({ "video", "#GameUI_Video", kGroupSystem });
+    m_Pages.push_back({ "video", "#GameUI_Video", kGroupSystem, &CImGuiOptions::DrawVideo, "#GameUI_OptionsVideoHint", "Screen, picture and field of view" });
     if (!singlePlayerOnly)
         m_Pages.push_back({ "voice", "#GameUI_Voice", kGroupSystem, &CImGuiOptions::DrawVoice, "#GameUI_OptionsVoiceHint", "Voice chat and the microphone" });
     m_Pages.push_back({ "miscellaneous", "#GameUI_Miscellaneous", kGroupSystem, &CImGuiOptions::DrawMisc, "#GameUI_OptionsMiscHint", "Look of the menus and the server browser" });
@@ -124,6 +128,7 @@ void CImGuiOptions::Activate(const char* tabName)
         m_PendingKeys.clear();
         LoadMiscSettings();
         LoadVoiceSettings();
+        LoadVideoSettings();
     }
 
     if (tabName)
@@ -146,6 +151,7 @@ void CImGuiOptions::Close()
 {
     StopMicrophoneTest();
     m_VoiceEdited = m_VoiceSaved;
+    m_VideoEdited = m_VideoSaved;
     m_Pending.clear();
     m_PendingKeys.clear();
     m_MiscEdited = m_MiscSaved;
@@ -547,6 +553,128 @@ void CImGuiOptions::DrawVoice()
     ImGui::PopTextWrapPos();
 }
 
+// "16:9" for 1920 x 1080; empty when the numbers would say nothing, like 683:384
+static std::string AspectRatioText(int width, int height)
+{
+    // 16:10 reduces to 8:5, which nobody calls it
+    if (width * 10 == height * 16)
+        return "16:10";
+
+    int divisor = std::gcd(width, height);
+    int x = width / divisor, y = height / divisor;
+    if (x > 32 || y > 32)
+        return {};
+
+    return std::to_string(x) + ":" + std::to_string(y);
+}
+
+void CImGuiOptions::DrawVideo()
+{
+    VideoSettings& video = m_VideoEdited;
+    auto toggle = [](const char* id, int& value)
+    {
+        bool on = value != 0;
+        if (ImGui::Checkbox(id, &on))
+            value = on ? 1 : 0;
+    };
+
+    ImGui::PushTextWrapPos(0.0f);
+    ImGui::TextDisabled("%s", Localized("#GameUI_VideoRestart").c_str());
+    ImGui::PopTextWrapPos();
+    ImGui::Dummy(ImVec2(0, 4));
+
+    BeginCard("#GameUI_DisplayMode", "Display mode");
+
+    BeginRow("#GameUI_Resolution", video.width != m_VideoSaved.width || video.height != m_VideoSaved.height);
+    auto modeText = [](int width, int height)
+    {
+        std::string text = std::to_string(width) + " x " + std::to_string(height);
+        std::string aspect = AspectRatioText(width, height);
+        return aspect.empty() ? text : text + "   " + aspect;
+    };
+    if (ImGui::BeginCombo("##Resolution", modeText(video.width, video.height).c_str(), ImGuiComboFlags_HeightLarge))
+    {
+        for (const auto& [width, height] : m_VideoModes)
+        {
+            bool selected = width == video.width && height == video.height;
+            if (ImGui::Selectable(modeText(width, height).c_str(), selected))
+            {
+                video.width = width;
+                video.height = height;
+            }
+            if (selected)
+                ImGui::SetItemDefaultFocus();
+        }
+        ImGui::EndCombo();
+    }
+    EndRow();
+
+    BeginRow("#GameUI_Windowed", video.windowed != m_VideoSaved.windowed);
+    toggle("##Windowed", video.windowed);
+    EndRow();
+
+    BeginRow("#GameUI_StretchAspect", video.stretchAspect != m_VideoSaved.stretchAspect);
+    toggle("##StretchAspect", video.stretchAspect);
+    EndRow();
+
+    CvarCheckbox("#GameUI_VSync", "gl_vsync");
+    EndCard();
+
+    BeginCard("#GameUI_OptionsPicture", "Picture");
+    CvarSlider("#GameUI_Brightness", "brightness", 0.0f, 2.0f, "%.2f");
+    CvarSlider("#GameUI_Gamma", "gamma", 1.0f, 3.0f, "%.2f");
+
+    // the text is two lines for the old dialog's narrow label: the caption, then why to use it
+    std::string lowDetail = Localized("#GameUI_LowVideoDetail");
+    size_t newline = lowDetail.find('\n');
+    BeginRowText(lowDetail.substr(0, newline), video.lowDetail != m_VideoSaved.lowDetail);
+    toggle("##LowDetail", video.lowDetail);
+    if (newline != std::string::npos)
+        SetNextRowHintText(lowDetail.substr(newline + 1));
+    EndRow();
+
+    BeginRow("#GameUI_DisableMultitexture", video.disableMultitexture != m_VideoSaved.disableMultitexture);
+    toggle("##DisableMultitexture", video.disableMultitexture);
+    SetNextRowHint("#GameUI_DisableMultitexture_Tooltip");
+    EndRow();
+
+    // only mods that ship detail textures get the switch, and only working when the renderer has them
+    if (ModInfo().GetDetailedTexture())
+    {
+        ImGui::BeginDisabled(engine->pfnGetCvarFloat("r_detailtexturessupported") <= 0.0f || video.disableMultitexture);
+        CvarCheckbox("#GameUI_DetailTextures", "r_detailtextures");
+        ImGui::EndDisabled();
+    }
+    EndCard();
+
+    BeginCard("#GameUI_OptionsFieldOfView", "Field of view");
+    CvarSlider("#GameUI_FovAngle", "fov_angle", 70.0f, 100.0f, "%.0f");
+    CvarCheckbox("#GameUI_FovFix", "fov_horplus");
+
+    BeginRow("#GameUI_OptionsViewmodelFovAuto", video.viewmodelFovAuto != m_VideoSaved.viewmodelFovAuto);
+    ImGui::Checkbox("##ViewmodelFovAuto", &video.viewmodelFovAuto);
+    EndRow();
+
+    // following the main FOV takes its value once either changes here, so that only opening
+    // the page doesn't leave a change behind
+    if (video.viewmodelFovAuto && engine->pfnGetCvarPointer("viewmodel_fov"))
+    {
+        if (m_Pending.count("fov_angle") || video.viewmodelFovAuto != m_VideoSaved.viewmodelFovAuto)
+            SetPending("viewmodel_fov", PendingString("fov_angle"));
+        else
+            m_Pending.erase("viewmodel_fov");
+    }
+
+    ImGui::BeginDisabled(video.viewmodelFovAuto);
+    CvarSlider("#GameUI_FovViewModelAngle", "viewmodel_fov", 70.0f, 100.0f, "%.0f");
+    ImGui::EndDisabled();
+
+    CvarSlider("#GameUI_FovLerp", "fov_lerp", 0.0f, 0.8f, "%.2f s");
+    EndCard();
+
+    ImGui::TextDisabled("%s", Localized("#GameUI_OptionsSliderTyping", "Ctrl+click a slider to type a value").c_str());
+}
+
 void CImGuiOptions::BeginCard(const char* token, const char* english)
 {
     // the content goes on the top channel, so the background can be drawn under it once its height is known
@@ -586,10 +714,20 @@ void CImGuiOptions::EndCard()
 
 void CImGuiOptions::SetNextRowHint(const char* token)
 {
-    m_pszRowHint = token;
+    m_RowHint = Localized(token);
+}
+
+void CImGuiOptions::SetNextRowHintText(const std::string& text)
+{
+    m_RowHint = text;
 }
 
 void CImGuiOptions::BeginRow(const char* token, bool pending)
+{
+    BeginRowText(Localized(token), pending);
+}
+
+void CImGuiOptions::BeginRowText(const std::string& caption, bool pending)
 {
     ImVec2 pos = ImGui::GetCursorScreenPos();
     float innerWidth = m_flCardRight - pos.x;
@@ -607,7 +745,6 @@ void CImGuiOptions::BeginRow(const char* token, bool pending)
     }
 
     // a caption longer than its room is cut off and shown whole on hover
-    std::string caption = Localized(token);
     float captionRoom = m_flRowCaptionRight - pos.x;
     ImGui::AlignTextToFramePadding();
     ImGui::PushClipRect(pos, ImVec2(m_flRowCaptionRight, pos.y + ImGui::GetFrameHeight()), true);
@@ -623,15 +760,15 @@ void CImGuiOptions::BeginRow(const char* token, bool pending)
 
 void CImGuiOptions::EndRow()
 {
-    const char* hint = m_pszRowHint;
-    m_pszRowHint = nullptr;
-    if (!hint)
+    std::string hint = std::move(m_RowHint);
+    m_RowHint.clear();
+    if (hint.empty())
         return;
 
     // the control has moved the cursor below itself; the hint goes under the caption instead
     ImGui::SetCursorScreenPos(ImVec2(m_flRowLeft, m_flRowTop + ImGui::GetFrameHeight()));
     ImGui::PushTextWrapPos(ImGui::GetCursorPosX() + (m_flRowCaptionRight - m_flRowLeft));
-    ImGui::TextDisabled("%s", Localized(hint).c_str());
+    ImGui::TextDisabled("%s", hint.c_str());
     ImGui::PopTextWrapPos();
     ImGui::Dummy(ImVec2(0, 2));
 }
@@ -640,7 +777,7 @@ bool CImGuiOptions::CvarCheckbox(const char* token, const char* cvar)
 {
     if (!engine->pfnGetCvarPointer(cvar))
     {
-        m_pszRowHint = nullptr;
+        m_RowHint.clear();
         return false;
     }
 
@@ -661,7 +798,7 @@ bool CImGuiOptions::CvarNegateCheckbox(const char* token, const char* cvar)
 {
     if (!engine->pfnGetCvarPointer(cvar))
     {
-        m_pszRowHint = nullptr;
+        m_RowHint.clear();
         return false;
     }
 
@@ -693,7 +830,7 @@ bool CImGuiOptions::KeyToggleCheckbox(const char* token, const char* keyName, co
     bool down;
     if (!g_pGameUIFuncs->IsKeyDown(keyName, down))
     {
-        m_pszRowHint = nullptr;
+        m_RowHint.clear();
         return false;
     }
 
@@ -720,7 +857,7 @@ bool CImGuiOptions::CvarSlider(const char* token, const char* cvar, float min, f
 {
     if (!engine->pfnGetCvarPointer(cvar))
     {
-        m_pszRowHint = nullptr;
+        m_RowHint.clear();
         return false;
     }
 
@@ -745,7 +882,7 @@ bool CImGuiOptions::CvarCombo(const char* token, const char* cvar, const std::ve
 {
     if (!engine->pfnGetCvarPointer(cvar))
     {
-        m_pszRowHint = nullptr;
+        m_RowHint.clear();
         return false;
     }
 
@@ -813,8 +950,12 @@ size_t CImGuiOptions::PendingCount() const
         + (m_MiscEdited.disableAutoOpenServerBrowser != m_MiscSaved.disableAutoOpenServerBrowser);
     size_t voice = (m_VoiceEdited.microphoneVolume != m_VoiceSaved.microphoneVolume)
         + (m_VoiceEdited.microphoneBoost != m_VoiceSaved.microphoneBoost);
+    const VideoSettings& a = m_VideoEdited;
+    const VideoSettings& b = m_VideoSaved;
+    size_t video = (a.width != b.width || a.height != b.height) + (a.windowed != b.windowed) + (a.lowDetail != b.lowDetail)
+        + (a.disableMultitexture != b.disableMultitexture) + (a.stretchAspect != b.stretchAspect) + (a.viewmodelFovAuto != b.viewmodelFovAuto);
 
-    return m_Pending.size() + m_PendingKeys.size() + misc + voice;
+    return m_Pending.size() + m_PendingKeys.size() + misc + voice + video;
 }
 
 void CImGuiOptions::LoadMiscSettings()
@@ -864,6 +1005,8 @@ void CImGuiOptions::ApplyChanges()
     // stopping restores what the test changed, so it has to come before the new values
     StopMicrophoneTest();
 
+    bool restartForCvars = m_Pending.count("brightness") || m_Pending.count("gamma");
+
     for (const auto& [cvar, value] : m_Pending)
         engine->Cvar_Set(cvar.c_str(), value.c_str());
 
@@ -878,6 +1021,78 @@ void CImGuiOptions::ApplyChanges()
     m_PendingKeys.clear();
     SaveMiscSettings();
     SaveVoiceSettings();
+    // last, since it may restart the game
+    SaveVideoSettings(restartForCvars);
+}
+
+void CImGuiOptions::LoadVideoSettings()
+{
+    VideoSettings& video = m_VideoSaved;
+    g_pGameUIFuncs->GetCurrentVideoMode(&video.width, &video.height, &video.bpp);
+
+    char renderer[128] = {};
+    g_pGameUIFuncs->GetCurrentRenderer(renderer, sizeof(renderer), &video.windowed, &video.hdModels, &video.addonsFolder, &video.lowDetail);
+    video.renderer = renderer;
+
+    nitro_utils::FileConfigProvider config("user_game_config.ini");
+    video.disableMultitexture = config.get_value_int("disable_multitexture", 0);
+    video.stretchAspect = config.get_value_int("stretch_aspect", 0);
+
+    KeyValues* advanced = CVideoAdvancedDialog::GetSettings();
+    video.viewmodelFovAuto = advanced->GetBool(CVideoAdvancedDialog::kFovViewmodelAutoCheckboxKey, true);
+    advanced->deleteThis();
+
+    m_VideoEdited = m_VideoSaved;
+
+    // the modes the old dialog offered: none smaller than 640x480
+    m_VideoModes.clear();
+    vmode_t* modes = nullptr;
+    int count = 0;
+    g_pGameUIFuncs->GetVideoModes(&modes, &count);
+    for (int i = 0; i < count; i++)
+    {
+        if (modes[i].iWidth >= 640 && modes[i].iHeight >= 480)
+            m_VideoModes.emplace_back(modes[i].iWidth, modes[i].iHeight);
+    }
+}
+
+void CImGuiOptions::SaveVideoSettings(bool restartForCvars)
+{
+    VideoSettings& video = m_VideoEdited;
+
+    if (video.viewmodelFovAuto != m_VideoSaved.viewmodelFovAuto)
+    {
+        KeyValues* advanced = CVideoAdvancedDialog::GetSettings();
+        advanced->SetBool(CVideoAdvancedDialog::kFovViewmodelAutoCheckboxKey, video.viewmodelFovAuto);
+        advanced->SaveToFile(g_pFullFileSystem, CVideoAdvancedDialog::kUserSaveDataPath, "GAMECONFIG");
+        advanced->deleteThis();
+        m_VideoSaved.viewmodelFovAuto = video.viewmodelFovAuto;
+    }
+
+    if (video == m_VideoSaved && !restartForCvars)
+        return;
+
+    // the same commands the old dialog sent; the engine reads them back when it restarts
+    char command[256];
+    snprintf(command, sizeof(command), "_setvideomode %i %i %i\n", video.width, video.height, video.bpp);
+    engine->pfnClientCmd(command);
+    snprintf(command, sizeof(command), "_setrenderer %s %s\n", video.renderer.c_str(), video.windowed ? "windowed" : "fullscreen");
+    engine->pfnClientCmd(command);
+    snprintf(command, sizeof(command), "_sethdmodels %d\n", video.hdModels);
+    engine->pfnClientCmd(command);
+    snprintf(command, sizeof(command), "_setaddons_folder %d\n", video.addonsFolder);
+    engine->pfnClientCmd(command);
+    snprintf(command, sizeof(command), "_set_vid_level %d\n", video.lowDetail);
+    engine->pfnClientCmd(command);
+
+    nitro_utils::FileConfigProvider config("user_game_config.ini");
+    config.set_value("", "disable_multitexture", std::to_string(video.disableMultitexture), true);
+    config.set_value("", "stretch_aspect", std::to_string(video.stretchAspect), true);
+
+    m_VideoSaved = video;
+
+    engine->pfnClientCmd("fmod stop\n");
+    engine->pfnClientCmd("_restart\n");
 }
 
 void CImGuiOptions::LoadVoiceSettings()
