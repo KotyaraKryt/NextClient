@@ -59,6 +59,7 @@ protected:
 private:
     void CreateFontTexture();
     void FitToWindows();
+    void KeepWindowsOnScreen();
     void SaveLayout();
     void ReleaseKeysLetGoElsewhere();
     void OnKey(vgui2::KeyCode code, bool down);

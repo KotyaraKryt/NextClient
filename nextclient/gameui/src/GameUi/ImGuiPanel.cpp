@@ -336,6 +336,7 @@ void CImGuiPanel::Paint()
     m_flLastFrameTime = now;
 
     ReleaseKeysLetGoElsewhere();
+    KeepWindowsOnScreen();
 
     ImGui::NewFrame();
     DrawImGui();
@@ -353,6 +354,25 @@ void CImGuiPanel::Paint()
     ImGui_ImplOpenGL2_RenderDrawData(ImGui::GetDrawData());
     if (alphaTest)
         glEnable(GL_ALPHA_TEST);
+}
+
+void CImGuiPanel::KeepWindowsOnScreen()
+{
+    // no window may be dragged, resized or grown even partly off the screen; one bigger than the
+    // screen keeps its top left corner on it, where the title bar is
+    ImGuiContext& g = *ImGui::GetCurrentContext();
+    ImVec2 screen = g.IO.DisplaySize;
+    for (ImGuiWindow* window : g.Windows)
+    {
+        if (!window->WasActive || (window->Flags & (ImGuiWindowFlags_ChildWindow | ImGuiWindowFlags_Tooltip)))
+            continue;
+
+        ImVec2 pos = window->Pos;
+        pos.x = std::max(0.0f, std::min(pos.x, screen.x - window->Size.x));
+        pos.y = std::max(0.0f, std::min(pos.y, screen.y - window->Size.y));
+        if (pos.x != window->Pos.x || pos.y != window->Pos.y)
+            ImGui::SetWindowPos(window, pos);
+    }
 }
 
 void CImGuiPanel::FitToWindows()
