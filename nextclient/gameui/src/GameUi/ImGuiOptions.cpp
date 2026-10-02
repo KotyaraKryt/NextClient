@@ -43,14 +43,14 @@
 // memdbgon must be the last include file in a .cpp file!!!
 #include <tier0/memdbgon.h>
 
+using namespace ImGuiForm;
+
 namespace
 {
     cvar_t* g_pLegacyCvar = nullptr;
 
     constexpr float kSidebarWidth = 190.0f;
     constexpr float kPagePadding = 18.0f;
-    constexpr float kCardPadding = 14.0f;
-    constexpr float kRounding = 6.0f;
 
     enum
     {
@@ -70,30 +70,6 @@ namespace
         { "#GameUI_OptionsGroupControls", "Controls" },
         { "#GameUI_OptionsGroupSystem", "System" },
     };
-
-    ImVec4 WithAlpha(ImGuiCol color, float alpha)
-    {
-        ImVec4 value = ImGui::GetStyleColorVec4(color);
-        value.w *= alpha;
-        return value;
-    }
-
-    bool ParseNumber(const char* text, float& value)
-    {
-        char* end;
-        value = strtof(text, &end);
-        return end != text && *end == '\0';
-    }
-
-    // "1" and "1.000000" are the same value; the engine stores whatever text it was given
-    bool SameValue(const char* a, const char* b)
-    {
-        if (!strcmp(a, b))
-            return true;
-
-        float x, y;
-        return ParseNumber(a, x) && ParseNumber(b, y) && std::fabs(x - y) < 0.0001f;
-    }
 }
 
 namespace
@@ -343,14 +319,7 @@ void CImGuiOptions::DrawImGui()
 
 void CImGuiOptions::DrawPageList()
 {
-    ImDrawList* drawList = ImGui::GetWindowDrawList();
-    float width = ImGui::GetContentRegionAvail().x;
-    float height = ImGui::GetFrameHeight() + 8.0f;
-    float textOffset = (height - ImGui::GetTextLineHeight()) * 0.5f;
-
-    // the accent is too dark to read on its own tint, so the selected page's text gets a lighter one
     ImVec4 accent = ImGui::GetStyleColorVec4(ImGuiCol_CheckMark);
-    ImVec4 bright(accent.x + (1.0f - accent.x) * 0.45f, accent.y + (1.0f - accent.y) * 0.45f, accent.z + (1.0f - accent.z) * 0.45f, 1.0f);
 
     // the pages still to come get an arrow: they open in the old dialog
     const char* legacyMark = "↗";
@@ -372,30 +341,16 @@ void CImGuiOptions::DrawPageList()
             ImGui::Dummy(ImVec2(0, 2));
         }
 
-        bool selected = m_pSelected == &page;
-        ImVec2 pos = ImGui::GetCursorScreenPos();
-        ImVec2 end(pos.x + width, pos.y + height);
-
-        if (ImGui::InvisibleButton(page.id, ImVec2(width, height)))
+        if (ListItem(page.id, Localized(page.token), m_pSelected == &page))
             m_pSelected = &page;
-        bool hovered = ImGui::IsItemHovered();
-
-        if (selected)
-        {
-            drawList->AddRectFilled(pos, end, ImGui::GetColorU32(WithAlpha(ImGuiCol_CheckMark, 0.2f)), kRounding, ImDrawFlags_RoundCornersRight);
-            drawList->AddRectFilled(pos, ImVec2(pos.x + 3.0f, end.y), ImGui::GetColorU32(bright));
-        }
-        else if (hovered)
-            drawList->AddRectFilled(pos, end, ImGui::GetColorU32(WithAlpha(ImGuiCol_Text, 0.06f)), kRounding);
-
-        ImU32 textColor = ImGui::GetColorU32(selected ? bright : ImGui::GetStyleColorVec4(ImGuiCol_Text));
-        drawList->AddText(ImVec2(pos.x + 14.0f, pos.y + textOffset), textColor, Localized(page.token).c_str());
 
         if (!page.draw)
         {
-            ImVec2 markPos(end.x - legacyMarkWidth - 10.0f, pos.y + textOffset);
-            drawList->AddText(markPos, ImGui::GetColorU32(ImGuiCol_TextDisabled), legacyMark);
-            if (hovered)
+            ImVec2 min = ImGui::GetItemRectMin();
+            ImVec2 max = ImGui::GetItemRectMax();
+            ImVec2 markPos(max.x - legacyMarkWidth - 10.0f, min.y + (max.y - min.y - ImGui::GetTextLineHeight()) * 0.5f);
+            ImGui::GetWindowDrawList()->AddText(markPos, ImGui::GetColorU32(ImGuiCol_TextDisabled), legacyMark);
+            if (ImGui::IsItemHovered())
                 ImGui::SetTooltip("%s", Localized("#GameUI_OptionsNotPorted", "This page isn't in the new options yet.").c_str());
         }
     }
@@ -824,89 +779,9 @@ void CImGuiOptions::DrawSpray()
 void CImGuiOptions::DrawAdvancedOption(CScriptObject& option)
 {
     const char* cvar = option.cvarname;
-    // the prompts are mostly tokens, but a script may have plain text too
-    std::string caption = option.prompt[0] == '#' ? Localized(option.prompt, option.prompt + 1) : option.prompt;
-
-    ImGui::PushID(cvar);
-    switch (option.type)
-    {
-        case O_BOOL:
-        {
-            BeginRowText(caption, m_Pending.count(cvar) != 0);
-            bool value = atof(PendingString(cvar).c_str()) != 0.0;
-            if (ImGui::Checkbox("##Value", &value))
-                SetPending(cvar, value ? "1" : "0");
-            EndRow();
-            break;
-        }
-
-        case O_NUMBER:
-        {
-            BeginRowText(caption, m_Pending.count(cvar) != 0);
-            float value = static_cast<float>(atof(PendingString(cvar).c_str()));
-            bool changed;
-            // -1 for both ends means no limits, which a slider can't show
-            if (option.fMin == -1.0f && option.fMax == -1.0f)
-                changed = ImGui::InputFloat("##Value", &value, 0.0f, 0.0f, "%g");
-            else
-                changed = ImGui::SliderFloat("##Value", &value, option.fMin, option.fMax, "%g", ImGuiSliderFlags_AlwaysClamp);
-            if (changed)
-            {
-                char text[32];
-                snprintf(text, sizeof(text), "%g", value);
-                SetPending(cvar, text);
-            }
-            EndRow();
-            break;
-        }
-
-        case O_STRING:
-        {
-            BeginRowText(caption, m_Pending.count(cvar) != 0);
-            char text[128];
-            V_strncpy(text, PendingString(cvar).c_str(), sizeof(text));
-            if (ImGui::InputText("##Value", text, sizeof(text)))
-            {
-                UTIL_StripInvalidCharacters(text, sizeof(text));
-                SetPending(cvar, text);
-            }
-            EndRow();
-            break;
-        }
-
-        case O_LIST:
-        {
-            BeginRowText(caption, m_Pending.count(cvar) != 0);
-            std::string current = PendingString(cvar);
-            auto itemText = [](const CScriptListItem* item)
-            {
-                return item->szItemText[0] == '#' ? Localized(item->szItemText, item->szItemText + 1) : std::string(item->szItemText);
-            };
-
-            std::string preview = current;
-            for (CScriptListItem* item = option.pListItems; item; item = item->pNext)
-            {
-                if (SameValue(item->szValue, current.c_str()))
-                    preview = itemText(item);
-            }
-
-            if (ImGui::BeginCombo("##Value", preview.c_str()))
-            {
-                for (CScriptListItem* item = option.pListItems; item; item = item->pNext)
-                {
-                    if (ImGui::Selectable(itemText(item).c_str(), SameValue(item->szValue, current.c_str())))
-                        SetPending(cvar, item->szValue);
-                }
-                ImGui::EndCombo();
-            }
-            EndRow();
-            break;
-        }
-
-        default:
-            break;
-    }
-    ImGui::PopID();
+    std::string value = PendingString(cvar);
+    if (ScriptOptionRow(option, value, m_Pending.count(cvar) != 0))
+        SetPending(cvar, value);
 }
 
 namespace
@@ -1847,114 +1722,6 @@ void CImGuiOptions::DrawVideo()
     EndCard();
 
     ImGui::TextDisabled("%s", Localized("#GameUI_OptionsSliderTyping", "Ctrl+click a slider to type a value").c_str());
-}
-
-void CImGuiOptions::BeginCard(const char* token, const char* english)
-{
-    // the content goes on the top channel, so the background can be drawn under it once its height is known
-    ImDrawList* drawList = ImGui::GetWindowDrawList();
-    drawList->ChannelsSplit(2);
-    drawList->ChannelsSetCurrent(1);
-
-    ImVec2 start = ImGui::GetCursorScreenPos();
-    m_flCardLeft = start.x;
-    m_flCardTop = start.y;
-    m_flCardRight = start.x + ImGui::GetContentRegionAvail().x - kCardPadding;
-
-    ImGui::SetCursorScreenPos(ImVec2(start.x + kCardPadding, start.y + kCardPadding));
-    ImGui::BeginGroup();
-    if (token)
-    {
-        ImGui::TextColored(ImGui::GetStyleColorVec4(ImGuiCol_CheckMark), "%s", Localized(token, english).c_str());
-        ImGui::Dummy(ImVec2(0, 2));
-    }
-}
-
-void CImGuiOptions::EndCard()
-{
-    ImGui::EndGroup();
-
-    ImVec2 min(m_flCardLeft, m_flCardTop);
-    ImVec2 max(m_flCardRight + kCardPadding, ImGui::GetItemRectMax().y + kCardPadding);
-
-    ImDrawList* drawList = ImGui::GetWindowDrawList();
-    drawList->ChannelsSetCurrent(0);
-    drawList->AddRectFilled(min, max, ImGui::GetColorU32(ImGuiCol_WindowBg), kRounding);
-    drawList->AddRect(min, max, ImGui::GetColorU32(ImGuiCol_Border), kRounding);
-    drawList->ChannelsMerge();
-
-    // a dummy as wide as the card, so the page knows how much room it took
-    ImGui::SetCursorScreenPos(min);
-    ImGui::Dummy(ImVec2(max.x - min.x, max.y - min.y));
-    ImGui::Dummy(ImVec2(0, 4));
-}
-
-void CImGuiOptions::SetNextRowHint(const char* token)
-{
-    m_RowHint = Localized(token);
-}
-
-void CImGuiOptions::SetNextRowHintText(const std::string& text)
-{
-    m_RowHint = text;
-}
-
-void CImGuiOptions::BeginRow(const char* token, bool pending)
-{
-    BeginRowText(Localized(token), pending);
-}
-
-void CImGuiOptions::BeginRowText(const std::string& caption, bool pending)
-{
-    ImVec2 pos = ImGui::GetCursorScreenPos();
-    float innerWidth = m_flCardRight - pos.x;
-    float controlWidth = std::clamp(innerWidth * 0.5f, 180.0f, 340.0f);
-    float controlX = m_flCardRight - controlWidth;
-
-    m_flRowLeft = pos.x;
-    m_flRowTop = pos.y;
-    m_flRowCaptionRight = controlX - ImGui::GetStyle().ItemSpacing.x;
-
-    if (pending)
-    {
-        ImVec2 dot(pos.x - kCardPadding * 0.5f, pos.y + ImGui::GetFrameHeight() * 0.5f);
-        ImGui::GetWindowDrawList()->AddCircleFilled(dot, 3.0f, ImGui::GetColorU32(ImGuiCol_CheckMark));
-    }
-
-    // a caption longer than its room wraps, and the row grows to fit it
-    float captionRoom = m_flRowCaptionRight - pos.x;
-    ImGui::AlignTextToFramePadding();
-    ImGui::PushTextWrapPos(ImGui::GetCursorPosX() + captionRoom);
-    ImGui::TextUnformatted(caption.c_str());
-    ImGui::PopTextWrapPos();
-    m_flRowCaptionBottom = ImGui::GetItemRectMax().y;
-
-    ImGui::SameLine();
-    ImGui::SetCursorScreenPos(ImVec2(controlX, pos.y));
-    ImGui::SetNextItemWidth(controlWidth);
-}
-
-void CImGuiOptions::EndRow()
-{
-    float controlBottom = ImGui::GetItemRectMax().y;
-    float textBottom = m_flRowCaptionBottom;
-
-    std::string hint = std::move(m_RowHint);
-    m_RowHint.clear();
-    if (!hint.empty())
-    {
-        // under the caption, where the control has left the cursor below itself
-        ImGui::SetCursorScreenPos(ImVec2(m_flRowLeft, m_flRowCaptionBottom));
-        ImGui::PushTextWrapPos(ImGui::GetCursorPosX() + (m_flRowCaptionRight - m_flRowLeft));
-        ImGui::TextDisabled("%s", hint.c_str());
-        ImGui::PopTextWrapPos();
-        textBottom = ImGui::GetItemRectMax().y + 2.0f;
-    }
-
-    // the next row starts below whichever is taller, the control or the text beside it; an empty
-    // item there tells the card where the row ends and moves the cursor on by the item spacing
-    ImGui::SetCursorScreenPos(ImVec2(m_flRowLeft, std::max(controlBottom, textBottom)));
-    ImGui::Dummy(ImVec2(0, 0));
 }
 
 bool CImGuiOptions::CvarCheckbox(const char* token, const char* cvar)

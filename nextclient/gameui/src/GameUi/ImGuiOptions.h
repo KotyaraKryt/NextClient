@@ -1,6 +1,6 @@
 #pragma once
 
-#include "ImGuiPanel.h"
+#include "ImGuiForm.h"
 
 #include <vgui_controls/PHandle.h>
 
@@ -16,9 +16,9 @@ class CBobPreviewPanel;
 class CInfoDescription;
 class CScriptObject;
 
-class CImGuiOptions : public CImGuiPanel
+class CImGuiOptions : public CImGuiFormPanel
 {
-    DECLARE_CLASS_SIMPLE(CImGuiOptions, CImGuiPanel);
+    DECLARE_CLASS_SIMPLE(CImGuiOptions, CImGuiFormPanel);
 
 public:
     CImGuiOptions();
@@ -95,19 +95,6 @@ private:
     void ResetToDefault(const char* cvar);
     void SetPendingFloat(const char* cvar, float value);
 
-    // a box the settings rows go in, titled unless token is nullptr; it has to be closed
-    // before the page's next one
-    void BeginCard(const char* token, const char* english);
-    void EndCard();
-    // a line of smaller text under the next row's caption, like ImGui's SetNext* functions
-    void SetNextRowHint(const char* token);
-    void SetNextRowHintText(const std::string& text);
-    // a row's caption on the left, then the control comes in the right part of the card;
-    // pending puts a dot by a row that Apply would change
-    void BeginRow(const char* token, bool pending);
-    void BeginRowText(const std::string& caption, bool pending);
-    void EndRow();
-
     bool CvarCheckbox(const char* token, const char* cvar);
     // checked while the cvar is negative, like m_pitch for an inverted mouse
     bool CvarNegateCheckbox(const char* token, const char* cvar);
@@ -152,18 +139,6 @@ private:
     std::vector<Page> m_Pages;
     const Page* m_pSelected = nullptr;
     bool m_bFocusWindow = false;
-
-    // the open card's top left corner and the right edge its controls end at, in screen space
-    float m_flCardLeft = 0.0f;
-    float m_flCardTop = 0.0f;
-    float m_flCardRight = 0.0f;
-
-    // where the open row's caption went, and the hint to put under it
-    float m_flRowLeft = 0.0f;
-    float m_flRowTop = 0.0f;
-    float m_flRowCaptionRight = 0.0f;
-    float m_flRowCaptionBottom = 0.0f;
-    std::string m_RowHint;
 
     // cvar name -> the value it gets on Apply
     std::map<std::string, std::string> m_Pending;
