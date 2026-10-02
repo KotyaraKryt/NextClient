@@ -35,6 +35,7 @@
 #include "ImGuiOptions.h"
 #include "ImGuiCreateServer.h"
 #include "ImGuiLoadingDialog.h"
+#include "ImGuiPlayerList.h"
 #include "OptionsSubMiscellaneous.h"
 #include "IClientVGUI.h"
 
@@ -286,6 +287,7 @@ void CGameUI::Start(cl_enginefuncs_s *engineFuncs, int interfaceVersion, void *s
     CImGuiOptions::RegisterCvars();
     CImGuiCreateServer::RegisterCvars();
     CImGuiLoadingDialog::RegisterCvars();
+    CImGuiPlayerList::RegisterCvars();
 
     if (g_pServerBrowser)
     {

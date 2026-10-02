@@ -566,6 +566,7 @@ void CImGuiOptions::DrawMisc()
     CvarCheckbox("#GameUI_OptionsClassicOptions", "opt_legacy");
     CvarCheckbox("#GameUI_OptionsClassicCreateServer", "newgame_legacy");
     CvarCheckbox("#GameUI_OptionsClassicLoading", "loading_legacy");
+    CvarCheckbox("#GameUI_OptionsClassicPlayerList", "plist_legacy");
     EndCard();
 }
 

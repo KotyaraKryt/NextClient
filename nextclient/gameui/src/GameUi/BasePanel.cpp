@@ -1112,6 +1112,18 @@ void CBasePanel::OpenLegacyOptionsDialog(const char* tabName)
 
 void CBasePanel::OnOpenPlayerListDialog()
 {
+    if (!CImGuiPlayerList::UseLegacyDialog())
+    {
+        if (!m_hImGuiPlayerList.Get())
+        {
+            m_hImGuiPlayerList = vgui2::SETUP_PANEL(new CImGuiPlayerList());
+            m_hImGuiPlayerList->SetParent(GetVPanel());
+        }
+
+        m_hImGuiPlayerList->Activate();
+        return;
+    }
+
     if (!m_hPlayerListDialog.Get())
     {
         m_hPlayerListDialog = new CPlayerListDialog(this);
