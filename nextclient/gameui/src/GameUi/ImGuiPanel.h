@@ -44,6 +44,9 @@ public:
     static ImFont* HeadingFont();
     // the panel's title font, or the heading one if it asked for none
     static ImFont* TitleFont();
+    // size, but no bigger than the screen: for the windows' first and smallest sizes, which were
+    // picked for 1080p and would push a window's bottom off a 640x480 screen
+    static ImVec2 OnScreen(const ImVec2& size);
 
     ~CImGuiPanel() override;
 
