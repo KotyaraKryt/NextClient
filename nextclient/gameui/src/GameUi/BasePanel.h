@@ -6,6 +6,8 @@
 #endif
 
 #include "vgui_controls/Panel.h"
+
+#include <vector>
 #include "vgui_controls/PHandle.h"
 #include "vgui_controls/MenuItem.h"
 #include "vgui_controls/MessageDialog.h"
@@ -212,6 +214,14 @@ public:
     void ApplyMultiplayerGameSettings();
     // the menu's background pictures alone, for the loading screen to draw under itself
     void DrawMenuBackground(void);
+
+    struct MenuBackgroundTile
+    {
+        int texture;
+        int x0, y0, x1, y1;
+    };
+    // the pieces DrawMenuBackground draws, in screen space
+    std::vector<MenuBackgroundTile> GetMenuBackground();
 
 private:
     virtual void OnCommand(const char *command);

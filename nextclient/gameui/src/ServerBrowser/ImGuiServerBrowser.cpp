@@ -201,6 +201,7 @@ namespace
 
 CImGuiServerBrowser::CImGuiServerBrowser() : BaseClass("serverbrowser_layout.ini")
 {
+    SetAppearance(ImGuiAppearance::Element::ServerBrowser);
     SetVisible(false);
 
     m_Tabs.push_back(std::make_unique<Tab>(ServerBrowserTab::Internet, "#ServerBrowser_InternetTab", GuiConnectionSource::ServersInternet));
@@ -604,7 +605,8 @@ void CImGuiServerBrowser::DrawImGui()
 
         if (active)
         {
-            if (!active->requested)
+            // a preview asks no master server
+            if (!active->requested && !IsPreview())
                 Request(*active);
 
             DrawToolbar(*active);

@@ -12,6 +12,7 @@ using namespace ImGuiForm;
 
 CImGuiQueryBox::CImGuiQueryBox()
 {
+    SetAppearance(ImGuiAppearance::Element::Dialogs);
     SetVisible(false);
 }
 
@@ -30,6 +31,14 @@ void CImGuiQueryBox::Show(const std::string& title, const std::string& text, con
     m_bFocusWindow = true;
 }
 
+void CImGuiQueryBox::PreparePreview()
+{
+    m_Title = Localized("#GameUI_QuitConfirmationTitle", "Quit game");
+    m_Text = Localized("#GameUI_QuitConfirmationText", "Do you wish to stop playing now?");
+    m_OkText = Localized("#GameUI_Quit", "Quit game");
+    m_bCancelButton = true;
+}
+
 void CImGuiQueryBox::Close()
 {
     SetVisible(false);
@@ -39,7 +48,7 @@ void CImGuiQueryBox::DrawImGui()
 {
     ImGuiViewport* viewport = ImGui::GetMainViewport();
 
-    DimmedBackdrop(m_WindowMin, m_WindowMax);
+    DimmedBackdrop(m_WindowMin, m_WindowMax, ImGuiAppearance::Current(ImGuiAppearance::Element::Dialogs).dim);
 
     ImGui::SetNextWindowPos(viewport->GetCenter(), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
     ImGui::SetNextWindowSize(ImVec2(420.0f, 0.0f), ImGuiCond_Always);

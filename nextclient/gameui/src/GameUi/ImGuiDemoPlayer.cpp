@@ -174,6 +174,7 @@ namespace
 
 CImGuiDemoPlayer::CImGuiDemoPlayer() : BaseClass("demoplayer_layout.ini")
 {
+    SetAppearance(ImGuiAppearance::Element::DemoPlayer);
     SetVisible(false);
 }
 
@@ -209,6 +210,13 @@ bool CImGuiDemoPlayer::LoadModules()
         return false;
     }
     return true;
+}
+
+void CImGuiDemoPlayer::PreparePreview()
+{
+    // only read from in a preview: its keys, its speed beyond x4 and its buttons stay with the real player
+    LoadModules();
+    m_flAlpha = 1.0f;
 }
 
 void CImGuiDemoPlayer::Activate()
@@ -428,6 +436,10 @@ float CImGuiDemoPlayer::ContentWidth() const
 
 void CImGuiDemoPlayer::DrawImGui()
 {
+    // the drawing below reads the modules throughout
+    if (!m_pDemoPlayer || !m_pWorld)
+        return;
+
     ImGuiViewport* viewport = ImGui::GetMainViewport();
     ImGui::SetNextWindowPos(ImVec2(viewport->GetCenter().x, viewport->Pos.y + viewport->Size.y - 40.0f), ImGuiCond_FirstUseEver, ImVec2(0.5f, 1.0f));
     bool compact = g_pCompactCvar && g_pCompactCvar->value != 0.0f;
@@ -441,7 +453,8 @@ void CImGuiDemoPlayer::DrawImGui()
         m_bFocusWindow = false;
     }
 
-    UpdateAutoHide();
+    if (!IsPreview())
+        UpdateAutoHide();
     ImGui::PushStyleVar(ImGuiStyleVar_Alpha, m_flAlpha);
 
     bool open = true;
@@ -475,7 +488,8 @@ void CImGuiDemoPlayer::DrawImGui()
 
         if (LoadModules())
         {
-            AdvanceBeyondModuleSpeed();
+            if (!IsPreview())
+                AdvanceBeyondModuleSpeed();
             if (compact)
                 DrawCompact();
             else
@@ -635,7 +649,8 @@ void CImGuiDemoPlayer::DrawCompact()
     if (IconButton("##Expand", Icon::Expand, "#GameUI_DemoFull", "Full player"))
         engine->Cvar_SetValue("demoui_compact", 0.0f);
 
-    HandleKeys();
+    if (!IsPreview())
+        HandleKeys();
 }
 
 void CImGuiDemoPlayer::DrawTransport()
@@ -710,7 +725,8 @@ void CImGuiDemoPlayer::DrawTransport()
         ChangeSpeed(true);
     ImGui::EndDisabled();
 
-    HandleKeys();
+    if (!IsPreview())
+        HandleKeys();
 }
 
 void CImGuiDemoPlayer::DrawLoadPopup()

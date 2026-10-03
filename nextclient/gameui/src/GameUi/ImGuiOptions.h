@@ -33,6 +33,7 @@ public:
 
 protected:
     void DrawImGui() override;
+    void PreparePreview() override;
 
     // while a key is being captured for a binding, the next key or button goes to it, not to ImGui
     void OnKeyCodePressed(vgui2::KeyCode code) override;
@@ -82,6 +83,10 @@ private:
     void DrawInertiaTab();
     void DrawCameraTab();
     void DrawKeyboard();
+    void DrawAppearance();
+    // the chosen window, real and in a frame, over the menu's background
+    void DrawAppearancePreview(ImGuiAppearance::Element element, const ImGuiAppearance::Values& values, const ImVec2& size);
+    CImGuiPanel* PreviewPanel(ImGuiAppearance::Element element);
     // kb_act.lst's actions with the keys the engine has bound to them
     void LoadBindings();
     // kb_def.lst's keys in place of the current ones, waiting for Apply like any change
@@ -239,6 +244,11 @@ private:
     int m_iCaptureSlot = 0;
     char m_szBindingSearch[64] = {};
     bool m_bOpenDefaultsPopup = false;
+
+    // the window the Interface page shows the settings of, an ImGuiAppearance::Element
+    int m_iAppearanceElement = 0;
+    // the windows the Interface page draws its previews with, made the first time each is chosen
+    vgui2::DHANDLE<CImGuiPanel> m_PreviewPanels[static_cast<int>(ImGuiAppearance::Element::Count)];
 
     // userinfo keys that Apply sets with setinfo instead of as cvars
     std::set<std::string> m_SetInfoKeys;

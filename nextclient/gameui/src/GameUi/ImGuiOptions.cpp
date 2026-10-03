@@ -1,4 +1,13 @@
 #include "ImGuiOptions.h"
+#include "ImGuiConsole.h"
+#include "ImGuiCreateServer.h"
+#include "ImGuiDemoPlayer.h"
+#include "ImGuiLoadingDialog.h"
+#include "ImGuiMotd.h"
+#include "ImGuiPlayerList.h"
+#include "ImGuiQueryBox.h"
+#include "ImGuiScoreboard.h"
+#include "ServerBrowser/ImGuiServerBrowser.h"
 #include "BasePanel.h"
 #include "GameUi.h"
 #include "IGameUIFuncs.h"
@@ -162,6 +171,7 @@ namespace
 
 CImGuiOptions::CImGuiOptions() : BaseClass("options_layout.ini")
 {
+    SetAppearance(ImGuiAppearance::Element::Options);
     SetVisible(false);
 
     // the old dialog's pages, sorted into the sidebar's groups
@@ -175,6 +185,7 @@ CImGuiOptions::CImGuiOptions() : BaseClass("options_layout.ini")
     m_Pages.push_back({ "video", "#GameUI_Video", kGroupSystem, &CImGuiOptions::DrawVideo, "#GameUI_OptionsVideoHint", "Screen, picture and field of view" });
     if (!singlePlayerOnly)
         m_Pages.push_back({ "voice", "#GameUI_Voice", kGroupSystem, &CImGuiOptions::DrawVoice, "#GameUI_OptionsVoiceHint", "Voice chat and the microphone" });
+    m_Pages.push_back({ "appearance", "#GameUI_OptionsAppearance", kGroupSystem, &CImGuiOptions::DrawAppearance, "#GameUI_OptionsAppearanceHint", "How each window looks: its background, text size and the dimming behind it" });
     m_Pages.push_back({ "miscellaneous", "#GameUI_Miscellaneous", kGroupSystem, &CImGuiOptions::DrawMisc, "#GameUI_OptionsMiscHint", "Look of the menus and the server browser" });
 
     m_SetInfoKeys.insert("_pw");
@@ -571,6 +582,192 @@ void CImGuiOptions::DrawMisc()
     CvarCheckbox("#GameUI_OptionsClassicScoreboard", "scoreboard_legacy");
     CvarCheckbox("#GameUI_OptionsClassicMotd", "motd_legacy");
     EndCard();
+}
+
+void CImGuiOptions::PreparePreview()
+{
+    // a page of plain sliders: the Interface page itself would put previews in the preview
+    for (const Page& page : m_Pages)
+    {
+        if (!V_stricmp(page.id, "audio"))
+            m_pSelected = &page;
+    }
+}
+
+CImGuiPanel* CImGuiOptions::PreviewPanel(ImGuiAppearance::Element element)
+{
+    using ImGuiAppearance::Element;
+
+    vgui2::DHANDLE<CImGuiPanel>& handle = m_PreviewPanels[static_cast<int>(element)];
+    if (handle.Get())
+        return handle.Get();
+
+    // a panel's constructor makes its own ImGui context the current one, and this is the middle of our frame
+    ImGuiContext* context = ImGui::GetCurrentContext();
+
+    CImGuiPanel* panel = nullptr;
+    switch (element)
+    {
+        case Element::Console:
+        {
+            // what a console shows after connecting somewhere
+            static console_buffer::ConsoleBuffer sample;
+            if (sample.Lines().empty())
+            {
+                const console_buffer::Rgba normal;
+                const console_buffer::Rgba dim{ 160, 170, 150, 255 };
+                sample.Print(dim, "] connect 46.174.50.220:27015\n", true);
+                sample.Print(normal, "Connecting to 46.174.50.220:27015...\n", true);
+                sample.Print(normal, "Connection accepted by 46.174.50.220:27015\n", true);
+                sample.Print(normal, "\nNext21.ru | Public\nMap: de_dust2\nPlayers: 14 / 32\n\n", true);
+                sample.Print(normal, "Kotyara connected\n", true);
+                sample.Print(console_buffer::Rgba{ 255, 180, 24, 255 }, "Kotyara : gl hf\n", false, console_buffer::Source::Chat);
+            }
+            panel = new CImGuiConsole(sample);
+            break;
+        }
+        case Element::ServerBrowser: panel = new CImGuiServerBrowser(); break;
+        case Element::Options: panel = new CImGuiOptions(); break;
+        case Element::CreateServer: panel = new CImGuiCreateServer(); break;
+        case Element::PlayerList: panel = new CImGuiPlayerList(); break;
+        case Element::Dialogs: panel = new CImGuiQueryBox(); break;
+        case Element::Loading: panel = new CImGuiLoadingDialog(); break;
+        case Element::DemoPlayer: panel = new CImGuiDemoPlayer(); break;
+        case Element::Scoreboard: panel = new CImGuiScoreboard(); break;
+        case Element::Motd: panel = new CImGuiMotd(); break;
+        case Element::Count: return nullptr;
+    }
+
+    // under this window, so they go with it
+    panel->SetParent(GetVPanel());
+    panel->MakePreview();
+    ImGui::SetCurrentContext(context);
+    handle = panel;
+    return panel;
+}
+
+void CImGuiOptions::DrawAppearancePreview(ImGuiAppearance::Element element, const ImGuiAppearance::Values& values, const ImVec2& size)
+{
+    ImVec2 min = ImGui::GetCursorScreenPos();
+    ImVec2 max(min.x + size.x, min.y + size.y);
+    ImDrawList* drawList = ImGui::GetWindowDrawList();
+
+    CImGuiPanel* panel = PreviewPanel(element);
+    ImVec2 windowsMin, windowsMax;
+    ImDrawData* frame = panel ? panel->RenderPreview(values, windowsMin, windowsMax) : nullptr;
+    if (!frame)
+    {
+        ImGui::Dummy(size);
+        return;
+    }
+
+    // the window and a little around it, as big as fits, but never bigger than it really is
+    constexpr float kMargin = 48.0f;
+    ImVec2 screen = ImGui::GetIO().DisplaySize;
+    windowsMin = ImVec2(std::max(0.0f, windowsMin.x - kMargin), std::max(0.0f, windowsMin.y - kMargin));
+    windowsMax = ImVec2(std::min(screen.x, windowsMax.x + kMargin), std::min(screen.y, windowsMax.y + kMargin));
+    float scale = std::min({ size.x / (windowsMax.x - windowsMin.x), size.y / (windowsMax.y - windowsMin.y), 1.0f });
+    // nor so small that the frame shows past the screen's edges, where there's nothing
+    scale = std::max(scale, std::max(size.x / screen.x, size.y / screen.y));
+
+    // the part of the screen the frame shows: around the window, slid back inside the screen
+    ImVec2 shown(size.x / scale, size.y / scale);
+    ImVec2 center((windowsMin.x + windowsMax.x) * 0.5f, (windowsMin.y + windowsMax.y) * 0.5f);
+    ImVec2 origin(std::clamp(center.x - shown.x * 0.5f, 0.0f, std::max(0.0f, screen.x - shown.x)),
+                  std::clamp(center.y - shown.y * 0.5f, 0.0f, std::max(0.0f, screen.y - shown.y)));
+    ImVec2 offset(min.x - origin.x * scale, min.y - origin.y * scale);
+
+    // the menu's background under it, moved and scaled the same way
+    drawList->PushClipRect(min, max, true);
+    drawList->AddRectFilled(min, max, IM_COL32(12, 14, 10, 255));
+    if (BasePanel())
+    {
+        for (const CBasePanel::MenuBackgroundTile& tile : BasePanel()->GetMenuBackground())
+        {
+            ImVec2 tileMin(offset.x + tile.x0 * scale, offset.y + tile.y0 * scale);
+            ImVec2 tileMax(offset.x + tile.x1 * scale, offset.y + tile.y1 * scale);
+            drawList->AddImage(reinterpret_cast<ImTextureID>(static_cast<intptr_t>(tile.texture)), tileMin, tileMax);
+        }
+    }
+    drawList->PopClipRect();
+
+    CImGuiPanel::AddScaledDrawData(drawList, frame, offset, scale, ImVec4(min.x, min.y, max.x, max.y));
+    drawList->AddRect(min, max, ImGui::GetColorU32(ImGuiCol_Border), kRounding);
+    ImGui::Dummy(size);
+}
+
+void CImGuiOptions::DrawAppearance()
+{
+    using namespace ImGuiAppearance;
+    if (IsPreview())
+        return;
+
+    // the windows as a row of pills that wraps, the chosen one in the accent colour
+    const ImGuiStyle& style = ImGui::GetStyle();
+    float right = ImGui::GetCursorPosX() + ImGui::GetContentRegionAvail().x;
+    ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 12.0f);
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(12.0f, 5.0f));
+    for (int i = 0; i < static_cast<int>(Element::Count); i++)
+    {
+        const ElementInfo& info = Info(static_cast<Element>(i));
+        std::string label = Localized(info.token, info.english) + "##Appearance" + std::to_string(i);
+        float width = ImGui::CalcTextSize(label.c_str(), nullptr, true).x + style.FramePadding.x * 2.0f;
+        if (i > 0)
+        {
+            ImGui::SameLine();
+            if (ImGui::GetCursorPosX() + width > right)
+                ImGui::NewLine();
+        }
+
+        bool selected = i == m_iAppearanceElement;
+        ImGui::PushStyleColor(ImGuiCol_Button, selected ? ImGui::GetStyleColorVec4(ImGuiCol_CheckMark) : ImGui::GetStyleColorVec4(ImGuiCol_FrameBg));
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, selected ? WithAlpha(ImGuiCol_CheckMark, 0.85f) : ImGui::GetStyleColorVec4(ImGuiCol_FrameBgHovered));
+        if (ImGui::Button(label.c_str()))
+            m_iAppearanceElement = i;
+        ImGui::PopStyleColor(2);
+    }
+    ImGui::PopStyleVar(2);
+    ImGui::Dummy(ImVec2(0, 4));
+
+    Element element = static_cast<Element>(m_iAppearanceElement);
+    const ElementInfo& info = Info(element);
+
+    // the preview shows what Apply would give, not what the windows have now
+    Values values;
+    values.opacity = info.opacityCvar ? PendingValue(info.opacityCvar) : 1.0f;
+    values.fontSize = PendingValue(info.fontCvar);
+    values.dim = info.dimCvar ? PendingValue(info.dimCvar) : 0.0f;
+    values = Clamp(values);
+
+    // the settings take the space under the preview they need, the preview the rest
+    float rows = 2.0f + (info.opacityCvar ? 1.0f : 0.0f) + (info.dimCvar ? 1.0f : 0.0f);
+    float settingsHeight = (ImGui::GetFrameHeightWithSpacing() + 8.0f) * rows + kCardPadding * 2.0f;
+    ImVec2 avail = ImGui::GetContentRegionAvail();
+    ImVec2 screen = ImGui::GetIO().DisplaySize;
+    // shaped like the screen, so a window over all of it, like the loading screen, fits whole
+    float previewHeight = std::clamp(std::min(avail.x * screen.y / screen.x, avail.y - settingsHeight), 140.0f, avail.y);
+    float previewWidth = std::min(avail.x, previewHeight * screen.x / screen.y);
+    ImGui::SetCursorPosX(ImGui::GetCursorPosX() + (avail.x - previewWidth) * 0.5f);
+    DrawAppearancePreview(element, values, ImVec2(previewWidth, previewHeight));
+    ImGui::Dummy(ImVec2(0, 4));
+
+    BeginCard(nullptr, nullptr);
+    if (info.opacityCvar)
+        CvarSlider("#GameUI_AppearanceOpacity", info.opacityCvar, kMinOpacity, 1.0f, "%.0f%%", 100.0f);
+    if (CvarSlider("#GameUI_AppearanceFontSize", info.fontCvar, kMinFontSize, kMaxFontSize, "%.0f px"))
+        SetPendingFloat(info.fontCvar, std::round(PendingValue(info.fontCvar)));
+    if (info.dimCvar)
+        CvarSlider("#GameUI_AppearanceDim", info.dimCvar, 0.0f, kMaxDim, "%.0f%%", 100.0f);
+    EndCard();
+
+    if (ImGui::Button(Localized("#GameUI_AppearanceReset", "Reset this window").c_str()))
+    {
+        for (const char* cvar : { info.opacityCvar, info.fontCvar, info.dimCvar })
+        {
+            if (cvar)
+                SetPending(cvar, DefaultValue(cvar));
+        }
+    }
 }
 
 void CImGuiOptions::DrawVoice()

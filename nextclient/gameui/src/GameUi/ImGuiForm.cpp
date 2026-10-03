@@ -31,7 +31,7 @@ ImVec4 ImGuiForm::WithAlpha(ImGuiCol color, float alpha)
     return value;
 }
 
-void ImGuiForm::DimmedBackdrop(const ImVec2& windowMin, const ImVec2& windowMax)
+void ImGuiForm::DimmedBackdrop(const ImVec2& windowMin, const ImVec2& windowMax, float dim)
 {
     ImGuiViewport* viewport = ImGui::GetMainViewport();
     ImGui::SetNextWindowPos(viewport->Pos);
@@ -40,7 +40,7 @@ void ImGuiForm::DimmedBackdrop(const ImVec2& windowMin, const ImVec2& windowMax)
         | ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoBringToFrontOnFocus;
     ImGui::Begin("##Backdrop", nullptr, flags);
     ImDrawList* drawList = ImGui::GetWindowDrawList();
-    drawList->AddRectFilled(viewport->Pos, ImVec2(viewport->Pos.x + viewport->Size.x, viewport->Pos.y + viewport->Size.y), IM_COL32(0, 0, 0, 150));
+    drawList->AddRectFilled(viewport->Pos, ImVec2(viewport->Pos.x + viewport->Size.x, viewport->Pos.y + viewport->Size.y), IM_COL32(0, 0, 0, static_cast<int>(255.0f * dim)));
 
     // ImGui has no shadows: a soft one from rings that grow and fade
     if (windowMax.x > windowMin.x)

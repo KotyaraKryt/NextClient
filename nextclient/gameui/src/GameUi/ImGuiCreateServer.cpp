@@ -114,6 +114,7 @@ namespace
 
 CImGuiCreateServer::CImGuiCreateServer() : BaseClass("createserver_layout.ini")
 {
+    SetAppearance(ImGuiAppearance::Element::CreateServer);
     SetVisible(false);
 }
 
@@ -131,6 +132,13 @@ void CImGuiCreateServer::RegisterCvars()
 bool CImGuiCreateServer::UseLegacyDialog()
 {
     return g_pLegacyCvar && g_pLegacyCvar->value != 0.0f;
+}
+
+void CImGuiCreateServer::PreparePreview()
+{
+    LoadMaps();
+    LoadRules();
+    LoadBotConfig();
 }
 
 void CImGuiCreateServer::Activate()

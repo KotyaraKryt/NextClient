@@ -18,9 +18,9 @@ namespace ImGuiForm
     // "1" and "1.000000" are the same value; the engine stores whatever text it was given
     bool SameValue(const char* a, const char* b);
 
-    // a window over the whole screen that dims it and takes the clicks meant for what's behind,
-    // with a soft shadow where the dialog was last frame (windowMax.x <= windowMin.x for none yet)
-    void DimmedBackdrop(const ImVec2& windowMin, const ImVec2& windowMax);
+    // a window over the whole screen that dims it by dim (0 to 1) and takes the clicks meant for what's
+    // behind, with a soft shadow where the dialog was last frame (windowMax.x <= windowMin.x for none yet)
+    void DimmedBackdrop(const ImVec2& windowMin, const ImVec2& windowMax, float dim);
 }
 
 // The settings layout the ImGui dialogs share: cards with rows of caption on the left and control on the right

@@ -30,6 +30,7 @@ public:
 
 protected:
     void DrawImGui() override;
+    void PreparePreview() override;
 
 private:
     bool LoadModules();

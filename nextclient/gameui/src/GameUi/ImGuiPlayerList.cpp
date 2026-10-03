@@ -77,6 +77,7 @@ namespace
 
 CImGuiPlayerList::CImGuiPlayerList() : BaseClass("playerlist_layout.ini")
 {
+    SetAppearance(ImGuiAppearance::Element::PlayerList);
     SetVisible(false);
 }
 

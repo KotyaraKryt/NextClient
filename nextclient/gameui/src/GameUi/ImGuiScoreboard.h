@@ -22,6 +22,7 @@ public:
 
 protected:
     void DrawImGui() override;
+    void PreparePreview() override;
 
 private:
     void DrawTeam(ScoreboardTeam team, const char* id, float width);

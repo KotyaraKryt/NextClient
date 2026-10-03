@@ -594,7 +594,7 @@ void CBasePanel::OnLevelLoadingFinished(void)
     m_bLevelLoading = false;
 }
 
-void CBasePanel::DrawMenuBackground(void)
+std::vector<CBasePanel::MenuBackgroundTile> CBasePanel::GetMenuBackground()
 {
     int swide, stall;
     vgui2::surface()->GetScreenSize(swide, stall);
@@ -603,7 +603,7 @@ void CBasePanel::DrawMenuBackground(void)
     xScale = (float)swide / (float)m_iBaseResX;
     yScale = (float)stall / (float)m_iBaseResY;
 
-    // iterate and draw all the background pieces
+    std::vector<MenuBackgroundTile> tiles;
     for (int x = 0; x < m_ImageID.Size(); x++)
     {
         bimage_t &bimage = m_ImageID[x];
@@ -621,10 +621,19 @@ void CBasePanel::DrawMenuBackground(void)
             dt = (int)ceil(dt * yScale);
         }
 
-        // draw the color image only if the mono image isn't yet fully opaque
+        tiles.push_back({ bimage.imageID, dx, dy, dw, dt });
+    }
+    return tiles;
+}
+
+void CBasePanel::DrawMenuBackground(void)
+{
+    // iterate and draw all the background pieces
+    for (const MenuBackgroundTile& tile : GetMenuBackground())
+    {
         vgui2::surface()->DrawSetColor(255, 255, 255, 255);
-        vgui2::surface()->DrawSetTexture(bimage.imageID);
-        vgui2::surface()->DrawTexturedRect(dx, dy, dw, dt);
+        vgui2::surface()->DrawSetTexture(tile.texture);
+        vgui2::surface()->DrawTexturedRect(tile.x0, tile.y0, tile.x1, tile.y1);
     }
 }
 

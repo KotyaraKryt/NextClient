@@ -110,6 +110,7 @@ namespace
 
 CImGuiMotd::CImGuiMotd()
 {
+    SetAppearance(ImGuiAppearance::Element::Motd);
     SetVisible(false);
 }
 
@@ -130,6 +131,13 @@ void CImGuiMotd::Show(const char* text)
     RequestFocus();
     ResetInput();
     m_bFocusWindow = true;
+}
+
+void CImGuiMotd::PreparePreview()
+{
+    m_Raw = "<h1>Welcome!</h1><p>Be polite, play fair and have fun.</p><ul><li>No cheats</li><li>No spam in the chat</li><li>Listen to the admins</li></ul><p>Our site: https://example.com</p>";
+    m_Text = ParseMotd(m_Raw);
+    m_bPage = false;
 }
 
 void CImGuiMotd::OnThink()
@@ -293,7 +301,7 @@ void CImGuiMotd::DrawLinks()
 void CImGuiMotd::DrawImGui()
 {
     ImGuiViewport* viewport = ImGui::GetMainViewport();
-    DimmedBackdrop(m_WindowMin, m_WindowMax);
+    DimmedBackdrop(m_WindowMin, m_WindowMax, ImGuiAppearance::Current(ImGuiAppearance::Element::Motd).dim);
 
     // a page is made for the client's window, which is about 900 wide
     float width = m_bPage ? std::clamp(viewport->Size.x * 0.62f, std::min(640.0f, viewport->Size.x - 32.0f), 1000.0f)

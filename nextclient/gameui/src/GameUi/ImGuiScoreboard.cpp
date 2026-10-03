@@ -93,10 +93,53 @@ namespace
 
 CImGuiScoreboard::CImGuiScoreboard() : BaseClass(nullptr, kTitleScale)
 {
+    SetAppearance(ImGuiAppearance::Element::Scoreboard);
     SetVisible(false);
     // a look at the scores mustn't take the keys or the mouse from the game
     SetKeyBoardInputEnabled(false);
     SetMouseInputEnabled(false);
+}
+
+void CImGuiScoreboard::PreparePreview()
+{
+    struct Sample
+    {
+        const char* name;
+        ScoreboardTeam team;
+        int frags;
+        int deaths;
+        int ping;
+        bool dead;
+        bool bomb;
+    };
+
+    static const Sample kSamples[] = {
+        { "Kotyara", ScoreboardTeam::CounterTerrorist, 24, 3, 38, false, false },
+        { "Inford", ScoreboardTeam::CounterTerrorist, 18, 7, 52, false, false },
+        { "lirikaZz", ScoreboardTeam::CounterTerrorist, 11, 9, 64, true, false },
+        { "dimas", ScoreboardTeam::Terrorist, 20, 5, 41, false, true },
+        { "Oleg", ScoreboardTeam::Terrorist, 12, 8, 77, false, false },
+        { "Ivan", ScoreboardTeam::Terrorist, 4, 12, 95, true, false },
+        { "spectator", ScoreboardTeam::Spectator, 0, 0, 20, false, false },
+    };
+
+    ScoreboardState state{};
+    state.ct_score = 5;
+    state.terrorist_score = 3;
+    for (const Sample& sample : kSamples)
+    {
+        ScoreboardPlayer& player = state.players[state.player_count];
+        player.index = ++state.player_count;
+        V_strncpy(player.name, sample.name, sizeof(player.name));
+        player.team = sample.team;
+        player.frags = sample.frags;
+        player.deaths = sample.deaths;
+        player.ping = sample.ping;
+        player.dead = sample.dead;
+        player.bomb = sample.bomb;
+        player.self = player.index == 1;
+    }
+    SetState(state);
 }
 
 void CImGuiScoreboard::SetState(const ScoreboardState& state)
@@ -123,7 +166,6 @@ void CImGuiScoreboard::DrawImGui()
     float width = std::clamp(viewport->Size.x * 0.78f, 760.0f, 1280.0f);
     ImGui::SetNextWindowPos(viewport->GetCenter(), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
     ImGui::SetNextWindowSize(ImVec2(width, 0.0f), ImGuiCond_Always);
-    ImGui::SetNextWindowBgAlpha(0.97f);
 
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(22.0f, 18.0f));
     ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, kRounding * 1.5f);

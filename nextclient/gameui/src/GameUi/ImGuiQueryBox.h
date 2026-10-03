@@ -21,6 +21,7 @@ public:
 
 protected:
     void DrawImGui() override;
+    void PreparePreview() override;
 
 private:
     std::string m_Title;

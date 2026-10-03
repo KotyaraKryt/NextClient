@@ -42,6 +42,7 @@ public:
 protected:
     void Paint() override;
     void DrawImGui() override;
+    void PreparePreview() override;
 
     // while loading the engine only draws a frame when the progress moves, seconds apart, and
     // ImGui would only see a click in the next one; Cancel answers VGUI's events right away instead

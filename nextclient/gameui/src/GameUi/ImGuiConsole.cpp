@@ -50,6 +50,7 @@ static bool CvarOn(const char* name, bool fallback)
 
 CImGuiConsole::CImGuiConsole(console_buffer::ConsoleBuffer& scrollback) : BaseClass("console_layout.ini"), m_Scrollback(scrollback)
 {
+    SetAppearance(ImGuiAppearance::Element::Console);
     SetVisible(false);
     LoadHistory();
 }
@@ -289,8 +290,6 @@ void CImGuiConsole::DrawImGui()
     }
 
     ApplySettings();
-    float opacity = std::clamp(CvarValue("con_opacity", 1.0f), 0.3f, 1.0f);
-    ImGui::SetNextWindowBgAlpha(opacity);
 
     bool open = true;
     bool expanded = ImGui::Begin("Console", &open, ImGuiWindowFlags_NoCollapse);
@@ -301,13 +300,9 @@ void CImGuiConsole::DrawImGui()
 
         // leave one row under the scrollback for the input line
         float footer = ImGui::GetFrameHeightWithSpacing();
-        ImVec4 childBg = ImGui::GetStyle().Colors[ImGuiCol_ChildBg];
-        childBg.w *= opacity;
-        ImGui::PushStyleColor(ImGuiCol_ChildBg, childBg);
         ImGui::BeginChild("Scrollback", ImVec2(0, -footer));
         DrawScrollback();
         ImGui::EndChild();
-        ImGui::PopStyleColor();
 
         // Typing after selecting something in the scrollback goes back to the input line.
         // The focus comes with the whole input selected, so the typed letters wait aside
@@ -378,8 +373,6 @@ void CImGuiConsole::DrawImGui()
 
 void CImGuiConsole::ApplySettings()
 {
-    SetFontSize(std::clamp(std::round(CvarValue("con_fontsize", 16.0f)), 10.0f, 28.0f));
-
     size_t maxLines = static_cast<size_t>(std::clamp(CvarValue("con_maxlines", 5000.0f), 100.0f, 20000.0f));
     if (maxLines != m_iMaxLines)
     {

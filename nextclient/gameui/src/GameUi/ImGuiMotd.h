@@ -31,6 +31,7 @@ public:
 
 protected:
     void DrawImGui() override;
+    void PreparePreview() override;
     void OnThink() override;
 
 private:

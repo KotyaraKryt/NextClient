@@ -22,6 +22,7 @@
 #include <algorithm>
 #include <cfloat>
 #include <cmath>
+#include <cstddef>
 #include <cstdint>
 #include <cstring>
 #include <string>
@@ -204,6 +205,7 @@ CImGuiPanel::CImGuiPanel(const char* layoutFile, float titleFontScale) : BaseCla
     io.SetClipboardTextFn = SetClipboard;
     io.GetClipboardTextFn = GetClipboard;
     ApplyNextClientTheme(ImGui::GetStyle());
+    std::copy(std::begin(ImGui::GetStyle().Colors), std::end(ImGui::GetStyle().Colors), m_BaseColors);
     LoadFonts(io, m_flFontSize, m_flTitleFontScale);
     ImGui_ImplOpenGL2_Init();
 
@@ -252,6 +254,129 @@ ImFont* CImGuiPanel::HeadingFont()
 void CImGuiPanel::SetFontSize(float size)
 {
     m_flPendingFontSize = size;
+}
+
+void CImGuiPanel::SetAppearance(ImGuiAppearance::Element element)
+{
+    m_Appearance = element;
+}
+
+void CImGuiPanel::MakePreview()
+{
+    m_bPreview = true;
+    SetVisible(false);
+    SetMouseInputEnabled(false);
+    SetKeyBoardInputEnabled(false);
+
+    // a preview shows the window where and how big it starts out, not where the player left the real one
+    ImGuiContext* previous = ImGui::GetCurrentContext();
+    ImGui::SetCurrentContext(m_pContext);
+    ImGui::ClearIniSettings();
+    ImGui::SetCurrentContext(previous);
+
+    PreparePreview();
+}
+
+ImDrawData* CImGuiPanel::RenderPreview(const ImGuiAppearance::Values& values, ImVec2& windowsMin, ImVec2& windowsMax)
+{
+    ImGuiContext* previous = ImGui::GetCurrentContext();
+    ImGui::SetCurrentContext(m_pContext);
+
+    ImGuiAppearance::ApplyOpacity(ImGui::GetStyle(), m_BaseColors, values.opacity);
+    if (values.fontSize != m_flFontSize || !m_iFontTextureID)
+    {
+        m_flFontSize = values.fontSize;
+        ImGui::GetIO().Fonts->Clear();
+        LoadFonts(ImGui::GetIO(), m_flFontSize, m_flTitleFontScale);
+        CreateFontTexture();
+    }
+
+    // laid out for the real screen, so the window comes out where and as big as it would be
+    ImGuiIO& io = ImGui::GetIO();
+    int wide, tall;
+    surface()->GetScreenSize(wide, tall);
+    io.DisplaySize = ImVec2(static_cast<float>(wide), static_cast<float>(tall));
+    io.DeltaTime = 1.0f / 60.0f;
+    io.AddMousePosEvent(-FLT_MAX, -FLT_MAX);
+
+    KeepWindowsOnScreen();
+    ImGui::NewFrame();
+    DrawImGui();
+    ImGui::Render();
+
+    windowsMin = ImVec2(FLT_MAX, FLT_MAX);
+    windowsMax = ImVec2(-FLT_MAX, -FLT_MAX);
+    for (ImGuiWindow* window : ImGui::GetCurrentContext()->Windows)
+    {
+        if (!window->Active || (window->Flags & (ImGuiWindowFlags_ChildWindow | ImGuiWindowFlags_Tooltip | ImGuiWindowFlags_Popup)))
+            continue;
+        if (!strncmp(window->Name, "##Backdrop", 10))
+            continue;
+
+        windowsMin = ImMin(windowsMin, window->Pos);
+        windowsMax = ImMax(windowsMax, ImVec2(window->Pos.x + window->Size.x, window->Pos.y + window->Size.y));
+    }
+    if (windowsMin.x > windowsMax.x)
+    {
+        windowsMin = ImVec2(0, 0);
+        windowsMax = io.DisplaySize;
+    }
+
+    ImDrawData* data = ImGui::GetDrawData();
+    ImGui::SetCurrentContext(previous);
+    return data;
+}
+
+static void RenderPreviewCallback(const ImDrawList* parentList, const ImDrawCmd* command)
+{
+    ImGui_ImplOpenGL2_RenderDrawData(static_cast<ImDrawData*>(command->UserCallbackData));
+
+    // the backend points GL at a list's vertices once, before its commands, so the rest of the
+    // list this was called from would be drawn from the preview's; the reset callback after this
+    // turns the arrays back on, which the nested call turned off
+    const ImDrawVert* vertices = parentList->VtxBuffer.Data;
+    glVertexPointer(2, GL_FLOAT, sizeof(ImDrawVert), reinterpret_cast<const char*>(vertices) + offsetof(ImDrawVert, pos));
+    glTexCoordPointer(2, GL_FLOAT, sizeof(ImDrawVert), reinterpret_cast<const char*>(vertices) + offsetof(ImDrawVert, uv));
+    glColorPointer(4, GL_UNSIGNED_BYTE, sizeof(ImDrawVert), reinterpret_cast<const char*>(vertices) + offsetof(ImDrawVert, col));
+}
+
+void CImGuiPanel::AddScaledDrawData(ImDrawList* drawList, ImDrawData* data, const ImVec2& offset, float scale, const ImVec4& clip)
+{
+    if (!data || !data->Valid)
+        return;
+
+    // the frame is made again for every preview, so it can be moved where it goes in place
+    for (ImDrawList* list : data->CmdLists)
+    {
+        for (ImDrawVert& vertex : list->VtxBuffer)
+            vertex.pos = ImVec2(offset.x + vertex.pos.x * scale, offset.y + vertex.pos.y * scale);
+
+        for (ImDrawCmd& command : list->CmdBuffer)
+        {
+            ImVec4& rect = command.ClipRect;
+            rect = ImVec4(offset.x + rect.x * scale, offset.y + rect.y * scale, offset.x + rect.z * scale, offset.y + rect.w * scale);
+            rect = ImVec4(std::max(rect.x, clip.x), std::max(rect.y, clip.y), std::min(rect.z, clip.z), std::min(rect.w, clip.w));
+        }
+    }
+
+    // in the screen's space now, like the frame it's drawn in
+    data->DisplayPos = ImVec2(0, 0);
+    data->DisplaySize = ImGui::GetIO().DisplaySize;
+    data->FramebufferScale = ImVec2(1, 1);
+
+    drawList->AddCallback(RenderPreviewCallback, data);
+    drawList->AddCallback(ImDrawCallback_ResetRenderState, nullptr);
+}
+
+void CImGuiPanel::ApplyAppearance()
+{
+    if (m_Appearance == ImGuiAppearance::Element::Count)
+        return;
+
+    ImGuiAppearance::Values values = ImGuiAppearance::Current(m_Appearance);
+    ImGuiAppearance::ApplyOpacity(ImGui::GetStyle(), m_BaseColors, values.opacity);
+    if (values.fontSize != m_flFontSize)
+        m_flPendingFontSize = values.fontSize;
 }
 
 void CImGuiPanel::SaveLayout()
@@ -311,6 +436,7 @@ void CImGuiPanel::CreateFontTexture()
 void CImGuiPanel::Paint()
 {
     ImGui::SetCurrentContext(m_pContext);
+    ApplyAppearance();
 
     if (m_flPendingFontSize > 0.0f && m_flPendingFontSize != m_flFontSize)
     {

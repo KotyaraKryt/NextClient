@@ -1,5 +1,7 @@
 #pragma once
 
+#include "ImGuiAppearance.h"
+
 #include <vgui_controls/Panel.h>
 
 #include <string>
@@ -20,6 +22,18 @@ public:
 
     // takes effect on the next frame, when the font atlas can be rebuilt
     void SetFontSize(float size);
+    // which of the Interface page's windows this is: its opacity and text size follow the page's settings
+    void SetAppearance(ImGuiAppearance::Element element);
+
+    // makes this a panel only the options' Interface page draws, in a small frame: never shown, with
+    // sample content, and none of what the window does when it's used
+    void MakePreview();
+    bool IsPreview() const { return m_bPreview; }
+    // one frame laid out for the whole screen with these settings; the windows' rectangle, the
+    // dimmed backdrop left out, goes to windowsMin and windowsMax. Valid until the next call
+    ImDrawData* RenderPreview(const ImGuiAppearance::Values& values, ImVec2& windowsMin, ImVec2& windowsMax);
+    // draws another context's frame at this point of drawList, scaled by scale, moved by offset and kept within clip
+    static void AddScaledDrawData(ImDrawList* drawList, ImDrawData* data, const ImVec2& offset, float scale, const ImVec4& clip);
 
     // a localization token in UTF-8, "" when no loaded file has it
     static std::string Localized(const char* token);
@@ -36,6 +50,8 @@ public:
 protected:
     // called between ImGui::NewFrame and ImGui::Render, with this panel's context current
     virtual void DrawImGui() = 0;
+    // fills a preview's window with something to show
+    virtual void PreparePreview() {}
 
     void Paint() override;
 
@@ -58,6 +74,7 @@ protected:
 
 private:
     void CreateFontTexture();
+    void ApplyAppearance();
     void FitToWindows();
     void KeepWindowsOnScreen();
     void SaveLayout();
@@ -71,4 +88,8 @@ private:
     float m_flTitleFontScale = 0.0f;
     float m_flPendingFontSize = 0.0f;
     const char* m_pszLayoutFile;
+    ImGuiAppearance::Element m_Appearance = ImGuiAppearance::Element::Count;
+    bool m_bPreview = false;
+    // the theme's colours, which the opacity is applied to anew each frame
+    ImVec4 m_BaseColors[ImGuiCol_COUNT];
 };

@@ -66,6 +66,7 @@ namespace
 
 CImGuiLoadingDialog::CImGuiLoadingDialog() : BaseClass(nullptr, kTitleScale)
 {
+    SetAppearance(ImGuiAppearance::Element::Loading);
     SetVisible(false);
 }
 
@@ -263,6 +264,14 @@ void CImGuiLoadingDialog::OnKeyCodePressed(vgui2::KeyCode code)
 
     if (code == vgui2::KEY_ESCAPE || (m_bError && (code == vgui2::KEY_ENTER || code == vgui2::KEY_PAD_ENTER)))
         Cancel();
+}
+
+void CImGuiLoadingDialog::PreparePreview()
+{
+    m_bOpen = true;
+    m_Level = "de_dust2";
+    m_Status = Localized("#GameUI_ParseBaseline", "Parsing game info...");
+    m_flProgress = 0.45f;
 }
 
 void CImGuiLoadingDialog::Paint()
