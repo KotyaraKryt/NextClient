@@ -696,23 +696,127 @@ void CImGuiOptions::DrawAppearancePreview(ImGuiAppearance::Element element, cons
     ImGui::Dummy(size);
 }
 
+bool CImGuiOptions::ColorRow(ThemePalette::Color color, ImVec4& value, bool pending, bool enabled)
+{
+    BeginRowText(Localized(ImGuiAppearance::ColorToken(color), ImGuiAppearance::ColorEnglish(color)), pending);
+    ImGui::BeginDisabled(!enabled);
+    ImGui::PushID(color);
+    bool changed = ImGui::ColorEdit3("##Color", &value.x, ImGuiColorEditFlags_DisplayHex | ImGuiColorEditFlags_NoOptions);
+    ImGui::PopID();
+    ImGui::EndDisabled();
+    EndRow();
+    return changed;
+}
+
+void CImGuiOptions::DrawPaletteSettings()
+{
+    using namespace ImGuiAppearance;
+
+    std::string current = PendingString(kPaletteCvar);
+    ThemePalette palette = ResolvePalette(current.c_str(), "");
+
+    BeginCard("#GameUI_AppearancePalette", "Palette");
+    BeginRow("#GameUI_AppearancePreset", false);
+    // the preset whose colours the palette has, or none once one of them was changed
+    std::string shown = Localized("#GameUI_PaletteCustom", "Custom");
+    for (const PalettePreset& preset : Presets())
+    {
+        if (!memcmp(&preset.palette, &palette, sizeof(palette)))
+            shown = Localized(preset.token, preset.english);
+    }
+    if (ImGui::BeginCombo("##Preset", shown.c_str()))
+    {
+        for (const PalettePreset& preset : Presets())
+        {
+            if (ImGui::Selectable(Localized(preset.token, preset.english).c_str()))
+            {
+                PaletteOverrides all;
+                for (int i = 0; i < ThemePalette::Count; i++)
+                {
+                    all.set[i] = true;
+                    all.colors[i] = preset.palette.colors[i];
+                }
+                // the classic one is no colours at all, so a later change to it reaches the player too
+                SetPending(kPaletteCvar, &preset == &Presets().front() ? "" : FormatColors(all));
+            }
+        }
+        ImGui::EndCombo();
+    }
+    EndRow();
+
+    PaletteOverrides overrides = ParseColors(current.c_str());
+    for (int i = 0; i < ThemePalette::Count; i++)
+    {
+        ImVec4 value = palette.colors[i];
+        if (ColorRow(static_cast<ThemePalette::Color>(i), value, m_Pending.count(kPaletteCvar) != 0))
+        {
+            overrides.set[i] = true;
+            overrides.colors[i] = value;
+            SetPending(kPaletteCvar, FormatColors(overrides));
+        }
+    }
+    EndCard();
+
+    if (ImGui::Button(Localized("#GameUI_AppearanceResetPalette", "Back to the classic colours").c_str()))
+        SetPending(kPaletteCvar, "");
+}
+
+void CImGuiOptions::DrawElementColors(const ImGuiAppearance::ElementInfo& info)
+{
+    using namespace ImGuiAppearance;
+
+    std::string own = PendingString(info.colorsCvar);
+    PaletteOverrides overrides = ParseColors(own.c_str());
+    ThemePalette shared = ResolvePalette(PendingString(kPaletteCvar).c_str(), "");
+
+    BeginCard("#GameUI_AppearanceColors", "Colours");
+    ImGui::TextDisabled("%s", Localized("#GameUI_AppearanceColorsHint", "Unticked colours are the ones all the windows share").c_str());
+    bool pending = m_Pending.count(info.colorsCvar) != 0;
+    for (int i = 0; i < ThemePalette::Count; i++)
+    {
+        ImGui::PushID(i);
+        bool set = overrides.set[i];
+        ImVec4 value = set ? overrides.colors[i] : shared.colors[i];
+
+        // the tick in the row's caption column, before the colour's name
+        bool changed = false;
+        if (ImGui::Checkbox("##Own", &set))
+        {
+            overrides.set[i] = set;
+            overrides.colors[i] = value;
+            changed = true;
+        }
+        ImGui::SameLine();
+        if (ColorRow(static_cast<ThemePalette::Color>(i), value, pending, set))
+        {
+            overrides.colors[i] = value;
+            changed = true;
+        }
+        if (changed)
+            SetPending(info.colorsCvar, FormatColors(overrides));
+        ImGui::PopID();
+    }
+    EndCard();
+}
+
 void CImGuiOptions::DrawAppearance()
 {
     using namespace ImGuiAppearance;
     if (IsPreview())
         return;
 
-    // the windows as a row of pills that wraps, the chosen one in the accent colour
+    // "all windows" and then each of them, as a row of pills that wraps, the chosen one in the accent colour
     const ImGuiStyle& style = ImGui::GetStyle();
     float right = ImGui::GetCursorPosX() + ImGui::GetContentRegionAvail().x;
     ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 12.0f);
     ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(12.0f, 5.0f));
-    for (int i = 0; i < static_cast<int>(Element::Count); i++)
+    for (int i = -1; i < static_cast<int>(Element::Count); i++)
     {
-        const ElementInfo& info = Info(static_cast<Element>(i));
-        std::string label = Localized(info.token, info.english) + "##Appearance" + std::to_string(i);
+        std::string text = i < 0 ? Localized("#GameUI_AppearanceAll", "All windows")
+                                 : Localized(Info(static_cast<Element>(i)).token, Info(static_cast<Element>(i)).english);
+        std::string label = text + "##Appearance" + std::to_string(i);
         float width = ImGui::CalcTextSize(label.c_str(), nullptr, true).x + style.FramePadding.x * 2.0f;
-        if (i > 0)
+        if (i > -1)
         {
             ImGui::SameLine();
             if (ImGui::GetCursorPosX() + width > right)
@@ -723,33 +827,43 @@ void CImGuiOptions::DrawAppearance()
         ImGui::PushStyleColor(ImGuiCol_Button, selected ? ImGui::GetStyleColorVec4(ImGuiCol_CheckMark) : ImGui::GetStyleColorVec4(ImGuiCol_FrameBg));
         ImGui::PushStyleColor(ImGuiCol_ButtonHovered, selected ? WithAlpha(ImGuiCol_CheckMark, 0.85f) : ImGui::GetStyleColorVec4(ImGuiCol_FrameBgHovered));
         if (ImGui::Button(label.c_str()))
+        {
             m_iAppearanceElement = i;
+            if (i >= 0)
+                m_iAppearancePreview = i;
+        }
         ImGui::PopStyleColor(2);
     }
     ImGui::PopStyleVar(2);
     ImGui::Dummy(ImVec2(0, 4));
 
-    Element element = static_cast<Element>(m_iAppearanceElement);
-    const ElementInfo& info = Info(element);
-
     // the preview shows what Apply would give, not what the windows have now
+    Element element = static_cast<Element>(m_iAppearancePreview);
+    const ElementInfo& info = Info(element);
     Values values;
     values.opacity = info.opacityCvar ? PendingValue(info.opacityCvar) : 1.0f;
     values.fontSize = PendingValue(info.fontCvar);
     values.dim = info.dimCvar ? PendingValue(info.dimCvar) : 0.0f;
+    values.palette = ResolvePalette(PendingString(kPaletteCvar).c_str(), PendingString(info.colorsCvar).c_str());
     values = Clamp(values);
 
-    // the settings take the space under the preview they need, the preview the rest
-    float rows = 2.0f + (info.opacityCvar ? 1.0f : 0.0f) + (info.dimCvar ? 1.0f : 0.0f);
-    float settingsHeight = (ImGui::GetFrameHeightWithSpacing() + 8.0f) * rows + kCardPadding * 2.0f;
+    // shaped like the screen, so a window over all of it, like the loading screen, fits whole;
+    // the settings scroll under it
     ImVec2 avail = ImGui::GetContentRegionAvail();
     ImVec2 screen = ImGui::GetIO().DisplaySize;
-    // shaped like the screen, so a window over all of it, like the loading screen, fits whole
-    float previewHeight = std::clamp(std::min(avail.x * screen.y / screen.x, avail.y - settingsHeight), 140.0f, avail.y);
+    float previewHeight = std::clamp(std::min(avail.x * screen.y / screen.x, avail.y * 0.5f), 120.0f, std::max(120.0f, avail.y));
     float previewWidth = std::min(avail.x, previewHeight * screen.x / screen.y);
     ImGui::SetCursorPosX(ImGui::GetCursorPosX() + (avail.x - previewWidth) * 0.5f);
     DrawAppearancePreview(element, values, ImVec2(previewWidth, previewHeight));
     ImGui::Dummy(ImVec2(0, 4));
+
+    ImGui::BeginChild("AppearanceSettings", ImVec2(0, 0), false);
+    if (m_iAppearanceElement < 0)
+    {
+        DrawPaletteSettings();
+        ImGui::EndChild();
+        return;
+    }
 
     BeginCard(nullptr, nullptr);
     if (info.opacityCvar)
@@ -760,14 +874,17 @@ void CImGuiOptions::DrawAppearance()
         CvarSlider("#GameUI_AppearanceDim", info.dimCvar, 0.0f, kMaxDim, "%.0f%%", 100.0f);
     EndCard();
 
+    DrawElementColors(info);
+
     if (ImGui::Button(Localized("#GameUI_AppearanceReset", "Reset this window").c_str()))
     {
-        for (const char* cvar : { info.opacityCvar, info.fontCvar, info.dimCvar })
+        for (const char* cvar : { info.opacityCvar, info.fontCvar, info.dimCvar, info.colorsCvar })
         {
             if (cvar)
                 SetPending(cvar, DefaultValue(cvar));
         }
     }
+    ImGui::EndChild();
 }
 
 void CImGuiOptions::DrawVoice()

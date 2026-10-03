@@ -87,6 +87,10 @@ private:
     // the chosen window, real and in a frame, over the menu's background
     void DrawAppearancePreview(ImGuiAppearance::Element element, const ImGuiAppearance::Values& values, const ImVec2& size);
     CImGuiPanel* PreviewPanel(ImGuiAppearance::Element element);
+    void DrawPaletteSettings();
+    void DrawElementColors(const ImGuiAppearance::ElementInfo& info);
+    // a palette colour's row: its swatch, which opens a picker; true when it was changed
+    bool ColorRow(ThemePalette::Color color, ImVec4& value, bool pending, bool enabled = true);
     // kb_act.lst's actions with the keys the engine has bound to them
     void LoadBindings();
     // kb_def.lst's keys in place of the current ones, waiting for Apply like any change
@@ -245,8 +249,10 @@ private:
     char m_szBindingSearch[64] = {};
     bool m_bOpenDefaultsPopup = false;
 
-    // the window the Interface page shows the settings of, an ImGuiAppearance::Element
-    int m_iAppearanceElement = 0;
+    // the window the Interface page shows the settings of, an ImGuiAppearance::Element, or -1 for
+    // the palette all of them share; the preview then shows the window chosen last
+    int m_iAppearanceElement = -1;
+    int m_iAppearancePreview = 0;
     // the windows the Interface page draws its previews with, made the first time each is chosen
     vgui2::DHANDLE<CImGuiPanel> m_PreviewPanels[static_cast<int>(ImGuiAppearance::Element::Count)];
 

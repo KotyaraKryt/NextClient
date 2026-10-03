@@ -78,6 +78,7 @@ protected:
 private:
     void CreateFontTexture();
     void ApplyAppearance();
+    void ApplyColors(const ImGuiAppearance::Values& values);
     void FitToWindows();
     void KeepWindowsOnScreen();
     void SaveLayout();
@@ -93,6 +94,7 @@ private:
     const char* m_pszLayoutFile;
     ImGuiAppearance::Element m_Appearance = ImGuiAppearance::Element::Count;
     bool m_bPreview = false;
-    // the theme's colours, which the opacity is applied to anew each frame
+    // the theme's colours, which the opacity is applied to anew each frame, and the palette they're from
     ImVec4 m_BaseColors[ImGuiCol_COUNT];
+    ThemePalette m_Palette = DefaultPalette();
 };
