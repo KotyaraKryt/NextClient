@@ -284,7 +284,7 @@ ImDrawData* CImGuiPanel::RenderPreview(const ImGuiAppearance::Values& values, Im
     ImGuiContext* previous = ImGui::GetCurrentContext();
     ImGui::SetCurrentContext(m_pContext);
 
-    ImGuiAppearance::ApplyOpacity(ImGui::GetStyle(), m_BaseColors, values.opacity);
+    ApplyColors(values);
     if (values.fontSize != m_flFontSize || !m_iFontTextureID)
     {
         m_flFontSize = values.fontSize;
@@ -376,9 +376,21 @@ void CImGuiPanel::ApplyAppearance()
         return;
 
     ImGuiAppearance::Values values = ImGuiAppearance::Current(m_Appearance);
-    ImGuiAppearance::ApplyOpacity(ImGui::GetStyle(), m_BaseColors, values.opacity);
+    ApplyColors(values);
     if (values.fontSize != m_flFontSize)
         m_flPendingFontSize = values.fontSize;
+}
+
+void CImGuiPanel::ApplyColors(const ImGuiAppearance::Values& values)
+{
+    // the theme is made again only when the palette changes, the opacity goes on top every frame
+    if (memcmp(&values.palette, &m_Palette, sizeof(m_Palette)) != 0)
+    {
+        m_Palette = values.palette;
+        ApplyThemeColors(m_BaseColors, m_Palette);
+        ApplyThemeColors(ImGui::GetStyle().Colors, m_Palette);
+    }
+    ImGuiAppearance::ApplyOpacity(ImGui::GetStyle(), m_BaseColors, values.opacity);
 }
 
 void CImGuiPanel::SaveLayout()
