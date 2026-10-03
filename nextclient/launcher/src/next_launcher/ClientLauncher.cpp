@@ -312,11 +312,21 @@ ClientLauncher::EngineSessionResult ClientLauncher::RunEngine()
         }
     );
 
+    // Sys_InitGame asks for the whole locale right after the game DLL is loaded and shows a
+    // warning box at every start unless it's exactly en_US.UTF-8, which it never is by then:
+    // SteamAPI_Init in Host_Init has set LC_ALL=C. en_US.UTF-8 parses numbers like C does.
+    unsubscribers.emplace_back(
+        nitro_api->GetEngineData()->Host_InitializeGameDLL += [] {
+            setlocale(LC_ALL, "en_US.UTF-8");
+        }
+    );
+
     // steamclient.so sets LC_ALL=C in SteamAPI_Init and the engine's font code then picks it
     // up, after which hw.so's VGUI2_DrawString drops every non-ASCII char as unprintable.
     // Only the character classes come back: LC_NUMERIC has to stay C for the engine's atof.
     unsubscribers.emplace_back(
         nitro_api->GetEngineData()->Sys_InitGame += [](char* lpOrgCmdLine, char* pBaseDir, void* pwnd, int bIsDedicated, bool ret) {
+            setlocale(LC_ALL, "C");
             setlocale(LC_CTYPE, "C.UTF-8");
         }
     );
