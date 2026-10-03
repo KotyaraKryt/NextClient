@@ -484,16 +484,27 @@ void CImGuiPanel::Paint()
         glEnable(GL_ALPHA_TEST);
 }
 
+ImVec2 CImGuiPanel::OnScreen(const ImVec2& size)
+{
+    constexpr float kMargin = 8.0f;
+    ImVec2 screen = ImGui::GetIO().DisplaySize;
+    return ImVec2(std::min(size.x, std::max(1.0f, screen.x - kMargin * 2.0f)), std::min(size.y, std::max(1.0f, screen.y - kMargin * 2.0f)));
+}
+
 void CImGuiPanel::KeepWindowsOnScreen()
 {
     // no window may be dragged, resized or grown even partly off the screen; one bigger than the
-    // screen keeps its top left corner on it, where the title bar is
+    // screen, saved at a higher resolution, shrinks to fit it, and one that can't keeps its top
+    // left corner on it, where the title bar is
     ImGuiContext& g = *ImGui::GetCurrentContext();
     ImVec2 screen = g.IO.DisplaySize;
     for (ImGuiWindow* window : g.Windows)
     {
         if (!window->WasActive || (window->Flags & (ImGuiWindowFlags_ChildWindow | ImGuiWindowFlags_Tooltip)))
             continue;
+
+        if ((window->Size.x > screen.x || window->Size.y > screen.y) && !(window->Flags & ImGuiWindowFlags_AlwaysAutoResize))
+            ImGui::SetWindowSize(window, ImMin(window->Size, screen));
 
         ImVec2 pos = window->Pos;
         pos.x = std::max(0.0f, std::min(pos.x, screen.x - window->Size.x));

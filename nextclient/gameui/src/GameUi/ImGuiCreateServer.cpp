@@ -273,8 +273,8 @@ void CImGuiCreateServer::DrawImGui()
 {
     ImGuiViewport* viewport = ImGui::GetMainViewport();
     ImGui::SetNextWindowPos(viewport->GetCenter(), ImGuiCond_FirstUseEver, ImVec2(0.5f, 0.5f));
-    ImGui::SetNextWindowSize(ImVec2(860, 580), ImGuiCond_FirstUseEver);
-    ImGui::SetNextWindowSizeConstraints(ImVec2(640, 420), ImVec2(FLT_MAX, FLT_MAX));
+    ImGui::SetNextWindowSize(OnScreen(ImVec2(860, 580)), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSizeConstraints(OnScreen(ImVec2(640, 420)), ImVec2(FLT_MAX, FLT_MAX));
 
     // without the border a checkbox is a blank square
     ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1.0f);

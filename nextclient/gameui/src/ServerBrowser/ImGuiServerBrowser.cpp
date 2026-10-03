@@ -565,8 +565,8 @@ void CImGuiServerBrowser::DrawImGui()
 {
     ImGuiViewport* viewport = ImGui::GetMainViewport();
     ImGui::SetNextWindowPos(viewport->GetCenter(), ImGuiCond_FirstUseEver, ImVec2(0.5f, 0.5f));
-    ImGui::SetNextWindowSize(ImVec2(960, 640), ImGuiCond_FirstUseEver);
-    ImGui::SetNextWindowSizeConstraints(ImVec2(640, 384), ImVec2(FLT_MAX, FLT_MAX));
+    ImGui::SetNextWindowSize(OnScreen(ImVec2(960, 640)), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSizeConstraints(OnScreen(ImVec2(640, 384)), ImVec2(FLT_MAX, FLT_MAX));
 
     // the stock browser's fields and checkboxes are outlined; without it a checkbox is a blank square
     ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1.0f);
@@ -1194,8 +1194,8 @@ void CImGuiServerBrowser::DrawServerInfo()
         ImGui::SetNextWindowFocus();
         m_bInfoAppearing = false;
     }
-    ImGui::SetNextWindowSize(ImVec2(600, 520), ImGuiCond_FirstUseEver);
-    ImGui::SetNextWindowSizeConstraints(ImVec2(480, 380), ImVec2(FLT_MAX, FLT_MAX));
+    ImGui::SetNextWindowSize(OnScreen(ImVec2(600, 520)), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSizeConstraints(OnScreen(ImVec2(480, 380)), ImVec2(FLT_MAX, FLT_MAX));
 
     bool open = true;
     std::string title = Localized("#ServerBrowser_GameInfoTitle") + "###ServerInfo";

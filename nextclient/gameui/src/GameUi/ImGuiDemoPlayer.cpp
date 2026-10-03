@@ -743,7 +743,7 @@ void CImGuiDemoPlayer::DrawLoadPopup()
 
     ImGuiViewport* viewport = ImGui::GetMainViewport();
     ImGui::SetNextWindowPos(viewport->GetCenter(), ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
-    ImGui::SetNextWindowSize(ImVec2(420, 460), ImGuiCond_Appearing);
+    ImGui::SetNextWindowSize(OnScreen(ImVec2(420, 460)), ImGuiCond_Appearing);
 
     bool open = true;
     std::string title = Localized("#GameUI_LoadDemo", "Load demo") + "###LoadDemo";

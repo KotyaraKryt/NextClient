@@ -278,9 +278,9 @@ void CImGuiConsole::Activate()
 void CImGuiConsole::DrawImGui()
 {
     ImGui::SetNextWindowPos(ImVec2(40, 40), ImGuiCond_FirstUseEver);
-    ImGui::SetNextWindowSize(ImVec2(720, 420), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(OnScreen(ImVec2(720, 420)), ImGuiCond_FirstUseEver);
     // small enough to tuck into a corner, big enough for the filters on two rows and a few lines
-    ImGui::SetNextWindowSizeConstraints(ImVec2(480, 300), ImVec2(FLT_MAX, FLT_MAX));
+    ImGui::SetNextWindowSizeConstraints(OnScreen(ImVec2(480, 300)), ImVec2(FLT_MAX, FLT_MAX));
 
     // the input line only takes the keyboard focus inside a focused window
     if (m_bFocusWindow)

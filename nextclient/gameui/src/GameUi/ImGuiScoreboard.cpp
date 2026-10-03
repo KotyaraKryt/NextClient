@@ -171,7 +171,7 @@ void CImGuiScoreboard::SetState(const ScoreboardState& state)
 void CImGuiScoreboard::DrawImGui()
 {
     ImGuiViewport* viewport = ImGui::GetMainViewport();
-    float width = std::clamp(viewport->Size.x * 0.78f, 760.0f, 1280.0f);
+    float width = std::min(std::clamp(viewport->Size.x * 0.78f, 760.0f, 1280.0f), viewport->Size.x - 16.0f);
     ImGui::SetNextWindowPos(viewport->GetCenter(), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
     ImGui::SetNextWindowSize(ImVec2(width, 0.0f), ImGuiCond_Always);
 
