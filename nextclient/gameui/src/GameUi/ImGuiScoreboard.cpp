@@ -315,12 +315,20 @@ void CImGuiScoreboard::DrawTeam(ScoreboardTeam team, const char* id, float width
     if (!ImGui::BeginTable(id, 6, flags, ImVec2(width, 0.0f)))
         return;
 
+    // a small screen leaves a team's table too narrow for every column: the name keeps room for its
+    // avatar and about ten letters, and the badges, then K/D, give theirs up, badges going after the name
     float digit = ImGui::CalcTextSize("0").x;
+    float padding = ImGui::GetStyle().CellPadding.x * 2.0f;
+    float nameRoom = ImGui::GetFrameHeight() + digit * 10.0f + padding;
+    float numbersRoom = digit * (4.0f + 4.0f + 5.0f) + padding * 3.0f;
+    bool showKD = width >= nameRoom + numbersRoom + digit * 5.0f + padding;
+    bool showBadges = width >= nameRoom + numbersRoom + (showKD ? digit * 5.0f + padding : 0.0f) + digit * 9.0f + padding;
+
     ImGui::TableSetupColumn(Localized("#GameUI_ScoreboardName", "Name").c_str(), ImGuiTableColumnFlags_WidthStretch);
-    ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, digit * 9.0f);
+    ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed | (showBadges ? 0 : ImGuiTableColumnFlags_Disabled), digit * 9.0f);
     ImGui::TableSetupColumn(Localized("#GameUI_ScoreboardKills", "K").c_str(), ImGuiTableColumnFlags_WidthFixed, digit * 4.0f);
     ImGui::TableSetupColumn(Localized("#GameUI_ScoreboardDeaths", "D").c_str(), ImGuiTableColumnFlags_WidthFixed, digit * 4.0f);
-    ImGui::TableSetupColumn(Localized("#GameUI_ScoreboardKD", "K/D").c_str(), ImGuiTableColumnFlags_WidthFixed, digit * 5.0f);
+    ImGui::TableSetupColumn(Localized("#GameUI_ScoreboardKD", "K/D").c_str(), ImGuiTableColumnFlags_WidthFixed | (showKD ? 0 : ImGuiTableColumnFlags_Disabled), digit * 5.0f);
     ImGui::TableSetupColumn(Localized("#GameUI_ScoreboardPing", "Ping").c_str(), ImGuiTableColumnFlags_WidthFixed, digit * 5.0f);
 
     // the numbers' headers sit over their right-aligned numbers
@@ -372,6 +380,14 @@ void CImGuiScoreboard::DrawTeam(ScoreboardTeam team, const char* id, float width
         }
         else
             ImGui::TextUnformatted(player->name);
+
+        // without their column the bomb and the VIP are a short coloured mark after the name; the dead
+        // are dimmed already
+        if (!showBadges && (player->bomb || player->vip))
+        {
+            ImGui::SameLine();
+            ImGui::TextColored(player->bomb ? kBombColor : kVipColor, "%s", player->bomb ? "C4" : "VIP");
+        }
 
         ImGui::TableNextColumn();
         ImGui::SetCursorPosY(ImGui::GetCursorPosY() + (ImGui::GetFrameHeight() - ImGui::GetTextLineHeight()) * 0.5f - 1.0f);
