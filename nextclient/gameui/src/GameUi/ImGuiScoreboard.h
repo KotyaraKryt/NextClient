@@ -35,6 +35,8 @@ private:
     ScoreboardState m_State{};
     // each team's table height in the last frame, for the panel under it
     float m_flTableHeight[2] = {};
+    // below 1 when the board was too tall for the screen
+    float m_flFitScale = 1.0f;
 
     struct Avatar
     {

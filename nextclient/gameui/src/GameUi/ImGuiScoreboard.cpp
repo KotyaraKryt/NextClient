@@ -34,6 +34,8 @@ namespace
 
     // the score in big digits between the team names
     constexpr float kTitleScale = 2.6f;
+    // how small the board may get to fit a small screen
+    constexpr float kMinFitScale = 0.5f;
 
     const ImVec4 kCTColor(0.45f, 0.68f, 1.0f, 1.0f);
     const ImVec4 kTColor(1.0f, 0.5f, 0.38f, 1.0f);
@@ -175,13 +177,24 @@ void CImGuiScoreboard::DrawImGui()
     ImGui::SetNextWindowPos(viewport->GetCenter(), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
     ImGui::SetNextWindowSize(ImVec2(width, 0.0f), ImGuiCond_Always);
 
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(22.0f, 18.0f));
+    // the board takes no input, so it can't scroll: when there are more players than a small screen
+    // has room for, the text and the spacing shrink with it until it fits
+    float scale = m_flFitScale;
+    const ImGuiStyle& baseStyle = ImGui::GetStyle();
+    ImVec2 itemSpacing(baseStyle.ItemSpacing.x * scale, baseStyle.ItemSpacing.y * scale);
+    ImVec2 framePadding(baseStyle.FramePadding.x * scale, baseStyle.FramePadding.y * scale);
+    ImVec2 cellPadding(baseStyle.CellPadding.x * scale, baseStyle.CellPadding.y * scale);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(22.0f * scale, 18.0f * scale));
     ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, kRounding * 1.5f);
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, itemSpacing);
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, framePadding);
+    ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, cellPadding);
 
     ImGuiWindowFlags flags = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoSavedSettings
         | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav;
     if (ImGui::Begin("###Scoreboard", nullptr, flags))
     {
+        ImGui::SetWindowFontScale(scale);
         const ImGuiStyle& style = ImGui::GetStyle();
         float content = ImGui::GetContentRegionAvail().x;
         float left = ImGui::GetCursorPosX();
@@ -284,10 +297,19 @@ void CImGuiScoreboard::DrawImGui()
         ImGui::EndGroup();
 
         DrawSpectators();
+
+        // the size this frame came out at decides the next one's; it only grows back once there's
+        // clearly room, so it doesn't flicker at the edge
+        float height = ImGui::GetWindowHeight();
+        float room = viewport->Size.y - 16.0f;
+        if (height > room)
+            m_flFitScale = std::max(kMinFitScale, scale * room / height);
+        else if (scale < 1.0f && height < room * 0.9f)
+            m_flFitScale = std::min(1.0f, scale * room * 0.95f / height);
     }
     ImGui::End();
 
-    ImGui::PopStyleVar(2);
+    ImGui::PopStyleVar(5);
 }
 
 void CImGuiScoreboard::DrawTeam(ScoreboardTeam team, const char* id, float width)
