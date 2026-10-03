@@ -26,7 +26,6 @@ namespace
 
 void MotdSubscribe(nitroapi::ClientData* client_data, std::vector<std::shared_ptr<nitroapi::Unsubscriber>>& unsub)
 {
-#ifndef _WIN32
     g_ClientData = client_data;
 
     // the MOTD comes in parts: whether it's the last one, then the text. Read before the client's
@@ -68,7 +67,6 @@ void MotdSubscribe(nitroapi::ClientData* client_data, std::vector<std::shared_pt
         if (menu == kMenuIntro && g_Motd)
             g_Motd->Hide();
     });
-#endif
 }
 
 void MotdInit(CreateInterfaceFn gameui_factory)
