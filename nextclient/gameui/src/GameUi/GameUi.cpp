@@ -37,6 +37,7 @@
 #include "ImGuiLoadingDialog.h"
 #include "ImGuiPlayerList.h"
 #include "ImGuiDemoPlayer.h"
+#include "ImGuiScoreboard.h"
 #include "OptionsSubMiscellaneous.h"
 #include "IClientVGUI.h"
 
@@ -294,6 +295,7 @@ void CGameUI::Start(cl_enginefuncs_s *engineFuncs, int interfaceVersion, void *s
     CImGuiLoadingDialog::RegisterCvars();
     CImGuiPlayerList::RegisterCvars();
     CImGuiDemoPlayer::RegisterCvars();
+    CScoreboardNext::RegisterCvars();
 #ifndef _WIN32
     // the Linux engine has no demoui command of its own, only the call into ActivateDemoUI
     engine->pfnAddCommand("demoui", [] { g_GameUI.ActivateDemoUI(); });

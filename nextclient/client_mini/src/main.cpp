@@ -1,4 +1,5 @@
 #include "main.h"
+#include "scoreboard.h"
 #include <cstring>
 #include <ranges>
 #include <next_client_mini/client_mini.h>
@@ -73,6 +74,7 @@ static void HUD_InitPost()
 
     g_GameConsole = (IGameConsole*)(InitializeInterface(GAMECONSOLE_INTERFACE_VERSION_GS, &gameui_factory, 1));
     g_GameConsoleNext = (IGameConsoleNext*)(InitializeInterface(GAMECONSOLE_NEXT_INTERFACE_VERSION, &gameui_factory, 1));
+    ScoreboardInit(gameui_factory);
 
     std::memcpy(&cl_funcs, g_NitroApi->GetEngineData()->cldll_func, sizeof(cl_funcs));
     std::memcpy(&gEngfuncs, g_NitroApi->GetEngineData()->cl_enginefunc, sizeof(gEngfuncs));
@@ -98,6 +100,8 @@ static void HUD_RedrawPost(float flTime, int iIntermission, int result)
 {
     if (hud_draw->value != 0.0)
         g_GameHud->Draw(flTime);
+
+    ScoreboardFrame(iIntermission);
 }
 
 static void HUD_ResetHandler(HUD_ResetNext next)
@@ -176,6 +180,7 @@ static void UserMsg_InitHUDPost(const char* name, int size, void* data, int resu
 {
     g_GameHud->InitHUDData();
     ResetInvertMouse();
+    ScoreboardReset();
 }
 
 static int UserMsg_TextMsgHandler(const char* name, int size, void* data, UserMsg_TextMsgNext next)
@@ -257,6 +262,7 @@ public:
         g_Unsub.emplace_back(client_data->UserMsg_InitHUD += UserMsg_InitHUDPost);
         g_Unsub.emplace_back(client_data->UserMsg_TextMsg |= UserMsg_TextMsgHandler);
         g_Unsub.emplace_back(client_data->CL_CreateMove |= CL_CreateMoveHandler);
+        ScoreboardSubscribe(client_data, g_Unsub);
 
         g_GameHud = std::make_unique<GameHud>(nitro_api);
         g_Unsub.emplace_back(client_data->HUD_Shutdown += [] { g_GameHud.reset(); });
@@ -276,6 +282,7 @@ public:
         }
         g_Unsub.clear();
 
+        ScoreboardShutdown();
         g_GameHud.reset();
         g_NitroApi = nullptr;
         g_GameConsole = nullptr;
