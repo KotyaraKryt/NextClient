@@ -82,7 +82,6 @@ namespace
 
 void ScoreboardSubscribe(nitroapi::ClientData* client_data, std::vector<std::shared_ptr<nitroapi::Unsubscriber>>& unsub)
 {
-#ifndef _WIN32
     unsub.emplace_back(client_data->TeamFortressViewport__ShowScoreBoard |= [](void* viewport, const auto& next) {
         if (!UseOurs())
         {
@@ -125,7 +124,6 @@ void ScoreboardSubscribe(nitroapi::ClientData* client_data, std::vector<std::sha
             default: break;
         }
     });
-#endif
 }
 
 void ScoreboardInit(CreateInterfaceFn gameui_factory)

@@ -82,6 +82,13 @@ namespace
         return path;
     }
 
+    // file:///C:/... on Windows, file:///home/... elsewhere
+    std::string FileUrl(std::string path)
+    {
+        std::replace(path.begin(), path.end(), '\\', '/');
+        return path[0] == '/' ? "file://" + path : "file:///" + path;
+    }
+
     // tricks against old browsers, which the client refuses to show as well
     bool IsHostile(const std::string& html)
     {
@@ -195,7 +202,7 @@ void CImGuiMotd::LoadPage()
     // what the client does with an HTML MOTD as well: the page from a file, so its frames and links work
     std::string path = WriteTempHtml(m_Raw);
     if (!path.empty())
-        m_pHtml->OpenURL(("file://" + path).c_str(), nullptr);
+        m_pHtml->OpenURL(FileUrl(path).c_str(), nullptr);
 }
 
 void CImGuiMotd::PlacePage(const ImVec2& min, const ImVec2& max)
@@ -223,11 +230,7 @@ void CImGuiMotd::OpenInBrowser()
     if (path.empty())
         return;
 
-#ifdef _WIN32
-    OpenUrl(path);
-#else
-    OpenUrl("file://" + path);
-#endif
+    OpenUrl(FileUrl(path));
 }
 
 void CImGuiMotd::DrawBody()
