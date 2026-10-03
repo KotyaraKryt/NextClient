@@ -15,12 +15,11 @@
 
 #ifdef _WIN32
 #include <Windows.h>
-// a macro for GetTickCount there, which would take ISystem::GetCurrentTime's place
-#undef GetCurrentTime
 #endif
 #include <GL/gl.h>
 
 #include <algorithm>
+#include <chrono>
 #include <cstdio>
 #include <vector>
 
@@ -40,6 +39,13 @@ namespace
     const ImVec4 kTColor(1.0f, 0.5f, 0.38f, 1.0f);
     const ImVec4 kBombColor(1.0f, 0.62f, 0.2f, 1.0f);
     const ImVec4 kVipColor(1.0f, 0.85f, 0.3f, 1.0f);
+
+    // seconds on a clock that only goes forward; not ISystem::GetCurrentTime, which windows.h renames
+    // with a macro of its own wherever it comes in before vgui/ISystem.h
+    double Now()
+    {
+        return std::chrono::duration<double>(std::chrono::steady_clock::now().time_since_epoch()).count();
+    }
 
     std::vector<const ScoreboardPlayer*> PlayersOf(const ScoreboardState& state, ScoreboardTeam team)
     {
@@ -148,7 +154,7 @@ void CImGuiScoreboard::SetState(const ScoreboardState& state)
 {
     m_State = state;
 
-    double now = vgui2::system()->GetCurrentTime();
+    double now = Now();
     for (int i = 0; i < m_State.player_count && i < (int)std::size(m_State.players); i++)
     {
         ScoreboardPlayer& player = m_State.players[i];
@@ -420,7 +426,7 @@ unsigned int CImGuiScoreboard::AvatarTexture(uint64_t steamId)
     if (avatar.texture)
         return avatar.texture;
 
-    double now = vgui2::system()->GetCurrentTime();
+    double now = Now();
     if (now < avatar.nextTry || !SteamFriends() || !SteamUtils())
         return 0;
     avatar.nextTry = now + 1.0;
