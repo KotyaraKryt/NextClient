@@ -672,7 +672,8 @@ void CImGuiConsole::DrawToolbar()
     }
 
     // the search field and the gear stay together, on a row of their own when the window is narrow
-    const char* gear = "\u2699";
+    // the gear sign in UTF-8: MSVC turns a \u escape into the Windows code page, which has none
+    const char* gear = "\xE2\x9A\x99";
     float gearWidth = ImGui::CalcTextSize(gear).x + style.FramePadding.x * 2;
     const float kSearchMinWidth = 140.0f;
     SameLineIfFits(kSearchMinWidth + style.ItemSpacing.x + gearWidth, style.ItemSpacing.x);

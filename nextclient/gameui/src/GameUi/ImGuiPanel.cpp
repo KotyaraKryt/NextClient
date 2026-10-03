@@ -16,6 +16,8 @@
 
 #ifdef _WIN32
 #include <windows.h>
+// a macro for GetTickCount there, which would take ISystem::GetCurrentTime's place
+#undef GetCurrentTime
 #endif
 #include <GL/gl.h>
 
