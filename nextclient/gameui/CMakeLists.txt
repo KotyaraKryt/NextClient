@@ -48,6 +48,17 @@ add_library(${PROJECT_NAME} SHARED
         ${GAMEUI_SOURCES}
 )
 
+if (NOT WIN32)
+    # the SDK builds its HTML control for Windows only, but the engine has the browser behind it on
+    # Linux too (the client's MOTD window uses it); the ImGui MOTD shows servers' pages with it
+    set(SDK_VGUI2_DIR ${CMAKE_SOURCE_DIR}/dep/NclNitroApi/dep/ncl-hl1-source-sdk/vgui2)
+    target_sources(${PROJECT_NAME} PRIVATE
+            ${SDK_VGUI2_DIR}/vgui_controls/HTML.cpp
+            ${SDK_VGUI2_DIR}/src/lang_code.cpp
+    )
+    target_include_directories(${PROJECT_NAME} PRIVATE ${SDK_VGUI2_DIR}/src)
+endif ()
+
 target_include_directories(${PROJECT_NAME} PRIVATE
         src/GameUi
         src/GameUi/Controls

@@ -31,6 +31,32 @@ ImVec4 ImGuiForm::WithAlpha(ImGuiCol color, float alpha)
     return value;
 }
 
+void ImGuiForm::DimmedBackdrop(const ImVec2& windowMin, const ImVec2& windowMax)
+{
+    ImGuiViewport* viewport = ImGui::GetMainViewport();
+    ImGui::SetNextWindowPos(viewport->Pos);
+    ImGui::SetNextWindowSize(viewport->Size);
+    ImGuiWindowFlags flags = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings
+        | ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoBringToFrontOnFocus;
+    ImGui::Begin("##Backdrop", nullptr, flags);
+    ImDrawList* drawList = ImGui::GetWindowDrawList();
+    drawList->AddRectFilled(viewport->Pos, ImVec2(viewport->Pos.x + viewport->Size.x, viewport->Pos.y + viewport->Size.y), IM_COL32(0, 0, 0, 150));
+
+    // ImGui has no shadows: a soft one from rings that grow and fade
+    if (windowMax.x > windowMin.x)
+    {
+        constexpr int kLayers = 14;
+        for (int i = kLayers; i >= 1; i--)
+        {
+            float spread = static_cast<float>(i) * 2.0f;
+            int alpha = static_cast<int>(10.0f * (1.0f - static_cast<float>(i - 1) / kLayers));
+            drawList->AddRectFilled(ImVec2(windowMin.x - spread, windowMin.y - spread + 6.0f), ImVec2(windowMax.x + spread, windowMax.y + spread + 6.0f),
+                IM_COL32(0, 0, 0, alpha), kRounding + spread);
+        }
+    }
+    ImGui::End();
+}
+
 bool ImGuiForm::SameValue(const char* a, const char* b)
 {
     if (!strcmp(a, b))

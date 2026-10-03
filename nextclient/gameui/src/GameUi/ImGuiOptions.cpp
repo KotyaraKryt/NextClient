@@ -569,6 +569,7 @@ void CImGuiOptions::DrawMisc()
     CvarCheckbox("#GameUI_OptionsClassicPlayerList", "plist_legacy");
     CvarCheckbox("#GameUI_OptionsClassicDemoPlayer", "demoui_legacy");
     CvarCheckbox("#GameUI_OptionsClassicScoreboard", "scoreboard_legacy");
+    CvarCheckbox("#GameUI_OptionsClassicMotd", "motd_legacy");
     EndCard();
 }
 

@@ -57,6 +57,8 @@ add_library(${PROJECT_NAME} SHARED
         src/camera.h
         src/scoreboard.cpp
         src/scoreboard.h
+        src/motd.cpp
+        src/motd.h
         src/hud/HudDamageDirection.cpp
         src/hud/HudDamageDirection.h
         src/hud/HudDamageIcons.cpp

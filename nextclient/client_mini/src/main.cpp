@@ -1,5 +1,6 @@
 #include "main.h"
 #include "scoreboard.h"
+#include "motd.h"
 #include <cstring>
 #include <ranges>
 #include <next_client_mini/client_mini.h>
@@ -75,6 +76,7 @@ static void HUD_InitPost()
     g_GameConsole = (IGameConsole*)(InitializeInterface(GAMECONSOLE_INTERFACE_VERSION_GS, &gameui_factory, 1));
     g_GameConsoleNext = (IGameConsoleNext*)(InitializeInterface(GAMECONSOLE_NEXT_INTERFACE_VERSION, &gameui_factory, 1));
     ScoreboardInit(gameui_factory);
+    MotdInit(gameui_factory);
 
     std::memcpy(&cl_funcs, g_NitroApi->GetEngineData()->cldll_func, sizeof(cl_funcs));
     std::memcpy(&gEngfuncs, g_NitroApi->GetEngineData()->cl_enginefunc, sizeof(gEngfuncs));
@@ -263,6 +265,7 @@ public:
         g_Unsub.emplace_back(client_data->UserMsg_TextMsg |= UserMsg_TextMsgHandler);
         g_Unsub.emplace_back(client_data->CL_CreateMove |= CL_CreateMoveHandler);
         ScoreboardSubscribe(client_data, g_Unsub);
+        MotdSubscribe(client_data, g_Unsub);
 
         g_GameHud = std::make_unique<GameHud>(nitro_api);
         g_Unsub.emplace_back(client_data->HUD_Shutdown += [] { g_GameHud.reset(); });
@@ -283,6 +286,7 @@ public:
         g_Unsub.clear();
 
         ScoreboardShutdown();
+        MotdShutdown();
         g_GameHud.reset();
         g_NitroApi = nullptr;
         g_GameConsole = nullptr;

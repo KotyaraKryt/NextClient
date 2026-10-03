@@ -39,28 +39,7 @@ void CImGuiQueryBox::DrawImGui()
 {
     ImGuiViewport* viewport = ImGui::GetMainViewport();
 
-    // a window over the whole screen, so the panel covers it and the menu behind gets no clicks
-    ImGui::SetNextWindowPos(viewport->Pos);
-    ImGui::SetNextWindowSize(viewport->Size);
-    ImGuiWindowFlags backdropFlags = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings
-        | ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoBringToFrontOnFocus;
-    ImGui::Begin("##Backdrop", nullptr, backdropFlags);
-    ImDrawList* backdrop = ImGui::GetWindowDrawList();
-    backdrop->AddRectFilled(viewport->Pos, ImVec2(viewport->Pos.x + viewport->Size.x, viewport->Pos.y + viewport->Size.y), IM_COL32(0, 0, 0, 150));
-
-    // ImGui has no shadows: a soft one from rings that grow and fade, under where the window was last frame
-    if (m_WindowMax.x > m_WindowMin.x)
-    {
-        constexpr int kLayers = 14;
-        for (int i = kLayers; i >= 1; i--)
-        {
-            float spread = static_cast<float>(i) * 2.0f;
-            int alpha = static_cast<int>(10.0f * (1.0f - static_cast<float>(i - 1) / kLayers));
-            backdrop->AddRectFilled(ImVec2(m_WindowMin.x - spread, m_WindowMin.y - spread + 6.0f), ImVec2(m_WindowMax.x + spread, m_WindowMax.y + spread + 6.0f),
-                IM_COL32(0, 0, 0, alpha), kRounding + spread);
-        }
-    }
-    ImGui::End();
+    DimmedBackdrop(m_WindowMin, m_WindowMax);
 
     ImGui::SetNextWindowPos(viewport->GetCenter(), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
     ImGui::SetNextWindowSize(ImVec2(420.0f, 0.0f), ImGuiCond_Always);
