@@ -4,6 +4,7 @@
 
 #include "HudAmmo.h"
 #include "HudHealth.h"
+#include "HudSpeedometer.h"
 #include "HudCrosshair.h"
 #include "HudDamageIcons.h"
 #include "HudDamageDirection.h"
@@ -14,6 +15,7 @@
 class GameHud
 {
     std::shared_ptr<HudHealth> health_;
+    std::shared_ptr<HudSpeedometer> speedometer_;
     std::shared_ptr<HudCrosshair> crosshair_;
     std::shared_ptr<HudSpriteStore> sprite_store_;
     std::shared_ptr<HudDamageIcons> damage_icons_;

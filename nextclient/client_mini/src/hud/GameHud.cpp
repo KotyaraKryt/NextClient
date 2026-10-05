@@ -7,6 +7,9 @@ GameHud::GameHud(nitroapi::NitroApiInterface* nitro_api)
     health_ = std::make_shared<HudHealth>(nitro_api);
     all_hud_.push_back(health_);
 
+    speedometer_ = std::make_shared<HudSpeedometer>(nitro_api);
+    all_hud_.push_back(speedometer_);
+
     crosshair_ = std::make_shared<HudCrosshair>(nitro_api);
     all_hud_.push_back(crosshair_);
 

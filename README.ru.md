@@ -70,6 +70,10 @@ NextClient это модификация для Counter-Strike 1.6, нацеле
 | fov_lerp | 0             | No (use ncl_setfov instead) | FOV interpolation time in seconds. |
 | hud_deathnotice_max | 5             | Yes                         | The maximum number of killfeed entries that can be displayed. |
 | hud_deathnotice_old | 0             | No                          | Enable the old style of killfeed. |
+| hud_speedometer | 0             | No                          | Show your horizontal speed on the HUD. |
+| hud_speedometer_x | 0.5           | No                          | Speedometer horizontal position as a fraction of the screen width. |
+| hud_speedometer_y | 0.6           | No                          | Speedometer vertical position as a fraction of the screen height. |
+| hud_speedometer_stayjump | 0             | No                          | Keep showing the takeoff speed while in the air. |
 | http_max_active_requests | 5             | No                          |  |
 | http_max_requests_retries | 3             | No                          |   |
 | cl_discordrpc | 1             | No                          | Show what you're playing in Discord. |
