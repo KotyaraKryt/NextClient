@@ -37,6 +37,7 @@ namespace cvars
     inline constexpr CvarDefault kDiscordRpc{"cl_discordrpc", "1"};
     inline constexpr CvarDefault kDiscordRpcServer{"cl_discordrpc_server", "1"};
     inline constexpr CvarDefault kDiscordRpcJoin{"cl_discordrpc_join", "1"};
+    inline constexpr CvarDefault kDemoFolder{"cl_demo_folder", "demos"};
 
     // registered by the game's own client dll with these values, which the settings UI
     // resets to
@@ -70,6 +71,7 @@ namespace cvars
         kDiscordRpc,
         kDiscordRpcServer,
         kDiscordRpcJoin,
+        kDemoFolder,
         kBob,
         kBobCycle,
         kBobUp,

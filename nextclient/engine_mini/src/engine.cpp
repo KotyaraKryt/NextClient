@@ -30,6 +30,7 @@
 #include "graphics/preview/preview_model.h"
 #include "client/client.h"
 #include "client/cl_main.h"
+#include "client/cl_demo.h"
 #include "client/download.h"
 #include "client/spriteapi.h"
 #include "client/ncl_entity/cl_ncl_entity_sync.h"
@@ -510,6 +511,11 @@ static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, c
     //
     // The rest of the hooks and subscribers
     //
+    g_Unsubs.emplace_back(eng()->CL_Record_f |= [](const auto& next) {
+        CL_RedirectRecordToDemoFolder();
+        next->Invoke();
+    });
+
     g_Unsubs.emplace_back(eng()->SVC_StuffText |= [](const auto& next) {
         int read_count = *pMsg_readcount;
         std::string cmd = MSG_ReadString();
@@ -670,6 +676,7 @@ static void OnGameInitialized()
     JSAPI_Init();
 #endif
     CL_CvarsSandboxInit();
+    CL_DemoInit();
     CL_StringRegistryInit();
     CL_NclEntitySyncInit();
     CL_NclEntitySyncRegisterType(static_cast<uint8_t>(ncl_entity::EntityTypeId::Player), std::make_unique<PlayerSyncSystem>());

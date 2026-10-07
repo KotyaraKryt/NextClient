@@ -75,6 +75,7 @@ NextClient это модификация для Counter-Strike 1.6, нацеле
 | cl_discordrpc | 1             | No                          | Show what you're playing in Discord. |
 | cl_discordrpc_server | 1             | No                          | Show the server name in Discord. When 0, friends can't join you either. |
 | cl_discordrpc_join | 1             | No                          | Let Discord friends join your server. |
+| cl_demo_folder | demos         | No                          | Folder for recorded demos. Leave it empty to save them next to the game files, as before. |
 
 *Может ли сервер изменять значение квара, используя функцию песочницы кваров.
 </details>
