@@ -27,6 +27,7 @@ private:
     typedef vgui2::Frame BaseClass;
 
     void LoadDemoList();
+    void AddDemosFromFolder(const char* folder);
     vgui2::ListPanel *m_pDemoList;
 
 };

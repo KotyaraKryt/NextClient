@@ -4,6 +4,8 @@
 
 #include "DemoPlayerFileDialog.h"
 
+#include <string>
+
 using namespace vgui2;
 
 #include <vgui/ISurfaceNext.h>
@@ -11,7 +13,10 @@ using namespace vgui2;
 #include <KeyValues.h>
 #include <vgui_controls/ListPanel.h>
 
+#include <cvars/cvar_defaults.h>
+
 #include "FileSystem.h"
+#include "GameUi.h"
 // memdbgon must be the last include file in a .cpp file!!!
 #include <tier0/memdbgon.h>
 
@@ -51,20 +56,13 @@ void CDemoPlayerFileDialog::LoadDemoList()
     // clear the current list (if any)
     m_pDemoList->DeleteAllItems();
 
-    // iterate the filesystem getting the list of all the files
-    // UNDONE: steam wants this done in a special way, need to support that
-    FileFindHandle_t findHandle = NULL;
-    const char *filename = g_pFullFileSystem->FindFirst("*.dem", &findHandle, "GAME");
-    while (filename)
+    AddDemosFromFolder("");
+
+    const char* demo_folder = engine->pfnGetCvarString(cvars::kDemoFolder.name);
+    if (demo_folder[0] != '\0')
     {
-        // add to the map list
-        m_pDemoList->AddItem(new KeyValues("data", "demoname", filename), 0, false, false);
-
-        // get the next file
-        filename = g_pFullFileSystem->FindNext(findHandle);
+        AddDemosFromFolder(demo_folder);
     }
-
-    g_pFullFileSystem->FindClose(findHandle);
 
     // set the first item to be selected
     if (m_pDemoList->GetItemCount() > 0)
@@ -72,6 +70,21 @@ void CDemoPlayerFileDialog::LoadDemoList()
         int itemID = m_pDemoList->GetItemIDFromRow(0);
         m_pDemoList->SetSingleSelectedItem(itemID);
     }
+}
+
+void CDemoPlayerFileDialog::AddDemosFromFolder(const char* folder)
+{
+    std::string prefix = folder[0] != '\0' ? std::string(folder) + "/" : std::string();
+
+    FileFindHandle_t find_handle = NULL;
+    const char* filename = g_pFullFileSystem->FindFirst((prefix + "*.dem").c_str(), &find_handle, "GAME");
+    while (filename)
+    {
+        m_pDemoList->AddItem(new KeyValues("data", "demoname", (prefix + filename).c_str()), 0, false, false);
+        filename = g_pFullFileSystem->FindNext(find_handle);
+    }
+
+    g_pFullFileSystem->FindClose(find_handle);
 }
 
 void CDemoPlayerFileDialog::OnCommand( const char *command )
