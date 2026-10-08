@@ -288,10 +288,9 @@
       box.hidden = !parts.length;
     });
 
-    var label = document.querySelector('[data-fresh-label]');
-    if (latest && label) {
-      var days = daysSince(latest.published_at);
-      label.innerHTML = text(plural(days, 'день', 'дня', 'дней') + ' с обновления', (days === 1 ? 'day' : 'days') + ' since the update');
+    var version = document.querySelector('[data-version]');
+    if (latest && version) {
+      version.textContent = versionOf(latest);
     }
     countUp();
   }
@@ -307,7 +306,7 @@
     }
     counted = true;
 
-    var targets = { downloads: downloads || 0, stars: stars || 0, releases: releases.length, fresh: daysSince(latest.published_at) };
+    var targets = { downloads: downloads || 0, stars: stars || 0, releases: releases.length };
     forEach('[data-count]', function (el) {
       var target = targets[el.getAttribute('data-count')] || 0;
       if (kReducedMotion) {
