@@ -167,6 +167,30 @@
     return (release.tag_name || '').replace(/^v/i, '');
   }
 
+  // 'windows', 'linux' or 'mac'; Android says Linux but gets no build
+  function detectOs() {
+    var platform = (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || '';
+    var agent = navigator.userAgent || '';
+    if (/android/i.test(agent)) {
+      return 'other';
+    }
+    if (/mac|iphone|ipad/i.test(platform) || /mac os x/i.test(agent)) {
+      return 'mac';
+    }
+    if (/linux|x11|cros/i.test(platform) || /linux|cros/i.test(agent)) {
+      return 'linux';
+    }
+    return 'windows';
+  }
+
+  var kOs = detectOs();
+  var kOsNames = { windows: 'Windows', linux: 'Linux' };
+
+  function assetLink(asset, os) {
+    return '<a href="' + asset.browser_download_url + '">' + text('сборка для ', 'the ') + kOsNames[os]
+      + text('', ' build') + '</a> (' + formatSize(asset.size) + ')';
+  }
+
   function renderDownload() {
     var button = document.getElementById('download');
     var meta = document.getElementById('download-meta');
@@ -176,18 +200,27 @@
       return;
     }
 
+    // the visitor's own system first, Windows when there's no build for it
     var assets = pickAssets(latest);
-    var main = assets.windows || assets.linux;
-    button.href = main ? main.browser_download_url : latest.html_url;
-    meta.textContent = 'v' + versionOf(latest) + (main ? ' · ' + formatSize(main.size) + ' · ' + (main === assets.windows ? 'Windows' : 'Linux') : '');
+    var mainOs = kOs === 'linux' && assets.linux ? 'linux' : (assets.windows ? 'windows' : (assets.linux ? 'linux' : null));
+    var main = mainOs ? assets[mainOs] : null;
+    var otherOs = mainOs === 'windows' ? 'linux' : 'windows';
 
-    if (assets.windows && assets.linux) {
-      others.innerHTML = text('Есть и ', 'Also ') + '<a href="' + assets.linux.browser_download_url + '">'
-        + text('сборка для Linux', 'a Linux build') + '</a> (' + formatSize(assets.linux.size) + ')';
-      others.hidden = false;
-    } else {
-      others.hidden = true;
+    button.href = main ? main.browser_download_url : latest.html_url;
+    meta.textContent = 'v' + versionOf(latest) + (main ? ' · ' + formatSize(main.size) + ' · ' + kOsNames[mainOs] : '');
+
+    var note = '';
+    if (kOs === 'linux' && !assets.linux) {
+      note = text('Сборка для Linux появится в следующем релизе.', 'A Linux build is coming in the next release.');
+    } else if (kOs === 'mac') {
+      note = text('Для macOS сборки нет.', 'There is no macOS build.');
     }
+    if (main && assets[otherOs]) {
+      note += (note ? ' ' : '') + text('Есть и ', 'There is also ') + assetLink(assets[otherOs], otherOs) + '.';
+    }
+
+    others.innerHTML = note;
+    others.hidden = !note;
   }
 
   function renderReleases() {
