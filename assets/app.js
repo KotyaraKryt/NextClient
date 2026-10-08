@@ -4,13 +4,15 @@
   // the repository whose releases the site offers and lists
   var kRepo = 'CS-NextClient/NextClient';
   var kReleasesUrl = 'https://github.com/' + kRepo + '/releases';
-  var kApiUrl = 'https://api.github.com/repos/' + kRepo + '/releases?per_page=50';
+  var kApiUrl = 'https://api.github.com/repos/' + kRepo;
   // without a token GitHub answers 60 requests an hour per address, so one answer serves the whole visit
-  var kCacheKey = 'releases:' + kRepo;
+  var kCacheKey = 'site:2:' + kRepo;
   var kCacheSeconds = 600;
   var kShownAtFirst = 4;
 
   var releases = null;
+  var downloads = null;
+  var stars = null;
   var showAll = false;
 
   function lang() {
@@ -191,6 +193,13 @@
       + text('', ' build') + '</a> (' + formatSize(asset.size) + ')';
   }
 
+  // the visitor's own system first, Windows when there's no build for it
+  function offer(release) {
+    var assets = pickAssets(release);
+    var os = kOs === 'linux' && assets.linux ? 'linux' : (assets.windows ? 'windows' : (assets.linux ? 'linux' : null));
+    return { assets: assets, os: os, asset: os ? assets[os] : null };
+  }
+
   function renderDownload() {
     var button = document.getElementById('download');
     var meta = document.getElementById('download-meta');
@@ -200,10 +209,10 @@
       return;
     }
 
-    // the visitor's own system first, Windows when there's no build for it
-    var assets = pickAssets(latest);
-    var mainOs = kOs === 'linux' && assets.linux ? 'linux' : (assets.windows ? 'windows' : (assets.linux ? 'linux' : null));
-    var main = mainOs ? assets[mainOs] : null;
+    var choice = offer(latest);
+    var assets = choice.assets;
+    var mainOs = choice.os;
+    var main = choice.asset;
     var otherOs = mainOs === 'windows' ? 'linux' : 'windows';
 
     button.href = main ? main.browser_download_url : latest.html_url;
@@ -222,6 +231,66 @@
     others.innerHTML = note;
     others.hidden = !note;
   }
+
+  // 1 скачивание, 2 скачивания, 5 скачиваний
+  function plural(n, one, few, many) {
+    var tens = n % 100;
+    var units = n % 10;
+    if (tens >= 11 && tens <= 14) {
+      return many;
+    }
+    return units === 1 ? one : (units >= 2 && units <= 4 ? few : many);
+  }
+
+  function renderStats() {
+    var box = document.getElementById('stats');
+    var parts = [];
+    var locale = lang() === 'ru' ? 'ru-RU' : 'en-US';
+    if (downloads) {
+      parts.push('<span>' + downloads.toLocaleString(locale) + ' <small>'
+        + text(plural(downloads, 'скачивание', 'скачивания', 'скачиваний'), downloads === 1 ? 'download' : 'downloads') + '</small></span>');
+    }
+    if (stars) {
+      parts.push('<span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 2.5 2.9 6.1 6.6.8-4.9 4.6 1.3 6.5L12 17.3l-5.9 3.2 1.3-6.5-4.9-4.6 6.6-.8z"/></svg>'
+        + stars.toLocaleString(locale) + ' <small>' + text(plural(stars, 'звезда', 'звезды', 'звёзд'), stars === 1 ? 'star' : 'stars')
+        + text(' на GitHub', ' on GitHub') + '</small></span>');
+    }
+    box.innerHTML = parts.join('');
+    box.hidden = !parts.length;
+  }
+
+  // the main button's archive, to check against what was downloaded
+  function renderChecksum() {
+    var box = document.getElementById('checksum');
+    var button = document.getElementById('checksum-copy');
+    var latest = releases && releases[0];
+    var asset = latest ? offer(latest).asset : null;
+    var hash = asset && /^sha256:[0-9a-f]{64}$/.test(asset.digest || '') ? asset.digest.slice(7) : '';
+    box.hidden = !hash;
+    if (!hash) {
+      return;
+    }
+    button.textContent = hash.slice(0, 10) + '…' + hash.slice(-10);
+    button.title = hash;
+    button.dataset.hash = hash;
+    button.setAttribute('aria-label', text('Скопировать SHA-256', 'Copy SHA-256'));
+  }
+
+  document.getElementById('checksum-copy').addEventListener('click', function () {
+    var button = this;
+    if (!navigator.clipboard || !button.dataset.hash) {
+      return;
+    }
+    navigator.clipboard.writeText(button.dataset.hash).then(function () {
+      var shown = button.textContent;
+      button.textContent = text('Скопировано', 'Copied');
+      button.classList.add('copied');
+      setTimeout(function () {
+        button.textContent = shown;
+        button.classList.remove('copied');
+      }, 1400);
+    });
+  });
 
   function renderReleases() {
     var container = document.getElementById('releases');
@@ -261,12 +330,20 @@
 
   function render() {
     renderDownload();
+    renderStats();
+    renderChecksum();
     renderReleases();
   }
 
   // a link to a version further down the list opens the whole list
   function revealHash() {
     var id = decodeURIComponent(location.hash.slice(1));
+    var question = /^faq-/.test(id) ? document.getElementById(id) : null;
+    if (question && question.tagName === 'DETAILS') {
+      question.open = true;
+      question.scrollIntoView({ block: 'start' });
+      return;
+    }
     if (!/^v[\w.-]+$/.test(id) || !releases) {
       return;
     }
@@ -289,16 +366,34 @@
     try {
       var cached = JSON.parse(sessionStorage.getItem(kCacheKey));
       if (cached && Date.now() - cached.time < kCacheSeconds * 1000) {
-        return cached.releases;
+        return cached;
       }
     } catch (e) {}
     return null;
   }
 
-  function writeCache(list) {
+  function writeCache() {
     try {
-      sessionStorage.setItem(kCacheKey, JSON.stringify({ time: Date.now(), releases: list }));
+      sessionStorage.setItem(kCacheKey, JSON.stringify({ time: Date.now(), releases: releases, downloads: downloads, stars: stars }));
     } catch (e) {}
+  }
+
+  // every archive of every release, test builds included; the debug symbols aren't the game
+  function countDownloads(list) {
+    return list.reduce(function (sum, release) {
+      return sum + (release.assets || []).reduce(function (n, asset) {
+        return n + (/pdb/i.test(asset.name) ? 0 : asset.download_count || 0);
+      }, 0);
+    }, 0);
+  }
+
+  function getJson(url) {
+    return fetch(url, { headers: { Accept: 'application/vnd.github+json' } }).then(function (response) {
+      if (!response.ok) {
+        throw new Error('HTTP ' + response.status);
+      }
+      return response.json();
+    });
   }
 
   // only what the page shows is kept, so the cache stays small
@@ -313,7 +408,7 @@
         html_url: release.html_url,
         published_at: release.published_at,
         assets: (release.assets || []).map(function (asset) {
-          return { name: asset.name, size: asset.size, browser_download_url: asset.browser_download_url };
+          return { name: asset.name, size: asset.size, digest: asset.digest, browser_download_url: asset.browser_download_url };
         })
       };
     });
@@ -322,24 +417,26 @@
   function load() {
     var cached = readCache();
     if (cached) {
-      releases = cached;
+      releases = cached.releases;
+      downloads = cached.downloads;
+      stars = cached.stars;
       render();
       revealHash();
       return;
     }
 
-    fetch(kApiUrl, { headers: { Accept: 'application/vnd.github+json' } })
-      .then(function (response) {
-        if (!response.ok) {
-          throw new Error('HTTP ' + response.status);
-        }
-        return response.json();
-      })
-      .then(function (list) {
-        releases = trim(list);
-        writeCache(releases);
-      })
-      .catch(function () {
+    // the stars are a nicety: the page goes on without them
+    var repo = getJson(kApiUrl).then(function (info) {
+      stars = info.stargazers_count;
+    }, function () {});
+
+    var list = getJson(kApiUrl + '/releases?per_page=100').then(function (all) {
+      releases = trim(all);
+      downloads = countDownloads(all);
+    });
+
+    Promise.all([list, repo])
+      .then(writeCache, function () {
         releases = [];
       })
       .then(function () {
@@ -348,5 +445,153 @@
       });
   }
 
+  // screenshots: a list beside a game window, turning by itself until the visitor picks one
+
+  var kShotSeconds = 6;
+
+  function initShowcase() {
+    var showcase = document.getElementById('showcase');
+    var box = document.getElementById('lightbox');
+    if (!showcase || !box) {
+      return;
+    }
+
+    var shots = Array.prototype.slice.call(showcase.querySelectorAll('.shot'));
+    var tabsBox = showcase.querySelector('.shot-tabs');
+    var reducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    var current = 0;
+    var playing = !reducedMotion;
+    var visible = false;
+    var timer = null;
+
+    showcase.style.setProperty('--shot-time', kShotSeconds + 's');
+
+    var tabs = shots.map(function (shot, index) {
+      var tab = document.createElement('button');
+      tab.type = 'button';
+      tab.className = 'shot-tab';
+      tab.setAttribute('role', 'tab');
+      tab.innerHTML = shot.querySelector('figcaption').innerHTML;
+      tab.addEventListener('click', function () {
+        stop();
+        show(index);
+      });
+      tabsBox.appendChild(tab);
+
+      shot.querySelector('.shot-open').addEventListener('click', function () {
+        stop();
+        openBox(index);
+      });
+      return tab;
+    });
+
+    function canTurn() {
+      return playing && visible && !document.hidden;
+    }
+
+    function show(index) {
+      current = (index + shots.length) % shots.length;
+      shots.forEach(function (shot, i) {
+        shot.classList.toggle('active', i === current);
+      });
+      tabs.forEach(function (tab, i) {
+        tab.classList.toggle('active', i === current);
+        tab.setAttribute('aria-selected', i === current ? 'true' : 'false');
+      });
+
+      // the progress bar starts over with each shot
+      showcase.classList.remove('playing');
+      void showcase.offsetWidth;
+      clearTimeout(timer);
+      if (canTurn()) {
+        showcase.classList.add('playing');
+        timer = setTimeout(function () {
+          show(current + 1);
+        }, kShotSeconds * 1000);
+      }
+
+      // on a narrow screen the chips scroll sideways; scrollIntoView would move the page too
+      if (tabsBox.scrollWidth > tabsBox.clientWidth) {
+        tabsBox.scrollTo({ left: tabs[current].offsetLeft - tabsBox.offsetLeft - 16, behavior: 'smooth' });
+      }
+    }
+
+    function stop() {
+      playing = false;
+      clearTimeout(timer);
+      showcase.classList.remove('playing');
+    }
+
+    if ('IntersectionObserver' in window) {
+      new IntersectionObserver(function (entries) {
+        visible = entries[0].isIntersecting;
+        show(current);
+      }, { threshold: 0.4 }).observe(showcase);
+    }
+    document.addEventListener('visibilitychange', function () {
+      show(current);
+    });
+
+    // the full-size view
+
+    var boxImage = box.querySelector('img');
+    var boxCaption = box.querySelector('.lightbox-caption');
+    var boxIndex = 0;
+
+    function openBox(index) {
+      boxIndex = (index + shots.length) % shots.length;
+      var shot = shots[boxIndex];
+      boxImage.src = shot.querySelector('img').src;
+      boxCaption.innerHTML = '<b>' + shot.querySelector('figcaption h3').innerHTML + '</b> · '
+        + shot.querySelector('figcaption p').innerHTML;
+      if (!box.open) {
+        box.showModal();
+      }
+    }
+
+    box.querySelector('.lightbox-close').addEventListener('click', function () {
+      box.close();
+    });
+    box.querySelector('.lightbox-prev').addEventListener('click', function () {
+      openBox(boxIndex - 1);
+    });
+    box.querySelector('.lightbox-next').addEventListener('click', function () {
+      openBox(boxIndex + 1);
+    });
+    box.addEventListener('click', function (event) {
+      if (event.target === box) {
+        box.close();
+      }
+    });
+    box.addEventListener('keydown', function (event) {
+      if (event.key === 'ArrowLeft') {
+        openBox(boxIndex - 1);
+      } else if (event.key === 'ArrowRight') {
+        openBox(boxIndex + 1);
+      }
+    });
+    box.addEventListener('close', function () {
+      show(boxIndex);
+    });
+
+    var touchX = null;
+    box.addEventListener('touchstart', function (event) {
+      touchX = event.touches[0].clientX;
+    }, { passive: true });
+    box.addEventListener('touchend', function (event) {
+      if (touchX === null) {
+        return;
+      }
+      var dx = event.changedTouches[0].clientX - touchX;
+      touchX = null;
+      if (Math.abs(dx) > 50) {
+        openBox(boxIndex + (dx < 0 ? 1 : -1));
+      }
+    });
+
+    show(0);
+  }
+
+  initShowcase();
   load();
 })();

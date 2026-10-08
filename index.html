@@ -46,7 +46,9 @@
     </a>
     <nav class="links">
       <a href="#features"><span lang="ru">Возможности</span><span lang="en">Features</span></a>
+      <a href="#screenshots"><span lang="ru">Скриншоты</span><span lang="en">Screenshots</span></a>
       <a href="#install"><span lang="ru">Установка</span><span lang="en">Install</span></a>
+      <a href="#faq">FAQ</a>
       <a href="#changelog"><span lang="ru">Изменения</span><span lang="en">Changelog</span></a>
     </nav>
     <div class="actions">
@@ -81,6 +83,12 @@
           </a>
         </div>
         <p class="other-downloads" id="other-downloads" hidden></p>
+        <p class="stats" id="stats" hidden></p>
+        <p class="checksum" id="checksum" hidden>
+          <span>SHA-256</span>
+          <button type="button" id="checksum-copy" title="Copy"></button>
+          <a href="#faq-antivirus"><span lang="ru">Антивирус ругается?</span><span lang="en">Antivirus complains?</span></a>
+        </p>
         <p class="note">
           <span lang="ru">Нужна лицензионная CS&nbsp;1.6 в Steam и запущенный Steam.</span>
           <span lang="en">Requires a Steam copy of CS&nbsp;1.6 and Steam running.</span>
@@ -153,6 +161,60 @@
       </div>
     </section>
 
+    <section class="section" id="screenshots">
+      <div class="section-head">
+        <h2><span lang="ru">Скриншоты</span><span lang="en">Screenshots</span></h2>
+        <p>
+          <span lang="ru">Как это выглядит в игре. Нажмите на снимок, чтобы открыть его целиком.</span>
+          <span lang="en">How it looks in the game. Click a shot to see it in full.</span>
+        </p>
+      </div>
+      <div class="showcase" id="showcase">
+        <div class="shot-tabs" role="tablist"></div>
+        <div class="shot-window">
+          <div class="shot-bar" aria-hidden="true"><span></span><span></span><span></span><b>Counter-Strike</b></div>
+          <div class="shot-stage">
+            <figure class="shot">
+              <button class="shot-open" type="button">
+                <img src="assets/shots/servers.webp" alt="" width="1600" height="900" loading="lazy">
+              </button>
+              <figcaption>
+                <h3><span lang="ru">Браузер серверов</span><span lang="en">Server browser</span></h3>
+                <p><span lang="ru">Флаги стран, режимы игры и фильтры, которые сразу показывают, сколько серверов останется.</span><span lang="en">Country flags, game modes and filters that show at once how many servers will be left.</span></p>
+              </figcaption>
+            </figure>
+            <figure class="shot">
+              <button class="shot-open" type="button">
+                <img src="assets/shots/scoreboard.webp" alt="" width="1600" height="900" loading="lazy">
+              </button>
+              <figcaption>
+                <h3><span lang="ru">Таблица счёта</span><span lang="en">Scoreboard</span></h3>
+                <p><span lang="ru">Аватарки из Steam, средний пинг команд и полное название сервера.</span><span lang="en">Steam avatars, each team's average ping and the server's full name.</span></p>
+              </figcaption>
+            </figure>
+            <figure class="shot">
+              <button class="shot-open" type="button">
+                <img src="assets/shots/options.webp" alt="" width="1600" height="900" loading="lazy">
+              </button>
+              <figcaption>
+                <h3><span lang="ru">Настройки</span><span lang="en">Options</span></h3>
+                <p><span lang="ru">Все настройки в одном окне, с превью интерфейса прямо на странице.</span><span lang="en">All the settings in one window, with a preview of the interface right on the page.</span></p>
+              </figcaption>
+            </figure>
+            <figure class="shot">
+              <button class="shot-open" type="button">
+                <img src="assets/shots/console.webp" alt="" width="1600" height="900" loading="lazy">
+              </button>
+              <figcaption>
+                <h3><span lang="ru">Консоль</span><span lang="en">Console</span></h3>
+                <p><span lang="ru">Новая консоль с цветным чатом.</span><span lang="en">A new console with colored chat.</span></p>
+              </figcaption>
+            </figure>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <section class="section" id="install">
       <div class="section-head">
         <h2><span lang="ru">Установка</span><span lang="en">Installation</span></h2>
@@ -185,6 +247,60 @@
           <span lang="ru">Никогда не кладите файлы NextClient в папку игры внутри Steam: это приведёт к VAC-бану. Пиратские сборки не поддерживаются.</span>
           <span lang="en">Never put the NextClient files into the game folder inside Steam: it leads to a VAC ban. Pirated copies are not supported.</span>
         </p>
+      </div>
+    </section>
+
+    <section class="section" id="faq">
+      <div class="section-head">
+        <h2><span lang="ru">Вопросы и ответы</span><span lang="en">FAQ</span></h2>
+        <p>
+          <span lang="ru">Коротко о том, что спрашивают чаще всего.</span>
+          <span lang="en">Short answers to what people ask most.</span>
+        </p>
+      </div>
+      <div class="faq">
+        <details class="faq-item">
+          <summary><span lang="ru">Не будет ли VAC-бана?</span><span lang="en">Will I get a VAC ban?</span></summary>
+          <div class="faq-answer">
+            <p><span lang="ru">Играйте из копии игры вне папки Steam, как в разделе <a href="#install">Установка</a>. Класть файлы NextClient в папку игры внутри Steam нельзя: именно это приводит к VAC-бану.</span><span lang="en">Play from a copy of the game outside the Steam folder, as in <a href="#install">Installation</a>. Never put the NextClient files into the game folder inside Steam: that is what leads to a VAC ban.</span></p>
+          </div>
+        </details>
+        <details class="faq-item">
+          <summary><span lang="ru">Работает ли на пиратской версии?</span><span lang="en">Does it work with a pirated copy?</span></summary>
+          <div class="faq-answer">
+            <p><span lang="ru">Нет. Нужна купленная CS&nbsp;1.6 в Steam на бете <b>steam_legacy</b> и запущенный Steam. Эмулятора Steam в NextClient нет.</span><span lang="en">No. You need a purchased CS&nbsp;1.6 on Steam on the <b>steam_legacy</b> beta, with Steam running. NextClient has no Steam emulator.</span></p>
+          </div>
+        </details>
+        <details class="faq-item" id="faq-antivirus">
+          <summary><span lang="ru">Почему антивирус ругается?</span><span lang="en">Why does my antivirus complain?</span></summary>
+          <div class="faq-answer">
+            <p><span lang="ru">NextClient перехватывает функции движка прямо в памяти, и некоторые антивирусы по эвристике принимают это за вредоносное поведение. Официальные сборки собирает GitHub Actions из исходников этого репозитория и подписывает их происхождение. Проверить архив можно командой <code>gh attestation verify NextClient-&lt;версия&gt;.zip -R CS-NextClient/NextClient</code> или сверив SHA-256 под кнопкой «Скачать». Как сообщить о ложном срабатывании, описано <a href="https://github.com/CS-NextClient/NextClient/blob/main/docs/reporting-av-false-positives.md" target="_blank" rel="noopener">здесь</a>.</span><span lang="en">NextClient detours engine functions in memory, and some antivirus engines take that for malicious behavior by heuristics. Official builds are made by GitHub Actions from the source code of this repository and carry a signed provenance attestation. You can check an archive with <code>gh attestation verify NextClient-&lt;version&gt;.zip -R CS-NextClient/NextClient</code> or by comparing its SHA-256 with the one under the Download button. How to report a false positive is described <a href="https://github.com/CS-NextClient/NextClient/blob/main/docs/reporting-av-false-positives.md" target="_blank" rel="noopener">here</a>.</span></p>
+          </div>
+        </details>
+        <details class="faq-item">
+          <summary><span lang="ru">Есть ли версия для Linux?</span><span lang="en">Is there a Linux version?</span></summary>
+          <div class="faq-answer">
+            <p><span lang="ru">Порт на Linux готов, сборка для Linux выходит начиная со следующего релиза. Кнопка «Скачать» сама предложит её, если вы зашли с Linux.</span><span lang="en">The Linux port is done, and Linux builds ship starting with the next release. The Download button offers one by itself when you visit from Linux.</span></p>
+          </div>
+        </details>
+        <details class="faq-item">
+          <summary><span lang="ru">Как вернуться к обычной CS?</span><span lang="en">How do I go back to the regular CS?</span></summary>
+          <div class="faq-answer">
+            <p><span lang="ru">NextClient живёт в отдельной копии игры, а версия в Steam остаётся нетронутой: просто запустите игру из Steam. Чтобы удалить NextClient, удалите папку с копией.</span><span lang="en">NextClient lives in a separate copy of the game and the Steam one stays untouched: just start the game from Steam. To remove NextClient, delete the folder with the copy.</span></p>
+          </div>
+        </details>
+        <details class="faq-item">
+          <summary><span lang="ru">Нужно ли что-то ставить на сервер?</span><span lang="en">Does the server need anything?</span></summary>
+          <div class="faq-answer">
+            <p><span lang="ru">Нет, NextClient играет на любых серверах. Модуль <a href="https://github.com/CS-NextClient/NextClientServerApi" target="_blank" rel="noopener">NextClientServerApi</a> нужен, только если сервер хочет пользоваться возможностями NextClient: песочницей кваров, спрайтами, килфидом и остальным.</span><span lang="en">No, NextClient plays on any server. The <a href="https://github.com/CS-NextClient/NextClientServerApi" target="_blank" rel="noopener">NextClientServerApi</a> module is only for servers that want NextClient's features: the cvar sandbox, sprites, the killfeed and the rest.</span></p>
+          </div>
+        </details>
+        <details class="faq-item">
+          <summary><span lang="ru">Как сменить мастер-сервер?</span><span lang="en">How do I change the master server?</span></summary>
+          <div class="faq-answer">
+            <p><span lang="ru">В файле <code>platform/config/MasterServer.vdf</code>: <code>Selected</code> — номер сервера из списка <code>Servers</code>, считая с нуля. По умолчанию это <a href="https://tsarvar.com" target="_blank" rel="noopener">tsarvar.com</a>.</span><span lang="en">In <code>platform/config/MasterServer.vdf</code>: <code>Selected</code> is the number of a server from the <code>Servers</code> list, counting from zero. The default is <a href="https://tsarvar.com" target="_blank" rel="noopener">tsarvar.com</a>.</span></p>
+          </div>
+        </details>
       </div>
     </section>
 
@@ -221,6 +337,14 @@
       <span lang="en">Not affiliated with Valve. Counter-Strike is a trademark of Valve Corporation.</span>
     </p>
   </footer>
+
+  <dialog class="lightbox" id="lightbox">
+    <img alt="">
+    <p class="lightbox-caption"></p>
+    <button class="lightbox-close" type="button" aria-label="Close">×</button>
+    <button class="lightbox-prev" type="button" aria-label="Previous">‹</button>
+    <button class="lightbox-next" type="button" aria-label="Next">›</button>
+  </dialog>
 
   <script src="assets/app.js"></script>
 </body>
