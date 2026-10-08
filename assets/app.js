@@ -10,10 +10,17 @@
   var kCacheSeconds = 600;
   var kShownAtFirst = 4;
 
+  var kReducedMotion = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  var kFinePointer = !!(window.matchMedia && window.matchMedia('(hover: hover) and (pointer: fine)').matches);
+
   var releases = null;
   var downloads = null;
   var stars = null;
   var showAll = false;
+
+  function forEach(selector, fn) {
+    Array.prototype.forEach.call(document.querySelectorAll(selector), fn);
+  }
 
   function lang() {
     return document.documentElement.getAttribute('data-lang') === 'ru' ? 'ru' : 'en';
@@ -201,8 +208,6 @@
   }
 
   function renderDownload() {
-    var button = document.getElementById('download');
-    var meta = document.getElementById('download-meta');
     var others = document.getElementById('other-downloads');
     var latest = releases && releases[0];
     if (!latest) {
@@ -215,8 +220,12 @@
     var main = choice.asset;
     var otherOs = mainOs === 'windows' ? 'linux' : 'windows';
 
-    button.href = main ? main.browser_download_url : latest.html_url;
-    meta.textContent = 'v' + versionOf(latest) + (main ? ' · ' + formatSize(main.size) + ' · ' + kOsNames[mainOs] : '');
+    forEach('[data-download]', function (button) {
+      button.href = main ? main.browser_download_url : latest.html_url;
+    });
+    forEach('[data-download-meta]', function (meta) {
+      meta.textContent = 'v' + versionOf(latest) + (main ? ' · ' + formatSize(main.size) + ' · ' + kOsNames[mainOs] : '');
+    });
 
     var note = '';
     if (kOs === 'linux' && !assets.linux) {
@@ -242,21 +251,80 @@
     return units === 1 ? one : (units >= 2 && units <= 4 ? few : many);
   }
 
+  function daysSince(iso) {
+    return Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 86400000));
+  }
+
+  // "16 дней назад", "yesterday"
+  function ago(iso) {
+    var days = daysSince(iso);
+    try {
+      var format = new Intl.RelativeTimeFormat(lang() === 'ru' ? 'ru' : 'en', { numeric: 'auto' });
+      return days < 60 ? format.format(-days, 'day') : format.format(-Math.round(days / 30), 'month');
+    } catch (e) {
+      return iso.slice(0, 10);
+    }
+  }
+
+  function number(value) {
+    return value.toLocaleString(lang() === 'ru' ? 'ru-RU' : 'en-US');
+  }
+
+  // what others already did, and that the project is alive: right under the buttons
   function renderStats() {
-    var box = document.getElementById('stats');
+    var latest = releases && releases[0];
     var parts = [];
-    var locale = lang() === 'ru' ? 'ru-RU' : 'en-US';
     if (downloads) {
-      parts.push('<span>' + downloads.toLocaleString(locale) + ' <small>'
-        + text(plural(downloads, 'скачивание', 'скачивания', 'скачиваний'), downloads === 1 ? 'download' : 'downloads') + '</small></span>');
+      parts.push('<span><b>' + number(downloads) + '</b> ' + text(plural(downloads, 'скачивание', 'скачивания', 'скачиваний'), downloads === 1 ? 'download' : 'downloads') + '</span>');
     }
     if (stars) {
-      parts.push('<span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 2.5 2.9 6.1 6.6.8-4.9 4.6 1.3 6.5L12 17.3l-5.9 3.2 1.3-6.5-4.9-4.6 6.6-.8z"/></svg>'
-        + stars.toLocaleString(locale) + ' <small>' + text(plural(stars, 'звезда', 'звезды', 'звёзд'), stars === 1 ? 'star' : 'stars')
-        + text(' на GitHub', ' on GitHub') + '</small></span>');
+      parts.push('<span><b>★ ' + number(stars) + '</b> ' + text('на GitHub', 'on GitHub') + '</span>');
     }
-    box.innerHTML = parts.join('');
-    box.hidden = !parts.length;
+    if (latest) {
+      parts.push('<span class="live">' + text('обновлено ', 'updated ') + '<b>' + ago(latest.published_at) + '</b></span>');
+    }
+    forEach('#proof, #final-proof', function (box) {
+      box.innerHTML = parts.join('');
+      box.hidden = !parts.length;
+    });
+
+    var label = document.querySelector('[data-fresh-label]');
+    if (latest && label) {
+      var days = daysSince(latest.published_at);
+      label.innerHTML = text(plural(days, 'день', 'дня', 'дней') + ' с обновления', (days === 1 ? 'day' : 'days') + ' since the update');
+    }
+    countUp();
+  }
+
+  // the numbers band counts up once it's on screen and the numbers are in
+  var counted = false;
+  var numbersSeen = false;
+
+  function countUp() {
+    var latest = releases && releases[0];
+    if (counted || !numbersSeen || !latest) {
+      return;
+    }
+    counted = true;
+
+    var targets = { downloads: downloads || 0, stars: stars || 0, releases: releases.length, fresh: daysSince(latest.published_at) };
+    forEach('[data-count]', function (el) {
+      var target = targets[el.getAttribute('data-count')] || 0;
+      if (kReducedMotion) {
+        el.textContent = number(target);
+        return;
+      }
+      var start = performance.now();
+      var duration = 1600;
+      (function step(now) {
+        var k = Math.min(1, (now - start) / duration);
+        // fast at first, settling at the end
+        el.textContent = number(Math.round(target * (1 - Math.pow(1 - k, 4))));
+        if (k < 1) {
+          requestAnimationFrame(step);
+        }
+      })(start);
+    });
   }
 
   // the main button's archive, to check against what was downloaded
@@ -445,91 +513,50 @@
       });
   }
 
-  // screenshots: a list beside a game window, turning by itself until the visitor picks one
+  // the tour: a game window that stays in place while the steps scroll past it
 
-  var kShotSeconds = 6;
-
-  function initShowcase() {
-    var showcase = document.getElementById('showcase');
+  function initTour() {
     var box = document.getElementById('lightbox');
-    if (!showcase || !box) {
+    var windowButton = document.getElementById('tour-window');
+    var section = document.getElementById('tour');
+    if (!box || !section) {
       return;
     }
 
-    var shots = Array.prototype.slice.call(showcase.querySelectorAll('.shot'));
-    var tabsBox = showcase.querySelector('.shot-tabs');
-    var reducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    var steps = Array.prototype.slice.call(section.querySelectorAll('.tour-step'));
+    var shots = Array.prototype.slice.call(section.querySelectorAll('.tour-shot'));
+    var progress = document.getElementById('tour-progress');
     var current = 0;
-    var playing = !reducedMotion;
-    var visible = false;
-    var timer = null;
 
-    showcase.style.setProperty('--shot-time', kShotSeconds + 's');
-
-    var tabs = shots.map(function (shot, index) {
-      var tab = document.createElement('button');
-      tab.type = 'button';
-      tab.className = 'shot-tab';
-      tab.setAttribute('role', 'tab');
-      tab.innerHTML = shot.querySelector('figcaption').innerHTML;
-      tab.addEventListener('click', function () {
-        stop();
-        show(index);
+    function activate(index) {
+      current = index;
+      steps.forEach(function (step, i) {
+        step.classList.toggle('active', i === index);
       });
-      tabsBox.appendChild(tab);
-
-      shot.querySelector('.shot-open').addEventListener('click', function () {
-        stop();
-        openBox(index);
-      });
-      return tab;
-    });
-
-    function canTurn() {
-      return playing && visible && !document.hidden;
-    }
-
-    function show(index) {
-      current = (index + shots.length) % shots.length;
       shots.forEach(function (shot, i) {
-        shot.classList.toggle('active', i === current);
+        shot.classList.toggle('active', i === index);
       });
-      tabs.forEach(function (tab, i) {
-        tab.classList.toggle('active', i === current);
-        tab.setAttribute('aria-selected', i === current ? 'true' : 'false');
-      });
-
-      // the progress bar starts over with each shot
-      showcase.classList.remove('playing');
-      void showcase.offsetWidth;
-      clearTimeout(timer);
-      if (canTurn()) {
-        showcase.classList.add('playing');
-        timer = setTimeout(function () {
-          show(current + 1);
-        }, kShotSeconds * 1000);
-      }
-
-      // on a narrow screen the chips scroll sideways; scrollIntoView would move the page too
-      if (tabsBox.scrollWidth > tabsBox.clientWidth) {
-        tabsBox.scrollTo({ left: tabs[current].offsetLeft - tabsBox.offsetLeft - 16, behavior: 'smooth' });
-      }
     }
 
-    function stop() {
-      playing = false;
-      clearTimeout(timer);
-      showcase.classList.remove('playing');
-    }
-
+    // the step that crosses the middle of the screen is the one shown
     if ('IntersectionObserver' in window) {
-      new IntersectionObserver(function (entries) {
-        visible = entries[0].isIntersecting;
-        show(current);
-      }, { threshold: 0.4 }).observe(showcase);
+      var observer = new IntersectionObserver(function (entries) {
+        entries.forEach(function (entry) {
+          if (entry.isIntersecting) {
+            activate(steps.indexOf(entry.target));
+          }
+        });
+      }, { rootMargin: '-50% 0px -50% 0px' });
+      steps.forEach(function (step) {
+        observer.observe(step);
+      });
     }
-    document.addEventListener('visibilitychange', function () {
-      show(current);
+
+    onScroll(function () {
+      var list = section.querySelector('.tour-steps').getBoundingClientRect();
+      var middle = window.innerHeight / 2;
+      var p = Math.min(1, Math.max(0, (middle - list.top) / list.height));
+      progress.style.setProperty('--p', p.toFixed(4));
     });
 
     // the full-size view
@@ -539,15 +566,23 @@
     var boxIndex = 0;
 
     function openBox(index) {
-      boxIndex = (index + shots.length) % shots.length;
-      var shot = shots[boxIndex];
-      boxImage.src = shot.querySelector('img').src;
-      boxCaption.innerHTML = '<b>' + shot.querySelector('figcaption h3').innerHTML + '</b> · '
-        + shot.querySelector('figcaption p').innerHTML;
+      boxIndex = (index + steps.length) % steps.length;
+      var step = steps[boxIndex];
+      boxImage.src = step.querySelector('img').src;
+      boxCaption.innerHTML = '<b>' + step.querySelector('h3').innerHTML + '</b> · ' + step.querySelector('p').innerHTML;
       if (!box.open) {
         box.showModal();
       }
     }
+
+    windowButton.addEventListener('click', function () {
+      openBox(current);
+    });
+    forEach('[data-open]', function (button) {
+      button.addEventListener('click', function () {
+        openBox(+button.getAttribute('data-open'));
+      });
+    });
 
     box.querySelector('.lightbox-close').addEventListener('click', function () {
       box.close();
@@ -570,9 +605,6 @@
         openBox(boxIndex + 1);
       }
     });
-    box.addEventListener('close', function () {
-      show(boxIndex);
-    });
 
     var touchX = null;
     box.addEventListener('touchstart', function (event) {
@@ -589,9 +621,223 @@
       }
     });
 
-    show(0);
+    tilt(windowButton, 5, 1400);
   }
 
-  initShowcase();
+  // an element leans towards the pointer, like a card held in the hand
+  function tilt(el, degrees, perspective) {
+    if (!el || !kFinePointer || kReducedMotion) {
+      return;
+    }
+    el.addEventListener('pointermove', function (event) {
+      var rect = el.getBoundingClientRect();
+      var x = (event.clientX - rect.left) / rect.width - 0.5;
+      var y = (event.clientY - rect.top) / rect.height - 0.5;
+      el.style.transform = 'perspective(' + perspective + 'px) rotateY(' + (x * degrees).toFixed(2) + 'deg) rotateX(' + (-y * degrees).toFixed(2) + 'deg)';
+    });
+    el.addEventListener('pointerleave', function () {
+      el.style.transform = '';
+    });
+  }
+
+  // one scroll listener and one frame for everything that follows the scroll
+  var scrollHandlers = [];
+  var scrollFrame = 0;
+
+  function onScroll(fn) {
+    scrollHandlers.push(fn);
+  }
+
+  function runScroll() {
+    scrollFrame = 0;
+    scrollHandlers.forEach(function (fn) {
+      fn(window.scrollY);
+    });
+  }
+
+  function requestScroll() {
+    if (!scrollFrame) {
+      scrollFrame = requestAnimationFrame(runScroll);
+    }
+  }
+
+  window.addEventListener('scroll', requestScroll, { passive: true });
+  window.addEventListener('resize', requestScroll);
+
+  // parallax: each [data-depth] layer of the hero moves with the scroll and the pointer by its depth,
+  // a negative one against them; further down, [data-speed] elements drift as they pass the screen
+
+  function initParallax() {
+    var hero = document.querySelector('.hero');
+    if (!hero || kReducedMotion) {
+      return;
+    }
+
+    var layers = Array.prototype.slice.call(hero.querySelectorAll('[data-depth]')).map(function (el) {
+      return {
+        el: el,
+        depth: parseFloat(el.getAttribute('data-depth')) || 0,
+        rotate: parseFloat(el.getAttribute('data-rotate')) || 0,
+        tilt: el.hasAttribute('data-tilt')
+      };
+    });
+
+    var pointerX = 0;
+    var pointerY = 0;
+    var easedX = 0;
+    var easedY = 0;
+    var frame = 0;
+
+    function update() {
+      frame = 0;
+      // the layers drift after the pointer rather than jump with it
+      easedX += (pointerX - easedX) * 0.08;
+      easedY += (pointerY - easedY) * 0.08;
+      var scroll = window.scrollY;
+
+      if (scroll < hero.offsetTop + hero.offsetHeight) {
+        layers.forEach(function (layer) {
+          var x = easedX * layer.depth * 30;
+          var y = easedY * layer.depth * 30 - scroll * layer.depth * 0.4;
+          var transform = 'translate3d(' + x.toFixed(2) + 'px, ' + y.toFixed(2) + 'px, 0)';
+          if (layer.rotate) {
+            transform += ' rotate(' + (layer.rotate + scroll * layer.depth * 0.05).toFixed(2) + 'deg)';
+          }
+          if (layer.tilt) {
+            transform += ' rotateY(' + (easedX * 12).toFixed(2) + 'deg) rotateX(' + (-easedY * 12).toFixed(2) + 'deg)';
+          }
+          layer.el.style.transform = transform;
+        });
+      }
+
+      if (Math.abs(pointerX - easedX) > 0.001 || Math.abs(pointerY - easedY) > 0.001) {
+        request();
+      }
+    }
+
+    function request() {
+      if (!frame) {
+        frame = requestAnimationFrame(update);
+      }
+    }
+
+    onScroll(request);
+
+    if (kFinePointer) {
+      window.addEventListener('pointermove', function (event) {
+        pointerX = event.clientX / window.innerWidth * 2 - 1;
+        pointerY = event.clientY / window.innerHeight * 2 - 1;
+        request();
+      }, { passive: true });
+    }
+
+    var drifting = Array.prototype.slice.call(document.querySelectorAll('[data-speed]'));
+    onScroll(function () {
+      var height = window.innerHeight;
+      drifting.forEach(function (el) {
+        var rect = el.parentNode.getBoundingClientRect();
+        if (rect.bottom < -200 || rect.top > height + 200) {
+          return;
+        }
+        // 0 when the element's box is in the middle of the screen
+        var offset = rect.top + rect.height / 2 - height / 2;
+        el.style.transform = 'translate3d(0, ' + (offset * parseFloat(el.getAttribute('data-speed'))).toFixed(1) + 'px, 0)';
+      });
+    });
+
+    request();
+  }
+
+  // the reading progress, the header's line, the nav's current section and the header's own button
+  function initPage() {
+    var root = document.documentElement;
+    var bar = document.getElementById('scroll-progress');
+    onScroll(function (scroll) {
+      var max = root.scrollHeight - window.innerHeight;
+      bar.style.setProperty('--p', max > 0 ? (scroll / max).toFixed(4) : 0);
+      root.classList.toggle('scrolled', scroll > 40);
+    });
+
+    if (!('IntersectionObserver' in window)) {
+      root.classList.add('cta-away');
+      return;
+    }
+
+    // the header offers the download once the hero's button is gone, and not over the final one
+    var ctaSeen = { hero: true, final: false };
+    var heroCta = document.querySelector('.hero [data-download]');
+    var finalCta = document.querySelector('.final [data-download]');
+    new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        ctaSeen[entry.target === heroCta ? 'hero' : 'final'] = entry.isIntersecting;
+      });
+      root.classList.toggle('cta-away', !ctaSeen.hero && !ctaSeen.final);
+    }).observe(heroCta);
+    new IntersectionObserver(function (entries) {
+      ctaSeen.final = entries[0].isIntersecting;
+      root.classList.toggle('cta-away', !ctaSeen.hero && !ctaSeen.final);
+    }).observe(finalCta);
+
+    var links = Array.prototype.slice.call(document.querySelectorAll('.links a'));
+    var sectionObserver = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        if (entry.isIntersecting) {
+          links.forEach(function (link) {
+            link.classList.toggle('current', link.getAttribute('href') === '#' + entry.target.id);
+          });
+        }
+      });
+    }, { rootMargin: '-45% 0px -50% 0px' });
+    links.forEach(function (link) {
+      var target = document.querySelector(link.getAttribute('href'));
+      if (target) {
+        sectionObserver.observe(target);
+      }
+    });
+
+    new IntersectionObserver(function (entries) {
+      if (entries[0].isIntersecting) {
+        numbersSeen = true;
+        countUp();
+      }
+    }, { threshold: 0.4 }).observe(document.querySelector('.numbers'));
+  }
+
+  // the sections come up as they scroll into view, the cards of a grid one after another
+  function initReveal() {
+    if (kReducedMotion || !('IntersectionObserver' in window)) {
+      numbersSeen = true;
+      return;
+    }
+
+    var groups = ['.section-head', '.cmp-row', '.feature', '.number', '.trust-item', '.steps', '.steps li', '.warning', '.faq-item', '.final-card'];
+    var observer = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('in');
+          observer.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.15, rootMargin: '0px 0px -60px 0px' });
+
+    groups.forEach(function (selector) {
+      forEach(selector, function (el, index) {
+        el.classList.add('reveal');
+        el.style.setProperty('--i', /section-head|final-card|^\.steps$/.test(selector) ? 0 : index % 6);
+        observer.observe(el);
+      });
+    });
+    document.documentElement.classList.add('reveal-ready');
+  }
+
+  forEach('[data-tilt-card]', function (card) {
+    tilt(card, 6, 900);
+  });
+
+  initTour();
+  initParallax();
+  initPage();
+  initReveal();
   load();
+  runScroll();
 })();
