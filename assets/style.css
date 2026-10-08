@@ -472,6 +472,13 @@ h1 em {
   font-size: 13px;
 }
 
+/* a dot between the parts; the live one has its green dot instead */
+.proof > span + span:not(.live)::before {
+  content: "·";
+  margin-right: 16px;
+  color: #b8c3d1;
+}
+
 .proof b {
   color: var(--ink);
   font-weight: 700;
@@ -1308,9 +1315,11 @@ html:not(.reveal-ready) .steps::before {
 }
 
 .final-proof {
-  margin: 18px 0 0 !important;
+  justify-content: center;
+  margin: 22px 0 0 !important;
+  padding-top: 0;
+  border-top: 0;
   color: #9aa3af !important;
-  font-family: var(--mono);
   font-size: 13px !important;
 }
 
