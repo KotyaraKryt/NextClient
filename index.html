@@ -18,8 +18,15 @@
     (function () {
       var lang = null;
       try { lang = localStorage.getItem('lang'); } catch (e) {}
+      // Russian for anyone who reads it: a Russian-speaking language anywhere in the browser's list,
+      // or a CIS time zone, where an English browser still usually means a Russian-speaking player
       if (lang !== 'ru' && lang !== 'en') {
-        lang = /^(ru|uk|be|kk)\b/i.test(navigator.language || '') ? 'ru' : 'en';
+        var languages = navigator.languages && navigator.languages.length ? navigator.languages : [navigator.language || ''];
+        var zone = '';
+        try { zone = Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch (e) {}
+        var speaks = languages.some(function (l) { return /^(ru|uk|be|kk)\b/i.test(l); });
+        var cis = /^(Europe\/(Moscow|Kaliningrad|Samara|Ulyanovsk|Saratov|Volgograd|Astrakhan|Kirov|Simferopol|Kiev|Kyiv|Minsk|Chisinau)|Asia\/(Yekaterinburg|Omsk|Novosibirsk|Barnaul|Tomsk|Novokuznetsk|Krasnoyarsk|Irkutsk|Chita|Yakutsk|Khandyga|Vladivostok|Ust-Nera|Magadan|Sakhalin|Srednekolymsk|Kamchatka|Anadyr|Almaty|Qostanay|Qyzylorda|Aqtobe|Aqtau|Atyrau|Oral|Bishkek|Tashkent|Samarkand|Dushanbe|Ashgabat|Baku|Yerevan|Tbilisi))$/.test(zone);
+        lang = speaks || cis ? 'ru' : 'en';
       }
       document.documentElement.setAttribute('data-lang', lang);
       document.documentElement.lang = lang;
