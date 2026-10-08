@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="ru" data-lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>NextClient — клиент Counter-Strike 1.6</title>
+  <meta name="description" content="NextClient — модификация Counter-Strike 1.6 на базе Steam-версии 8684: новый интерфейс, защита от вредоносных команд, расширенные настройки и API для серверов.">
+  <meta property="og:title" content="NextClient">
+  <meta property="og:description" content="A modern Counter-Strike 1.6 client built on the Steam version 8684.">
+  <meta property="og:image" content="assets/logo.svg">
+  <meta name="theme-color" content="#ffffff">
+  <link rel="icon" href="assets/logo.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/style.css">
+  <script>
+    (function () {
+      var lang = null;
+      try { lang = localStorage.getItem('lang'); } catch (e) {}
+      if (lang !== 'ru' && lang !== 'en') {
+        lang = /^(ru|uk|be|kk)\b/i.test(navigator.language || '') ? 'ru' : 'en';
+      }
+      document.documentElement.setAttribute('data-lang', lang);
+      document.documentElement.lang = lang;
+    })();
+  </script>
+</head>
+<body>
+  <header class="top">
+    <a class="brand" href="#top" aria-label="NextClient">
+      <img src="assets/logo.svg" alt="" width="40" height="40">
+      <span>NextClient</span>
+    </a>
+    <nav class="links">
+      <a href="#features"><span lang="ru">Возможности</span><span lang="en">Features</span></a>
+      <a href="#install"><span lang="ru">Установка</span><span lang="en">Install</span></a>
+      <a href="#changelog"><span lang="ru">Изменения</span><span lang="en">Changelog</span></a>
+    </nav>
+    <div class="actions">
+      <button class="lang-switch" type="button" id="lang-switch" aria-label="Switch language">
+        <span lang="ru">EN</span><span lang="en">RU</span>
+      </button>
+      <a class="icon-link" href="https://github.com/CS-NextClient/NextClient" target="_blank" rel="noopener" aria-label="GitHub">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.71.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.56-.29-5.25-1.28-5.25-5.69 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.84 1.19 3.1 0 4.42-2.7 5.39-5.27 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5Z"/></svg>
+      </a>
+    </div>
+  </header>
+
+  <main id="top">
+    <section class="hero">
+      <div class="hero-text">
+        <p class="eyebrow">Counter-Strike 1.6 · Steam build 8684</p>
+        <h1>
+          <span lang="ru">Современный клиент CS&nbsp;1.6</span>
+          <span lang="en">A modern CS&nbsp;1.6 client</span>
+        </h1>
+        <p class="lead">
+          <span lang="ru">Модификация Counter-Strike 1.6 с новыми возможностями для игроков и для разработчиков серверных модов на AMX&nbsp;Mod&nbsp;X. Работает поверх оригинальной игры из Steam.</span>
+          <span lang="en">A Counter-Strike 1.6 modification with new features for players and for AMX&nbsp;Mod&nbsp;X server developers. It runs on top of the original game from Steam.</span>
+        </p>
+        <div class="cta">
+          <a class="btn btn-primary" id="download" href="https://github.com/CS-NextClient/NextClient/releases/latest">
+            <span class="btn-label"><span lang="ru">Скачать</span><span lang="en">Download</span></span>
+            <span class="btn-meta" id="download-meta"><span lang="ru">последняя версия</span><span lang="en">latest version</span></span>
+          </a>
+          <a class="btn btn-secondary" href="#changelog">
+            <span lang="ru">Что нового</span><span lang="en">What's new</span>
+          </a>
+        </div>
+        <p class="other-downloads" id="other-downloads" hidden></p>
+        <p class="note">
+          <span lang="ru">Нужна лицензионная CS&nbsp;1.6 в Steam и запущенный Steam.</span>
+          <span lang="en">Requires a Steam copy of CS&nbsp;1.6 and Steam running.</span>
+        </p>
+      </div>
+      <div class="hero-art" aria-hidden="true">
+        <div class="halo"></div>
+        <img src="assets/logo.svg" alt="" width="360" height="360">
+      </div>
+    </section>
+
+    <section class="section" id="features">
+      <div class="section-head">
+        <h2><span lang="ru">Возможности</span><span lang="en">Features</span></h2>
+        <p>
+          <span lang="ru">Всё, чего не хватало в 1.6, без замены самой игры.</span>
+          <span lang="en">Everything 1.6 was missing, without replacing the game itself.</span>
+        </p>
+      </div>
+      <div class="features">
+        <article class="feature">
+          <div class="feature-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="5" width="14" height="14" rx="2"/><rect x="9" y="9" width="6" height="6" rx="1"/><path d="M9 2v3M15 2v3M9 19v3M15 19v3M2 9h3M2 15h3M19 9h3M19 15h3"/></svg></div>
+          <h3><span lang="ru">На базе Steam-версии</span><span lang="en">Built on the Steam version</span></h3>
+          <p>
+            <span lang="ru">Работает с движком 8684 из Steam и дорабатывает его на лету, не подменяя оригинальные файлы.</span>
+            <span lang="en">Works with the 8684 engine from Steam and extends it at run time, without replacing the original files.</span>
+          </p>
+        </article>
+        <article class="feature">
+          <div class="feature-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5 4 5.5v6c0 5 3.4 8.6 8 10 4.6-1.4 8-5 8-10v-6l-8-3Z"/><path d="m8.5 12 2.5 2.5 4.5-5"/></svg></div>
+          <h3><span lang="ru">Защита</span><span lang="en">Protection</span></h3>
+          <p>
+            <span lang="ru">Протектор не даёт серверу выполнить на клиенте вредоносные команды и испортить конфиг.</span>
+            <span lang="en">The protector stops servers from running malicious commands on the client and breaking its config.</span>
+          </p>
+        </article>
+        <article class="feature">
+          <div class="feature-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M8 9v11"/></svg></div>
+          <h3><span lang="ru">Новый интерфейс</span><span lang="en">New interface</span></h3>
+          <p>
+            <span lang="ru">Переработанное меню и темы оформления, аватарки игроков из Steam, цветной чат в консоли.</span>
+            <span lang="en">A redesigned menu and themes, Steam avatars of the players, colored chat in the console.</span>
+          </p>
+        </article>
+        <article class="feature">
+          <div class="feature-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg></div>
+          <h3><span lang="ru">Быстрые загрузки</span><span lang="en">Fast downloads</span></h3>
+          <p>
+            <span lang="ru">При входе на сервер видно, сколько файлов осталось, их размер и скорость. Мастер-сервер можно сменить.</span>
+            <span lang="en">On connect you see how many files are left, their size and the speed. The master server can be changed.</span>
+          </p>
+        </article>
+        <article class="feature">
+          <div class="feature-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 2v5M12 17v5M2 12h5M17 12h5"/><circle cx="12" cy="12" r="1"/></svg></div>
+          <h3><span lang="ru">Тонкие настройки</span><span lang="en">Fine-tuning</span></h3>
+          <p>
+            <span lang="ru">FOV для 16:9 и отдельно для модели оружия, новые прицелы, расширенная лента убийств, покачивание оружия из csldr.</span>
+            <span lang="en">FOV for 16:9 and for the weapon model separately, new crosshairs, an extended killfeed, viewmodel sway from csldr.</span>
+          </p>
+        </article>
+        <article class="feature">
+          <div class="feature-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 7-5 5 5 5M16 7l5 5-5 5M14 4l-4 16"/></svg></div>
+          <h3><span lang="ru">Для разработчиков</span><span lang="en">For developers</span></h3>
+          <p>
+            <span lang="ru">API для AMX Mod X: песочница кваров, спрайты на экране, настройка килфида, проверка клиента и HWID, здоровье больше 255.</span>
+            <span lang="en">An AMX Mod X API: a cvar sandbox, on-screen sprites, killfeed customization, client verification and HWID, health above 255.</span>
+          </p>
+          <a class="feature-link" href="https://github.com/CS-NextClient/NextClientServerApi" target="_blank" rel="noopener">NextClientServerApi →</a>
+        </article>
+      </div>
+    </section>
+
+    <section class="section" id="install">
+      <div class="section-head">
+        <h2><span lang="ru">Установка</span><span lang="en">Installation</span></h2>
+        <p>
+          <span lang="ru">Четыре шага, и можно играть.</span>
+          <span lang="en">Four steps and you're in.</span>
+        </p>
+      </div>
+      <ol class="steps">
+        <li>
+          <span lang="ru">В Steam переключите CS&nbsp;1.6 на бету <b>steam_legacy — Pre-25th Anniversary Build</b>: NextClient работает только с движком 8684.</span>
+          <span lang="en">In Steam, switch CS&nbsp;1.6 to the <b>steam_legacy — Pre-25th Anniversary Build</b> beta: NextClient only works with engine 8684.</span>
+        </li>
+        <li>
+          <span lang="ru">Скопируйте всю папку Half-Life куда-нибудь вне папки Steam.</span>
+          <span lang="en">Copy the whole Half-Life folder somewhere outside the Steam folder.</span>
+        </li>
+        <li>
+          <span lang="ru">Распакуйте в эту копию все файлы NextClient.</span>
+          <span lang="en">Unpack all the NextClient files into that copy.</span>
+        </li>
+        <li>
+          <span lang="ru">Запустите игру через <code>cstrike.exe</code>.</span>
+          <span lang="en">Start the game with <code>cstrike.exe</code>.</span>
+        </li>
+      </ol>
+      <div class="warning">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2 20h20L12 3Z"/><path d="M12 10v4M12 17h.01"/></svg>
+        <p>
+          <span lang="ru">Никогда не кладите файлы NextClient в папку игры внутри Steam: это приведёт к VAC-бану. Пиратские сборки не поддерживаются.</span>
+          <span lang="en">Never put the NextClient files into the game folder inside Steam: it leads to a VAC ban. Pirated copies are not supported.</span>
+        </p>
+      </div>
+    </section>
+
+    <section class="section" id="changelog">
+      <div class="section-head">
+        <h2><span lang="ru">Изменения</span><span lang="en">Changelog</span></h2>
+        <p>
+          <span lang="ru">Что вошло в каждую версию, прямо из релизов на GitHub.</span>
+          <span lang="en">What went into each version, straight from the GitHub releases.</span>
+        </p>
+      </div>
+      <div class="releases" id="releases" aria-live="polite">
+        <div class="release skeleton"></div>
+        <div class="release skeleton"></div>
+      </div>
+      <button class="btn btn-secondary more" type="button" id="more" hidden>
+        <span lang="ru">Показать все версии</span><span lang="en">Show all versions</span>
+      </button>
+    </section>
+  </main>
+
+  <footer class="bottom">
+    <div class="bottom-brand">
+      <img src="assets/logo.svg" alt="" width="28" height="28">
+      <span>NextClient</span>
+    </div>
+    <nav class="bottom-links">
+      <a href="https://github.com/CS-NextClient/NextClient" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://github.com/CS-NextClient/NextClient/releases" target="_blank" rel="noopener"><span lang="ru">Релизы</span><span lang="en">Releases</span></a>
+      <a href="https://github.com/CS-NextClient/NextClient/issues" target="_blank" rel="noopener"><span lang="ru">Сообщить об ошибке</span><span lang="en">Report a bug</span></a>
+    </nav>
+    <p class="disclaimer">
+      <span lang="ru">Не связан с Valve. Counter-Strike — товарный знак Valve Corporation.</span>
+      <span lang="en">Not affiliated with Valve. Counter-Strike is a trademark of Valve Corporation.</span>
+    </p>
+  </footer>
+
+  <script src="assets/app.js"></script>
+</body>
+</html>
