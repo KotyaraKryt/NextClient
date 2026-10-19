@@ -4,20 +4,18 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>NextClient — клиент Counter-Strike 1.6</title>
-  <meta name="description" content="NextClient — модификация Counter-Strike 1.6 на базе Steam-версии 8684: новый интерфейс, защита от вредоносных команд, расширенные настройки и API для серверов.">
+  <meta name="description" content="NextClient — модификация Counter-Strike 1.6 на базе Steam-версии 8684 для Windows и Linux: расширенный радар, защита от вредоносных команд, интеграция с Discord, расширенные настройки и API для серверов.">
   <meta property="og:title" content="NextClient">
-  <meta property="og:description" content="A modern Counter-Strike 1.6 client built on the Steam version 8684.">
+  <meta property="og:description" content="A modern Counter-Strike 1.6 client for Windows and Linux, built on the Steam version 8684.">
   <meta property="og:type" content="website">
-  <meta property="og:image" content="assets/og.png">
+  <meta property="og:url" content="https://cs-nextclient.github.io/NextClient/">
+  <meta property="og:image" content="https://cs-nextclient.github.io/NextClient/assets/og.jpg">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="theme-color" content="#ffffff">
   <link rel="icon" href="assets/logo.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="assets/style.css">
   <script>
     (function () {
@@ -78,13 +76,13 @@
         <svg class="deco" style="--x: -1%; --y: 72%; --s: 22px; --c: #cdd6e2; --r: 30deg;" data-depth="0.65" data-rotate="30"><use href="#star-solid"/></svg>
       </div>
       <div class="hero-text">
-        <p class="eyebrow">CS 1.6 · Steam build 8684 · Open source</p>
+        <p class="eyebrow">CS 1.6 · Steam build 8684 · Windows &amp; Linux · Code on GitHub</p>
         <h1>
           <span lang="ru">Та самая 1.6.<br><em>Только лучше.</em></span>
           <span lang="en">The 1.6 you know.<br><em>Just better.</em></span>
         </h1>
         <p class="lead">
-          <span lang="ru">Новый интерфейс, защита от вредных серверов и быстрые загрузки поверх вашей Steam-копии. Игра остаётся той же, что вы любите, а всё вокруг неё становится удобнее.</span><span lang="en">A new interface, protection from harmful servers and fast downloads on top of your Steam copy. The game stays the one you love, and everything around it gets better.</span>
+          <span lang="ru">Настоящий радар, защита от вредных серверов, Discord и быстрые загрузки для Steam-версии игры, на Windows и Linux. Игра остаётся той же, что вы любите, а всё вокруг неё становится удобнее.</span><span lang="en">A real radar, protection from harmful servers, Discord and fast downloads for the Steam version of the game, on Windows and Linux. The game stays the one you love, and everything around it gets better.</span>
         </p>
         <div class="cta">
           <a class="btn btn-primary" data-download href="https://github.com/CS-NextClient/NextClient/releases/latest">
@@ -98,7 +96,7 @@
         </div>
         <ul class="assurances">
           <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg><span lang="ru">Без регистрации</span><span lang="en">No sign-up</span></li>
-          <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg><span lang="ru">Steam-копия не трогается</span><span lang="en">Your Steam copy stays untouched</span></li>
+          <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg><span lang="ru">Steam-версию не трогает</span><span lang="en">Leaves your Steam copy alone</span></li>
           <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg><span lang="ru">Удаляется вместе с папкой</span><span lang="en">Remove it by deleting a folder</span></li>
         </ul>
         <p class="other-downloads" id="other-downloads" hidden></p>
@@ -113,7 +111,7 @@
     </section>
 
     <div class="ticker" aria-hidden="true">
-      <div class="ticker-track"><span><span lang="ru">Протектор</span><span lang="en">Protector</span></span><i>✦</i><span><span lang="ru">Аватарки Steam</span><span lang="en">Steam avatars</span></span><i>✦</i><span><span lang="ru">FOV 16:9</span><span lang="en">16:9 FOV</span></span><i>✦</i><span><span lang="ru">Цветной чат</span><span lang="en">Colored chat</span></span><i>✦</i><span><span lang="ru">Расширенный килфид</span><span lang="en">Extended killfeed</span></span><i>✦</i><span><span lang="ru">Новые прицелы</span><span lang="en">New crosshairs</span></span><i>✦</i><span><span lang="ru">Браузер серверов</span><span lang="en">Server browser</span></span><i>✦</i><span><span lang="ru">Быстрые загрузки</span><span lang="en">Fast downloads</span></span><i>✦</i><span><span lang="ru">API для серверов</span><span lang="en">Server API</span></span><i>✦</i><span><span lang="ru">Темы оформления</span><span lang="en">Themes</span></span><i>✦</i><span><span lang="ru">Протектор</span><span lang="en">Protector</span></span><i>✦</i><span><span lang="ru">Аватарки Steam</span><span lang="en">Steam avatars</span></span><i>✦</i><span><span lang="ru">FOV 16:9</span><span lang="en">16:9 FOV</span></span><i>✦</i><span><span lang="ru">Цветной чат</span><span lang="en">Colored chat</span></span><i>✦</i><span><span lang="ru">Расширенный килфид</span><span lang="en">Extended killfeed</span></span><i>✦</i><span><span lang="ru">Новые прицелы</span><span lang="en">New crosshairs</span></span><i>✦</i><span><span lang="ru">Браузер серверов</span><span lang="en">Server browser</span></span><i>✦</i><span><span lang="ru">Быстрые загрузки</span><span lang="en">Fast downloads</span></span><i>✦</i><span><span lang="ru">API для серверов</span><span lang="en">Server API</span></span><i>✦</i><span><span lang="ru">Темы оформления</span><span lang="en">Themes</span></span><i>✦</i></div>
+      <div class="ticker-track"><span><span lang="ru">Протектор</span><span lang="en">Protector</span></span><i>✦</i><span><span lang="ru">Расширенный радар</span><span lang="en">Advanced radar</span></span><i>✦</i><span><span lang="ru">FOV 16:9</span><span lang="en">16:9 FOV</span></span><i>✦</i><span><span lang="ru">Цветной чат в консоли</span><span lang="en">Colored console chat</span></span><i>✦</i><span><span lang="ru">Расширенный килфид</span><span lang="en">Extended killfeed</span></span><i>✦</i><span><span lang="ru">Discord</span><span lang="en">Discord</span></span><i>✦</i><span><span lang="ru">Новые прицелы</span><span lang="en">New crosshairs</span></span><i>✦</i><span><span lang="ru">Браузер серверов</span><span lang="en">Server browser</span></span><i>✦</i><span><span lang="ru">Быстрые загрузки</span><span lang="en">Fast downloads</span></span><i>✦</i><span><span lang="ru">Windows и Linux</span><span lang="en">Windows &amp; Linux</span></span><i>✦</i><span><span lang="ru">API для серверов</span><span lang="en">Server API</span></span><i>✦</i><span><span lang="ru">Протектор</span><span lang="en">Protector</span></span><i>✦</i><span><span lang="ru">Расширенный радар</span><span lang="en">Advanced radar</span></span><i>✦</i><span><span lang="ru">FOV 16:9</span><span lang="en">16:9 FOV</span></span><i>✦</i><span><span lang="ru">Цветной чат в консоли</span><span lang="en">Colored console chat</span></span><i>✦</i><span><span lang="ru">Расширенный килфид</span><span lang="en">Extended killfeed</span></span><i>✦</i><span><span lang="ru">Discord</span><span lang="en">Discord</span></span><i>✦</i><span><span lang="ru">Новые прицелы</span><span lang="en">New crosshairs</span></span><i>✦</i><span><span lang="ru">Браузер серверов</span><span lang="en">Server browser</span></span><i>✦</i><span><span lang="ru">Быстрые загрузки</span><span lang="en">Fast downloads</span></span><i>✦</i><span><span lang="ru">Windows и Linux</span><span lang="en">Windows &amp; Linux</span></span><i>✦</i><span><span lang="ru">API для серверов</span><span lang="en">Server API</span></span><i>✦</i></div>
     </div>
 
     <section class="section" id="why">
@@ -130,24 +128,28 @@
           <div><img src="assets/logo.svg" alt="" width="22" height="22"> NextClient</div>
         </div>
         <div class="cmp-row">
-          <div class="cmp-old"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7l10 10M17 7 7 17"/></svg><span><span lang="ru">Сервер может выполнить у вас любую команду и испортить конфиг</span><span lang="en">Any server can run any command on you and wreck your config</span></span></div>
+          <div class="cmp-old"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7l10 10M17 7 7 17"/></svg><span><span lang="ru">Сервер может менять ваши настройки своими командами</span><span lang="en">A server can change your settings with its commands</span></span></div>
           <div class="cmp-new"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg><span><span lang="ru">Протектор отсекает вредные команды сервера</span><span lang="en">The protector blocks harmful server commands</span></span></div>
         </div>
         <div class="cmp-row">
-          <div class="cmp-old"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7l10 10M17 7 7 17"/></svg><span><span lang="ru">На широком экране обрезанная картинка и растянутое оружие</span><span lang="en">A cropped picture and a stretched weapon on widescreen</span></span></div>
+          <div class="cmp-old"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7l10 10M17 7 7 17"/></svg><span><span lang="ru">На широком экране картинка обрезана сверху и снизу</span><span lang="en">On widescreen the picture is cut at the top and bottom</span></span></div>
           <div class="cmp-new"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg><span><span lang="ru">Правильный FOV для 16:9, отдельно для модели оружия</span><span lang="en">Proper 16:9 FOV, separately for the weapon model</span></span></div>
         </div>
         <div class="cmp-row">
-          <div class="cmp-old"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7l10 10M17 7 7 17"/></svg><span><span lang="ru">Интерфейс 2003 года</span><span lang="en">An interface from 2003</span></span></div>
-          <div class="cmp-new"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg><span><span lang="ru">Новое меню, темы, аватарки игроков из Steam</span><span lang="en">A new menu, themes and players' Steam avatars</span></span></div>
+          <div class="cmp-old"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7l10 10M17 7 7 17"/></svg><span><span lang="ru">Радар: точки на пустом квадрате</span><span lang="en">The radar: dots on an empty square</span></span></div>
+          <div class="cmp-new"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg><span><span lang="ru">Карта уровня на радаре, ники, следы и вся карта по таблице счёта</span><span lang="en">The level map on the radar, names, trails and the whole map with the scoreboard</span></span></div>
         </div>
         <div class="cmp-row">
-          <div class="cmp-old"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7l10 10M17 7 7 17"/></svg><span><span lang="ru">Загрузка ресурсов вслепую: непонятно, сколько ещё ждать</span><span lang="en">Resources download blind: no idea how long is left</span></span></div>
+          <div class="cmp-old"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7l10 10M17 7 7 17"/></svg><span><span lang="ru">В Discord не видно, где вы играете</span><span lang="en">Discord doesn't show where you play</span></span></div>
+          <div class="cmp-new"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg><span><span lang="ru">Сервер в статусе Discord и вход к вам в один клик</span><span lang="en">Your server in the Discord status and joining you in one click</span></span></div>
+        </div>
+        <div class="cmp-row">
+          <div class="cmp-old"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7l10 10M17 7 7 17"/></svg><span><span lang="ru">При загрузке ресурсов не видно, сколько ещё осталось</span><span lang="en">Downloading resources, you can't see how much is left</span></span></div>
           <div class="cmp-new"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg><span><span lang="ru">Видно число файлов, их размер и скорость</span><span lang="en">You see the files left, their size and the speed</span></span></div>
         </div>
         <div class="cmp-row">
-          <div class="cmp-old"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7l10 10M17 7 7 17"/></svg><span><span lang="ru">Голый список серверов</span><span lang="en">A bare list of servers</span></span></div>
-          <div class="cmp-new"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg><span><span lang="ru">Флаги стран, режимы игры и умные фильтры</span><span lang="en">Country flags, game modes and smart filters</span></span></div>
+          <div class="cmp-old"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7l10 10M17 7 7 17"/></svg><span><span lang="ru">Список серверов без флагов и режимов</span><span lang="en">A server list without flags or modes</span></span></div>
+          <div class="cmp-new"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg><span><span lang="ru">Флаги стран, режимы игры и фильтры по ним</span><span lang="en">Country flags, game modes and filters by them</span></span></div>
         </div>
         <div class="cmp-row">
           <div class="cmp-old"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7l10 10M17 7 7 17"/></svg><span><span lang="ru">Сервер не может предложить ничего сверх стандарта</span><span lang="en">Servers can't offer anything beyond the stock</span></span></div>
@@ -161,54 +163,120 @@
         <span class="section-num" data-speed="-0.15">02</span>
         <p class="kicker">02 /</p>
         <h2><span lang="ru">Знакомство с клиентом</span><span lang="en">A quick tour</span></h2>
-        <p><span lang="ru">Листайте: так NextClient выглядит в игре. Нажмите на снимок, чтобы открыть его целиком.</span><span lang="en">Scroll on: this is how NextClient looks in the game. Click a shot to see it in full.</span></p>
+        <p><span lang="ru">Листайте: так NextClient выглядит в игре. На карточках с вкладками можно переключаться.</span><span lang="en">Scroll on: this is how NextClient looks in the game. Cards with tabs switch between views.</span></p>
       </div>
 
       <div class="tour-body">
         <div class="tour-stage">
-          <button class="tour-window" type="button" id="tour-window" aria-label="Open">
-            <span class="tour-bar" aria-hidden="true"><i></i><i></i><i></i><b>Counter-Strike · NextClient</b></span>
-            <span class="tour-screens">
-            <figure class="tour-shot active" data-shot="0">
-              <img src="assets/shots/servers.webp" alt="" width="1600" height="900" loading="lazy">
-            </figure>
-            <figure class="tour-shot" data-shot="1">
-              <img src="assets/shots/scoreboard.webp" alt="" width="1600" height="900" loading="lazy">
-            </figure>
-            <figure class="tour-shot" data-shot="2">
-              <img src="assets/shots/options.webp" alt="" width="1600" height="900" loading="lazy">
-            </figure>
-            <figure class="tour-shot" data-shot="3">
-              <img src="assets/shots/console.webp" alt="" width="1600" height="900" loading="lazy">
-            </figure>
-            </span>
-            <span class="tour-progress" aria-hidden="true"><span id="tour-progress"></span></span>
-          </button>
+          <div class="tour-boards" id="tour-boards">
+            <button class="tour-expand" type="button" id="tour-expand"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/></svg><span class="sr-only"><span lang="ru">Развернуть</span><span lang="en">Expand</span></span></button>
+            <div class="tour-board-list">
+              <div class="board active">
+                <div class="board-view">
+                  <img class="board-shot" data-shot="servers" src="assets/game/servers.webp" alt="" width="754" height="374" loading="lazy" style="left: 68px; top: 58px; width: 663px;">
+                  <i class="board-note" data-on="servers" data-box="26 102 20 128" data-side="left" data-at="60"><span lang="ru">Флаги</span><span lang="en">Flags</span></i>
+                  <i class="board-note" data-on="servers" data-box="442 82 85 148" data-side="above" data-at="32"><span lang="ru">Режим</span><span lang="en">Mode</span></i>
+                  <i class="board-note" data-on="servers" data-box="8 240 430 85" data-side="below" data-at="414"><span lang="ru">Фильтры</span><span lang="en">Filters</span></i>
+                </div>
+              </div>
+              <div class="board">
+                <div class="board-view">
+                  <img class="board-shape" src="assets/game/radar.webp" alt="" width="235" height="235" loading="lazy" style="left: 96px; top: 96px; width: 235px;">
+                  <span class="board-caption" style="left: 213px; top: 352px;"><span lang="ru">В игре</span><span lang="en">In game</span></span>
+                  <span class="board-key" style="left: 385px; top: 214px;"><kbd>TAB</kbd><svg viewBox="0 0 30 14" aria-hidden="true"><path d="M0 7h27M21 1l6 6-6 6"/></svg></span>
+                  <img class="board-shot" src="assets/game/radar-full.webp" alt="" width="279" height="279" loading="lazy" style="left: 448px; top: 74px; width: 279px;">
+                  <span class="board-caption" style="left: 587px; top: 374px;"><span lang="ru">Вся карта</span><span lang="en">Whole map</span></span>
+                </div>
+              </div>
+              <div class="board">
+                <div class="board-chips"><button type="button" aria-pressed="true" data-frame="status"><span lang="ru">Статус</span><span lang="en">Status</span></button><button type="button" aria-pressed="false" data-frame="ask"><span lang="ru">Запрос</span><span lang="en">Request</span></button><button type="button" aria-pressed="false" data-frame="invite"><span lang="ru">Приглашение</span><span lang="en">Invite</span></button></div>
+                <div class="board-view">
+                  <div class="board-frame" data-frame="status">
+                    <img class="board-shape" data-shot="status" src="assets/game/discord-status.webp" alt="" width="452" height="236" loading="lazy" style="left: 152px; top: 96px; width: 497px;">
+                    <i class="board-note" data-on="status" data-box="135 134 199 33" data-side="right" data-at="640"><span lang="ru">Сервер и игроки</span><span lang="en">Server, players</span></i>
+                    <i class="board-note" data-on="status" data-box="135 177 111 32" data-side="right" data-at="640"><span lang="ru">Зайти к вам</span><span lang="en">Join you</span></i>
+                  </div>
+                  <div class="board-frame" data-frame="ask" hidden>
+                    <img class="board-shape" data-shot="ask" src="assets/game/discord-ask.webp" alt="" width="343" height="311" loading="lazy" style="left: 203px; top: 62px; width: 394px;">
+                    <i class="board-note" data-on="ask" data-box="88 283 241 11" data-side="right" data-at="604"><span lang="ru">Друг просится к вам</span><span lang="en">A friend asks in</span></i>
+                  </div>
+                  <div class="board-frame" data-frame="invite" hidden>
+                    <img class="board-shape" data-shot="invite" src="assets/game/discord-invite.webp" alt="" width="343" height="325" loading="lazy" style="left: 203px; top: 52px; width: 394px;">
+                    <i class="board-note" data-on="invite" data-box="89 258 190 13" data-side="right" data-at="612"><span lang="ru">Куда зовут</span><span lang="en">Where to join</span></i>
+                    <i class="board-note" data-on="invite" data-box="89 297 181 16" data-side="right" data-at="612"><span lang="ru">Сколько уже играет</span><span lang="en">How many play</span></i>
+                  </div>
+                </div>
+              </div>
+              <div class="board">
+                <div class="board-view">
+                  <img class="board-shot" src="assets/game/killfeed-full.webp" alt="" width="488" height="95" loading="lazy" style="left: 58px; top: 34px; width: 683px; border-radius: 6px;">
+                  <ul class="board-icons" style="left: 88px; top: 196px;">
+                    <li><img src="assets/game/rarity-domination.webp" alt="" width="48" height="48" loading="lazy"><span lang="ru">Доминирование</span><span lang="en">Domination</span></li>
+                    <li><img src="assets/game/rarity-air.webp" alt="" width="48" height="48" loading="lazy"><span lang="ru">Убийца в прыжке</span><span lang="en">Killer in the air</span></li>
+                    <li><img src="assets/game/rarity-revenge.webp" alt="" width="48" height="48" loading="lazy"><span lang="ru">Месть</span><span lang="en">Revenge</span></li>
+                    <li><img src="assets/game/rarity-noscope.webp" alt="" width="48" height="48" loading="lazy"><span lang="ru">Без прицела</span><span lang="en">No scope</span></li>
+                    <li><img src="assets/game/rarity-blind.webp" alt="" width="48" height="48" loading="lazy"><span lang="ru">Убийца был ослеплён</span><span lang="en">Killer was blind</span></li>
+                    <li><img src="assets/game/rarity-smoke.webp" alt="" width="48" height="48" loading="lazy"><span lang="ru">Через дым</span><span lang="en">Through smoke</span></li>
+                    <li><b>+</b><span lang="ru">Помощь напарника</span><span lang="en">A teammate's assist</span></li>
+                    <li><img src="assets/game/rarity-wall.webp" alt="" width="48" height="48" loading="lazy"><span lang="ru">Через стену</span><span lang="en">Through a wall</span></li>
+                    <li><img src="assets/game/rarity-flash.webp" alt="" width="48" height="48" loading="lazy"><span lang="ru">Напарник ослепил флешкой</span><span lang="en">Flash assist</span></li>
+                    <li><img src="assets/game/rarity-headshot.webp" alt="" width="48" height="48" loading="lazy"><span lang="ru">В голову</span><span lang="en">Headshot</span></li>
+                  </ul>
+                </div>
+              </div>
+              <div class="board">
+                <div class="board-chips"><button type="button" aria-pressed="true" data-frame="game"><span lang="ru">Игра</span><span lang="en">Game</span></button><button type="button" aria-pressed="false" data-frame="share"><span lang="ru">Поделиться</span><span lang="en">Share</span></button><button type="button" aria-pressed="false" data-frame="radar"><span lang="ru">Радар</span><span lang="en">Radar</span></button></div>
+                <div class="board-view">
+                  <div class="board-frame" data-frame="game">
+                    <img class="board-shot" data-shot="options" src="assets/game/options.webp" alt="" width="599" height="466" loading="lazy" style="left: 150px; top: 54px; width: 500px;">
+                    <i class="board-note" data-on="options" data-box="114 61 287 157" data-side="inside"><span lang="ru">Живое превью</span><span lang="en">Live preview</span></i>
+                    <i class="board-note" data-on="options" data-box="409 96 150 89" data-side="right" data-at="666"><span lang="ru">Пресеты</span><span lang="en">Presets</span></i>
+                    <i class="board-note" data-on="options" data-box="107 398 81 24" data-side="right" data-at="322"><span lang="ru">Поделиться</span><span lang="en">Share</span></i>
+                  </div>
+                  <div class="board-frame" data-frame="share" hidden>
+                    <img class="board-shot" data-shot="share" src="assets/game/share.webp" alt="" width="420" height="330" loading="lazy" style="left: 230px; top: 70px; width: 420px;">
+                    <i class="board-note" data-on="share" data-box="12 58 268 24" data-side="left" data-at="170"><span lang="ru">Ваш код</span><span lang="en">Your code</span></i>
+                    <i class="board-note" data-on="share" data-box="12 122 396 24" data-side="left" data-at="170"><span lang="ru">Код друга</span><span lang="en">A friend's code</span></i>
+                    <i class="board-note" data-on="share" data-box="18 155 275 64" data-side="left" data-at="170"><span lang="ru">Что загрузить</span><span lang="en">What to load</span></i>
+                  </div>
+                  <div class="board-frame" data-frame="radar" hidden>
+                    <img class="board-shot" data-shot="radar" src="assets/game/radar-settings.webp" alt="" width="380" height="496" loading="lazy" style="left: 60px; top: 50px; width: 296px;">
+                    <i class="board-note" data-on="radar" data-box="206 192 172 15" data-side="right" data-at="393"><span lang="ru">Вся карта по TAB</span><span lang="en">Whole map on TAB</span></i>
+                    <i class="board-note" data-on="radar" data-box="26 296 277 15" data-side="right" data-at="393"><span lang="ru">Таблица не закрывает радар</span><span lang="en">Scoreboard clears the radar</span></i>
+                    <i class="board-note" data-on="radar" data-box="26 356 298 40" data-side="right" data-at="393"><span lang="ru">Ники, здоровье, следы</span><span lang="en">Names, health, trails</span></i>
+                    <img class="board-shape" src="assets/game/radar.webp" alt="" width="235" height="235" loading="lazy" style="left: 560px; top: 60px; width: 188px;">
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <span class="tour-progress" aria-hidden="true"><span id="tour-progress"></span></span>
         </div>
         <div class="tour-steps">
           <article class="tour-step active" data-step="0">
             <span class="tour-index">01</span>
             <h3><span lang="ru">Браузер серверов</span><span lang="en">Server browser</span></h3>
-            <p><span lang="ru">Флаги стран, режимы игры и фильтры, которые сразу показывают, сколько серверов останется. Избранное и история под рукой.</span><span lang="en">Country flags, game modes and filters that show at once how many servers will be left. Favorites and history at hand.</span></p>
-            <button class="tour-mobile-shot" type="button" data-open="0"><img src="assets/shots/servers.webp" alt="" width="1600" height="900" loading="lazy"></button>
+            <p><span lang="ru">Флаги стран, режимы игры и фильтры, которые сразу показывают, сколько серверов останется. Избранное и история под рукой, мастер-сервер можно сменить.</span><span lang="en">Country flags, game modes and filters that show at once how many servers will be left. Favorites and history at hand, and the master server can be changed.</span></p>
           </article>
           <article class="tour-step" data-step="1">
             <span class="tour-index">02</span>
-            <h3><span lang="ru">Таблица счёта</span><span lang="en">Scoreboard</span></h3>
-            <p><span lang="ru">Аватарки из Steam, средний пинг команд, полное название сервера. Ваша строка всегда на виду.</span><span lang="en">Steam avatars, each team's average ping, the server's full name. Your own row always stands out.</span></p>
-            <button class="tour-mobile-shot" type="button" data-open="1"><img src="assets/shots/scoreboard.webp" alt="" width="1600" height="900" loading="lazy"></button>
+            <h3><span lang="ru">Радар</span><span lang="en">Radar</span></h3>
+            <p><span lang="ru">Карта уровня строится сама, слой выбирается по высоте, на которой вы стоите. Ники, здоровье союзников (если его передаёт сервер), следы движения и цели, а при открытой таблице счёта видна вся карта.</span><span lang="en">The level map builds itself, and the layer follows the height you stand at. Names, teammates' health (when the server sends it), movement trails and objectives, and the whole map while the scoreboard is open.</span></p>
           </article>
           <article class="tour-step" data-step="2">
             <span class="tour-index">03</span>
-            <h3><span lang="ru">Настройки</span><span lang="en">Options</span></h3>
-            <p><span lang="ru">Все настройки в одном окне, с подсказками и превью интерфейса прямо на странице. Ни одного квара в консоли.</span><span lang="en">All the settings in one window, with hints and a live preview of the interface. Not a single cvar to type.</span></p>
-            <button class="tour-mobile-shot" type="button" data-open="2"><img src="assets/shots/options.webp" alt="" width="1600" height="900" loading="lazy"></button>
+            <h3>Discord</h3>
+            <p><span lang="ru">В статусе Discord видно, на каком сервере вы играете и сколько там игроков, а ещё когда вы подключаетесь или смотрите демо. Друзья заходят к вам через Discord, даже если игра у них ещё не запущена.</span><span lang="en">Your Discord status shows the server you play on and how many are there, and when you're connecting or watching a demo. Friends join you through Discord, even when their game isn't running yet.</span></p>
           </article>
           <article class="tour-step" data-step="3">
             <span class="tour-index">04</span>
-            <h3><span lang="ru">Консоль</span><span lang="en">Console</span></h3>
-            <p><span lang="ru">Цветной чат, удобный поиск по истории и подсказки команд.</span><span lang="en">Colored chat, easy history search and command hints.</span></p>
-            <button class="tour-mobile-shot" type="button" data-open="3"><img src="assets/shots/console.webp" alt="" width="1600" height="900" loading="lazy"></button>
+            <h3><span lang="ru">Расширенный килфид</span><span lang="en">Extended killfeed</span></h3>
+            <p><span lang="ru">Видно, как именно убили: через стену, через дым, без прицела, в прыжке, вслепую, с помощью напарника. Работает на серверах с ReGameDLL 5.26 и новее, если там не выключен <code>mp_deathmsg_flags</code>.</span><span lang="en">See how exactly a kill happened: through a wall, through smoke, without scoping, in the air, while blinded, with a teammate's assist. Works on servers with ReGameDLL 5.26 or later, unless they turn <code>mp_deathmsg_flags</code> off.</span></p>
+          </article>
+          <article class="tour-step" data-step="4">
+            <span class="tour-index">05</span>
+            <h3><span lang="ru">Тонкая настройка</span><span lang="en">Fine tuning</span></h3>
+            <p><span lang="ru">Модель оружия, боббинг, инерция и камера настраиваются по отдельности: смещение и FOV модели, стиль покачивания с живым превью, для быстрого старта есть пресеты от классики до CS:GO, а своими настройками можно поделиться одним кодом.</span><span lang="en">The weapon model, bobbing, inertia and camera are tuned separately: model offset and FOV, a bob style with a live preview, presets from classic to CS:GO for a quick start, and a single code to share your settings.</span></p>
           </article>
         </div>
       </div>
@@ -227,7 +295,7 @@
           <span class="feature-num">01</span>
           <div class="feature-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="5" width="14" height="14" rx="2"/><rect x="9" y="9" width="6" height="6" rx="1"/><path d="M9 2v3M15 2v3M9 19v3M15 19v3M2 9h3M2 15h3M19 9h3M19 15h3"/></svg></div>
           <h3><span lang="ru">На базе Steam-версии</span><span lang="en">Built on the Steam version</span></h3>
-          <p><span lang="ru">Работает с движком 8684 из Steam и дорабатывает его на лету, не подменяя оригинальные файлы.</span><span lang="en">Works with the 8684 engine from Steam and extends it at run time, without replacing the original files.</span></p>
+          <p><span lang="ru">Работает с движком 8684 из Steam и дорабатывает его на лету: сам движок остаётся оригинальным.</span><span lang="en">Works with the 8684 engine from Steam and extends it at run time: the engine itself stays the original.</span></p>
         </article>
         <article class="feature" data-tilt-card>
           <span class="feature-num">02</span>
@@ -239,13 +307,13 @@
           <span class="feature-num">03</span>
           <div class="feature-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M8 9v11"/></svg></div>
           <h3><span lang="ru">Новый интерфейс</span><span lang="en">New interface</span></h3>
-          <p><span lang="ru">Переработанное меню и темы оформления, аватарки игроков из Steam, цветной чат в консоли.</span><span lang="en">A redesigned menu and themes, Steam avatars of the players, colored chat in the console.</span></p>
+          <p><span lang="ru">Две схемы оформления на выбор, свои добавляются рядом со старыми. HTML-интерфейс на Windows, цветной чат в консоли.</span><span lang="en">Two GUI schemes to pick from, and your own sit next to the old ones. An HTML interface on Windows, colored chat in the console.</span></p>
         </article>
         <article class="feature" data-tilt-card>
           <span class="feature-num">04</span>
           <div class="feature-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg></div>
           <h3><span lang="ru">Быстрые загрузки</span><span lang="en">Fast downloads</span></h3>
-          <p><span lang="ru">При входе на сервер видно, сколько файлов осталось, их размер и скорость. Мастер-сервер можно сменить.</span><span lang="en">On connect you see how many files are left, their size and the speed. The master server can be changed.</span></p>
+          <p><span lang="ru">При входе на сервер видно, сколько файлов осталось, их размер и скорость. FastDL не открывает новое соединение на каждый файл.</span><span lang="en">On connect you see how many files are left, their size and the speed. FastDL doesn't open a new connection for every file.</span></p>
         </article>
         <article class="feature" data-tilt-card>
           <span class="feature-num">05</span>
@@ -257,8 +325,26 @@
           <span class="feature-num">06</span>
           <div class="feature-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 7-5 5 5 5M16 7l5 5-5 5M14 4l-4 16"/></svg></div>
           <h3><span lang="ru">Для разработчиков</span><span lang="en">For developers</span></h3>
-          <p><span lang="ru">API для AMX Mod X: песочница кваров, спрайты на экране, настройка килфида, проверка клиента и HWID, здоровье больше 255.</span><span lang="en">An AMX Mod X API: a cvar sandbox, on-screen sprites, killfeed customization, client verification and HWID, health above 255.</span></p>
+          <p><span lang="ru">API для AMX Mod X: песочница кваров, спрайты на экране, настройка килфида, проверка клиента и HWID, платформа игрока, здоровье больше 255.</span><span lang="en">An AMX Mod X API: a cvar sandbox, on-screen sprites, killfeed customization, client verification and HWID, the player's platform, health above 255.</span></p>
           <a class="feature-link" href="https://github.com/CS-NextClient/NextClientServerApi" target="_blank" rel="noopener">NextClientServerApi →</a>
+        </article>
+        <article class="feature" data-tilt-card>
+          <span class="feature-num">07</span>
+          <div class="feature-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4.5"/><path d="M12 12 18 6"/></svg></div>
+          <h3><span lang="ru">Расширенный радар</span><span lang="en">Advanced radar</span></h3>
+          <p><span lang="ru">Карта уровня в плоском или текстурном виде, ники, следы, цели и здоровье союзников, если его передаёт сервер. Отдельное окно настроек радара.</span><span lang="en">The level map, flat or textured, names, trails, objectives and teammates' health when the server sends it. A settings dialog of its own.</span></p>
+        </article>
+        <article class="feature" data-tilt-card>
+          <span class="feature-num">08</span>
+          <div class="feature-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v11H9l-5 4V5Z"/><path d="M9 10h.01M15 10h.01"/></svg></div>
+          <h3>Discord</h3>
+          <p><span lang="ru">Сервер, подключение и демо в статусе, вход к друзьям в один клик. Статус, имя сервера и вход выключаются кварами <code>cl_discordrpc</code>, <code>cl_discordrpc_server</code> и <code>cl_discordrpc_join</code>.</span><span lang="en">The server, the connection and the demo in your status, joining friends in one click. The status, the server's name and joining turn off with <code>cl_discordrpc</code>, <code>cl_discordrpc_server</code> and <code>cl_discordrpc_join</code>.</span></p>
+        </article>
+        <article class="feature" data-tilt-card>
+          <span class="feature-num">09</span>
+          <div class="feature-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg></div>
+          <h3><span lang="ru">Windows и Linux</span><span lang="en">Windows and Linux</span></h3>
+          <p><span lang="ru">Родная сборка для Linux запускается через Steam Runtime скриптом <code>nextclient.sh</code>. HTML-интерфейс пока только на Windows.</span><span lang="en">The native Linux build runs through the Steam Runtime with the <code>nextclient.sh</code> script. The HTML interface is Windows only for now.</span></p>
         </article>
       </div>
     </section>
@@ -268,7 +354,7 @@
         <div class="number"><b data-count="downloads">0</b><span><span lang="ru">скачиваний</span><span lang="en">downloads</span></span></div>
         <div class="number"><b data-count="stars">0</b><span><span lang="ru">звёзд на GitHub</span><span lang="en">GitHub stars</span></span></div>
         <div class="number"><b data-count="releases">0</b><span><span lang="ru">релизов</span><span lang="en">releases</span></span></div>
-        <div class="number"><b data-version>—</b><span><span lang="ru">актуальная версия</span><span lang="en">current version</span></span></div>
+        <div class="number"><b data-version>—</b><span><span lang="ru">последняя версия</span><span lang="en">latest version</span></span></div>
       </div>
     </section>
 
@@ -283,14 +369,14 @@
       <div class="trust">
         <article class="trust-item">
           <div class="feature-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 7-5 5 5 5M16 7l5 5-5 5"/></svg></div>
-          <h3><span lang="ru">Открытый код</span><span lang="en">Open source</span></h3>
+          <h3><span lang="ru">Код на GitHub</span><span lang="en">Code on GitHub</span></h3>
           <p><span lang="ru">Весь код клиента лежит на GitHub. Его можно прочитать, собрать самому и предложить правку.</span><span lang="en">All the client's code is on GitHub. Read it, build it yourself, send a change.</span></p>
           <a href="https://github.com/CS-NextClient/NextClient" target="_blank" rel="noopener"><span lang="ru">Исходники</span><span lang="en">Source</span> →</a>
         </article>
         <article class="trust-item">
           <div class="feature-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5 4 5.5v6c0 5 3.4 8.6 8 10 4.6-1.4 8-5 8-10v-6l-8-3Z"/><path d="m8.5 12 2.5 2.5 4.5-5"/></svg></div>
           <h3><span lang="ru">Подписанные сборки</span><span lang="en">Signed builds</span></h3>
-          <p><span lang="ru">Релизы собирает GitHub Actions из этого кода и подписывает их происхождение. Подмену видно сразу.</span><span lang="en">Releases are built by GitHub Actions from this code with a signed provenance. A swapped file shows at once.</span></p>
+          <p><span lang="ru">С версии 2.5.1 релизы собирает GitHub Actions из этого кода и подписывает их происхождение. Подмену видно сразу.</span><span lang="en">Since 2.5.1, releases are built by GitHub Actions from this code with a signed provenance. A swapped file shows at once.</span></p>
           <p class="checksum" id="checksum" hidden>
             <span>SHA-256</span>
             <button type="button" id="checksum-copy" title="Copy"></button>
@@ -299,7 +385,7 @@
         <article class="trust-item">
           <div class="feature-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg></div>
           <h3><span lang="ru">Ничего не ломает</span><span lang="en">Breaks nothing</span></h3>
-          <p><span lang="ru">NextClient живёт в отдельной копии игры. Steam-версия остаётся как была, вернуться можно в любой момент.</span><span lang="en">NextClient lives in a separate copy of the game. The Steam version stays as it was, and you can go back any time.</span></p>
+          <p><span lang="ru">NextClient живёт в отдельной копии игры и не трогает файлы Steam-версии: вернуться к обычной 1.6 можно в любой момент.</span><span lang="en">NextClient lives in a separate copy of the game and doesn't touch the Steam version's files: you can go back to plain 1.6 any time.</span></p>
           <a href="#faq-antivirus"><span lang="ru">Антивирус ругается?</span><span lang="en">Antivirus complains?</span> →</a>
         </article>
       </div>
@@ -313,11 +399,21 @@
         <p><span lang="ru">Четыре шага, и можно играть.</span><span lang="en">Four steps and you're in.</span></p>
       </div>
 
-      <ol class="steps">
+      <div class="os-tabs" role="tablist">
+        <button type="button" role="tab" id="os-tab-windows" data-os="windows" aria-controls="steps-windows" aria-selected="true">Windows</button>
+        <button type="button" role="tab" id="os-tab-linux" data-os="linux" aria-controls="steps-linux" aria-selected="false">Linux</button>
+      </div>
+      <ol class="steps" id="steps-windows" role="tabpanel" aria-labelledby="os-tab-windows">
         <li><span lang="ru">В Steam переключите CS&nbsp;1.6 на бету <b>steam_legacy</b>: NextClient работает с движком 8684.</span><span lang="en">In Steam, switch CS&nbsp;1.6 to the <b>steam_legacy</b> beta: NextClient works with engine 8684.</span></li>
         <li><span lang="ru">Скопируйте папку Half-Life куда-нибудь вне папки Steam.</span><span lang="en">Copy the Half-Life folder somewhere outside the Steam folder.</span></li>
         <li><span lang="ru">Распакуйте в эту копию архив NextClient.</span><span lang="en">Unpack the NextClient archive into that copy.</span></li>
-        <li><span lang="ru">Запустите <code>cstrike.exe</code> и играйте.</span><span lang="en">Start <code>cstrike.exe</code> and play.</span></li>
+        <li><span lang="ru">Запустите Steam, затем <code>cstrike.exe</code> из копии.</span><span lang="en">Start Steam, then <code>cstrike.exe</code> from the copy.</span></li>
+      </ol>
+      <ol class="steps" id="steps-linux" role="tabpanel" aria-labelledby="os-tab-linux" hidden>
+        <li><span lang="ru">В Steam переключите CS&nbsp;1.6 на бету <b>steam_legacy</b> и установите Linux-версию игры.</span><span lang="en">In Steam, switch CS&nbsp;1.6 to the <b>steam_legacy</b> beta and install the Linux version of the game.</span></li>
+        <li><span lang="ru">Нужны 32-битный glibc 2.43 или новее и 32-битные библиотеки C++, на Ubuntu так:</span><span lang="en">You need 32-bit glibc 2.43 or later and the 32-bit C++ libraries, on Ubuntu like this:</span> <code>sudo dpkg --add-architecture i386 &amp;&amp; sudo apt update &amp;&amp; sudo apt install libstdc++6:i386 libgcc-s1:i386</code></li>
+        <li><span lang="ru">Скопируйте папку Half-Life вне папки Steam и распакуйте в копию архив NextClient с заменой файлов.</span><span lang="en">Copy the Half-Life folder outside the Steam folder and unpack the NextClient archive into the copy, replacing files.</span></li>
+        <li><span lang="ru">Запустите Steam, затем в папке копии:</span><span lang="en">Start Steam, then in the copy's folder:</span> <code>chmod +x nextclient.sh cstrike.exe &amp;&amp; ./nextclient.sh</code></li>
       </ol>
       <div class="warning">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2 20h20L12 3Z"/><path d="M12 10v4M12 17h.01"/></svg>
@@ -349,13 +445,13 @@
         <details class="faq-item" id="faq-antivirus">
           <summary><span lang="ru">Почему антивирус ругается?</span><span lang="en">Why does my antivirus complain?</span></summary>
           <div class="faq-answer">
-            <p><span lang="ru">NextClient перехватывает функции движка прямо в памяти, и некоторые антивирусы по эвристике принимают это за вредоносное поведение. Официальные сборки собирает GitHub Actions из исходников этого репозитория и подписывает их происхождение. Проверить архив можно командой <code>gh attestation verify NextClient-&lt;версия&gt;.zip -R CS-NextClient/NextClient</code> или сверив SHA-256 под кнопкой «Скачать». Как сообщить о ложном срабатывании, описано <a href="https://github.com/CS-NextClient/NextClient/blob/main/docs/reporting-av-false-positives.md" target="_blank" rel="noopener">здесь</a>.</span><span lang="en">NextClient detours engine functions in memory, and some antivirus engines take that for malicious behavior by heuristics. Official builds are made by GitHub Actions from the source code of this repository and carry a signed provenance attestation. You can check an archive with <code>gh attestation verify NextClient-&lt;version&gt;.zip -R CS-NextClient/NextClient</code> or by comparing its SHA-256 with the one under the Download button. How to report a false positive is described <a href="https://github.com/CS-NextClient/NextClient/blob/main/docs/reporting-av-false-positives.md" target="_blank" rel="noopener">here</a>.</span></p>
+            <p><span lang="ru">NextClient перехватывает функции движка прямо в памяти, и некоторые антивирусы по эвристике принимают это за вредоносное поведение. С версии 2.5.1 официальные сборки собирает GitHub Actions из исходников этого репозитория и подписывает их происхождение. Проверить архив можно командой <code>gh attestation verify NextClient-&lt;версия&gt;.zip -R CS-NextClient/NextClient</code> или сверив SHA-256 под кнопкой «Скачать». Как сообщить о ложном срабатывании, описано <a href="https://github.com/CS-NextClient/NextClient/blob/main/docs/reporting-av-false-positives.md" target="_blank" rel="noopener">здесь</a>.</span><span lang="en">NextClient detours engine functions in memory, and some antivirus engines take that for malicious behavior by heuristics. Since 2.5.1, official builds are made by GitHub Actions from the source code of this repository and carry a signed provenance attestation. You can check an archive with <code>gh attestation verify NextClient-&lt;version&gt;.zip -R CS-NextClient/NextClient</code> or by comparing its SHA-256 with the one under the Download button. How to report a false positive is described <a href="https://github.com/CS-NextClient/NextClient/blob/main/docs/reporting-av-false-positives.md" target="_blank" rel="noopener">here</a>.</span></p>
           </div>
         </details>
         <details class="faq-item">
           <summary><span lang="ru">Есть ли версия для Linux?</span><span lang="en">Is there a Linux version?</span></summary>
           <div class="faq-answer">
-            <p><span lang="ru">Порт на Linux готов, сборка для Linux выходит начиная со следующего релиза. Кнопка «Скачать» сама предложит её, если вы зашли с Linux.</span><span lang="en">The Linux port is done, and Linux builds ship starting with the next release. The Download button offers one by itself when you visit from Linux.</span></p>
+            <p><span lang="ru">Да, начиная с 2.6.0. Это родная сборка, она запускается через Steam Runtime скриптом <code>nextclient.sh</code> и работает с обычной и Snap-версией Steam. Нужны 32-битные glibc 2.43 или новее, библиотеки C++ и SDL2, а для расширенного радара — OpenGL 2.1 с поддержкой FBO. Кнопка «Скачать» сама предложит её, если вы зашли с Linux. HTML-интерфейс на CEF пока есть только на Windows.</span><span lang="en">Yes, since 2.6.0. It's a native build that runs through the Steam Runtime with the <code>nextclient.sh</code> script and works with the regular and the Snap Steam. It needs 32-bit glibc 2.43 or later, the C++ libraries and SDL2, and OpenGL 2.1 with framebuffer objects for the advanced radar. The Download button offers it by itself when you visit from Linux. The CEF-based HTML interface is Windows only for now.</span></p>
           </div>
         </details>
         <details class="faq-item">
@@ -426,7 +522,7 @@
   </footer>
 
   <dialog class="lightbox" id="lightbox">
-    <img alt="">
+    <div class="lightbox-stage" id="lightbox-stage"></div>
     <p class="lightbox-caption"></p>
     <button class="lightbox-close" type="button" aria-label="Close">×</button>
     <button class="lightbox-prev" type="button" aria-label="Previous">‹</button>

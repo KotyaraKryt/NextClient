@@ -1,3 +1,41 @@
+/* Inter and JetBrains Mono, variable, latin and cyrillic only; SIL OFL 1.1, see assets/fonts */
+
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 400 900;
+  font-display: swap;
+  src: url("fonts/inter-cyrillic.woff2") format("woff2");
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 400 900;
+  font-display: swap;
+  src: url("fonts/inter-latin.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: "JetBrains Mono";
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url("fonts/jetbrains-mono-cyrillic.woff2") format("woff2");
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+
+@font-face {
+  font-family: "JetBrains Mono";
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url("fonts/jetbrains-mono-latin.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
 :root {
   --bg: #ffffff;
   --bg-soft: #f5f8fc;
@@ -650,11 +688,6 @@ h1 em {
   margin-bottom: 48px;
 }
 
-.section-head.center {
-  margin-inline: auto;
-  text-align: center;
-}
-
 /* the big outlined number behind a heading, moved by the parallax */
 .section-num {
   position: absolute;
@@ -786,7 +819,7 @@ h2 {
 
 .tour-body {
   display: grid;
-  grid-template-columns: 1.35fr 1fr;
+  grid-template-columns: 1.8fr 1fr;
   gap: 56px;
 }
 
@@ -796,76 +829,288 @@ h2 {
   align-self: start;
 }
 
-.tour-window {
-  display: block;
-  width: 100%;
-  padding: 0;
-  border: 1px solid #2a2f37;
-  background: #16191e;
-  box-shadow: 0 2px 6px rgba(11, 13, 16, 0.08), 0 30px 60px -12px rgba(11, 13, 16, 0.35);
-  cursor: zoom-in;
-  transition: transform 0.3s ease-out;
+/* one board per step, laid out at 800x450 and scaled to the stage by --k */
+.tour-boards {
+  --k: 0.855;
+  position: relative;
+  aspect-ratio: 16 / 9;
+  border: 1px solid var(--line);
+  background: #fff;
+  box-shadow: var(--shadow);
 }
 
-.tour-bar {
-  position: relative;
+.tour-boards::before,
+.tour-boards::after {
+  content: "";
+  position: absolute;
+  z-index: 4;
+  width: 22px;
+  height: 22px;
+  border-color: var(--blue);
+  border-style: solid;
+  pointer-events: none;
+}
+
+.tour-boards::before {
+  top: -1px;
+  left: -1px;
+  border-width: 2px 0 0 2px;
+}
+
+.tour-boards::after {
+  right: -1px;
+  bottom: -1px;
+  border-width: 0 2px 2px 0;
+}
+
+.tour-board-list {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.tour-expand {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 5;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--muted);
+  cursor: zoom-in;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.tour-expand:hover,
+.tour-expand:focus-visible {
+  border-color: var(--blue);
+  color: var(--blue);
+}
+
+.tour-expand svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+}
+
+.lightbox .tour-expand {
+  display: none;
+}
+
+.tour-placeholder {
+  aspect-ratio: 16 / 9;
+  border: 1px solid var(--line);
+  background: var(--bg-soft);
+}
+
+.board {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.45s ease, visibility 0.45s;
+}
+
+.board.active {
+  opacity: 1;
+  visibility: visible;
+}
+
+.board-view {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 800px;
+  height: 450px;
+  transform: scale(var(--k));
+  transform-origin: 0 0;
+  background-color: #fbfcfe;
+  background-image:
+    radial-gradient(360px 220px at 50% 52%, rgba(193, 224, 255, 0.55), transparent 72%),
+    linear-gradient(rgba(20, 104, 190, 0.07) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(20, 104, 190, 0.07) 1px, transparent 1px);
+  background-size: auto, 40px 40px, 40px 40px;
+  background-position: 0 0, -1px -1px, -1px -1px;
+}
+
+.board-view > *,
+.board-frame > * {
+  position: absolute;
+}
+
+.board-view img {
+  display: block;
+  height: auto;
+}
+
+.board-frame {
+  inset: 0;
+}
+
+.board-frame[hidden] {
+  display: none;
+}
+
+.board-shot {
+  box-shadow: 0 1px 2px rgba(11, 13, 16, 0.08), 0 24px 48px -16px rgba(11, 13, 16, 0.38);
+}
+
+.board-shape {
+  filter: drop-shadow(0 16px 22px rgba(11, 13, 16, 0.28));
+}
+
+.board-caption {
+  color: var(--blue);
+  font: 700 13px/1 var(--mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  transform: translateX(-50%);
+}
+
+.board-key {
   display: flex;
   align-items: center;
-  gap: 7px;
-  height: 34px;
-  padding: 0 14px;
-  background: #22262d;
+  gap: 10px;
+  transform: translate(-50%, -50%);
 }
 
-.tour-bar i {
-  width: 11px;
-  height: 11px;
-  border-radius: 50%;
-  background: #3b414b;
+.board-key kbd {
+  padding: 7px 10px 6px;
+  border: 1px solid #b8c3d1;
+  border-bottom-width: 4px;
+  border-radius: 4px;
+  background: #fff;
+  color: var(--ink);
+  font: 700 13px/1 var(--mono);
+  box-shadow: 0 4px 10px rgba(11, 13, 16, 0.08);
 }
 
-.tour-bar b {
+.board-key svg {
+  width: 30px;
+  height: 14px;
+  fill: none;
+  stroke: var(--blue);
+  stroke-width: 2;
+}
+
+.board-icons {
+  display: grid;
+  grid-template-columns: repeat(2, 300px);
+  gap: 10px 40px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--ink);
+  font: 500 16px/1.2 Inter, system-ui, sans-serif;
+}
+
+.board-icons li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.board-icons img,
+.board-icons b {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  font: 700 22px/1 var(--mono);
+}
+
+/* the board's own tabs keep their size, like the notes */
+.board-chips {
   position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
-  color: #9aa3af;
-  font-family: var(--mono);
-  font-size: 12px;
-  font-weight: 500;
+  top: 12px;
+  left: 12px;
+  z-index: 3;
+  display: flex;
+  gap: 5px;
+}
+
+.board-chips button {
+  padding: 6px 9px 5px;
+  border: 1px solid var(--blue);
+  background: #fff;
+  color: var(--blue);
+  font: 700 11px/1 var(--mono);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.board-chips button:hover {
+  background: var(--blue-soft);
+}
+
+.board-chips button[aria-pressed="true"] {
+  background: var(--blue);
+  color: #fff;
+}
+
+/* what a note marks is given in the shot's own pixels; the script draws the note on whole
+   pixels of the board, outside the scaled view, so a 1px line stays a sharp 1px line */
+.board-note {
+  display: none;
+}
+
+.board-notes {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.board-notes > * {
+  position: absolute;
+}
+
+.note-box {
+  box-sizing: border-box;
+  border: 1px solid var(--blue);
+}
+
+.note-line {
+  height: 1px;
+  background: var(--blue);
+}
+
+.note-line.v {
+  width: 1px;
+  height: auto;
+}
+
+.note-tag {
+  padding: 4px 6px 3px;
+  background: var(--blue);
+  color: #fff;
+  font: 700 11px/1 var(--mono);
+  font-style: normal;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
   white-space: nowrap;
 }
 
-.tour-screens {
-  display: grid;
-  background: #0d0f12;
-}
-
-.tour-shot {
-  grid-area: 1 / 1;
-  margin: 0;
-  opacity: 0;
-  transform: scale(1.04);
-  transition: opacity 0.5s ease, transform 0.8s cubic-bezier(0.2, 0.7, 0.2, 1);
-}
-
-.tour-shot.active {
-  opacity: 1;
-  transform: none;
-}
-
-.tour-shot img,
-.tour-mobile-shot img {
-  display: block;
-  width: 100%;
-  height: auto;
-  aspect-ratio: 16 / 9;
-  object-fit: cover;
+.tour-boards.narrow .board-notes {
+  display: none;
 }
 
 .tour-progress {
   display: block;
   height: 3px;
-  background: #22262d;
+  margin-top: 10px;
+  background: var(--line);
 }
 
 .tour-progress span {
@@ -916,8 +1161,13 @@ h2 {
   font-size: 17px;
 }
 
-.tour-mobile-shot {
-  display: none;
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 /* ---------- features ---------- */
@@ -1182,6 +1432,41 @@ html:not(.reveal-ready) .steps::before {
   font-size: 14px;
 }
 
+.steps[hidden] {
+  display: none;
+}
+
+.steps code {
+  display: block;
+  margin-top: 10px;
+  overflow-wrap: anywhere;
+}
+
+.os-tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 20px;
+}
+
+.os-tabs button {
+  padding: 8px 18px;
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--muted);
+  font: 700 14px var(--mono);
+  cursor: pointer;
+}
+
+.os-tabs button:hover {
+  color: var(--ink);
+}
+
+.os-tabs button[aria-selected="true"] {
+  border-color: var(--ink);
+  background: var(--ink);
+  color: #fff;
+}
+
 .warning {
   display: flex;
   gap: 14px;
@@ -1381,6 +1666,10 @@ html:not(.reveal-ready) .steps::before {
   text-transform: uppercase;
 }
 
+.badge.preview {
+  background: var(--amber);
+}
+
 .release-date {
   color: var(--muted);
   font-family: var(--mono);
@@ -1540,9 +1829,8 @@ html:not(.reveal-ready) .steps::before {
   background: transparent;
 }
 
-.lightbox img {
-  max-width: 100%;
-  max-height: calc(100vh - 110px);
+.lightbox-stage {
+  width: min(100%, calc((100vh - 130px) * 16 / 9));
   box-shadow: 0 30px 80px rgba(0, 0, 0, 0.5);
 }
 
@@ -1557,7 +1845,7 @@ html:not(.reveal-ready) .steps::before {
   color: #fff;
 }
 
-.lightbox button {
+.lightbox > button {
   position: absolute;
   display: grid;
   place-items: center;
@@ -1571,7 +1859,7 @@ html:not(.reveal-ready) .steps::before {
   transition: background 0.15s;
 }
 
-.lightbox button:hover {
+.lightbox > button:hover {
   background: rgba(255, 255, 255, 0.22);
 }
 
@@ -1689,31 +1977,25 @@ html:not(.reveal-ready) .steps::before {
     row-gap: 40px;
   }
 
-  /* no sticky stage: each step carries its own shot */
+  /* the boards stick above the steps, which scroll under them */
   .tour-body {
     grid-template-columns: 1fr;
+    gap: 0;
   }
 
   .tour-stage {
-    display: none;
+    top: var(--header);
+    z-index: 4;
+    width: 100%;
+    max-width: 640px;
+    justify-self: center;
+    padding: 10px 0 14px;
+    background: var(--bg);
   }
 
   .tour-step {
-    min-height: 0;
-    padding: 0 0 48px;
-    border: 0;
-    opacity: 1;
-  }
-
-  .tour-mobile-shot {
-    display: block;
-    order: -1;
-    margin-bottom: 18px;
-    padding: 0;
-    border: 1px solid #2a2f37;
-    background: #0d0f12;
-    box-shadow: 0 20px 40px -14px rgba(11, 13, 16, 0.35);
-    cursor: zoom-in;
+    min-height: 48vh;
+    padding: 20px 0 20px 20px;
   }
 }
 

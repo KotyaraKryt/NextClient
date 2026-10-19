@@ -6,7 +6,7 @@
   var kReleasesUrl = 'https://github.com/' + kRepo + '/releases';
   var kApiUrl = 'https://api.github.com/repos/' + kRepo;
   // without a token GitHub answers 60 requests an hour per address, so one answer serves the whole visit
-  var kCacheKey = 'site:2:' + kRepo;
+  var kCacheKey = 'site:3:' + kRepo;
   var kCacheSeconds = 600;
   var kShownAtFirst = 4;
 
@@ -176,6 +176,10 @@
     return (release.tag_name || '').replace(/^v/i, '');
   }
 
+  function stableOf(list) {
+    return (list || []).find(function (release) { return !release.prerelease; });
+  }
+
   // 'windows', 'linux' or 'mac'; Android says Linux but gets no build
   function detectOs() {
     var platform = (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || '';
@@ -224,17 +228,24 @@
       button.href = main ? main.browser_download_url : latest.html_url;
     });
     forEach('[data-download-meta]', function (meta) {
-      meta.textContent = 'v' + versionOf(latest) + (main ? ' · ' + formatSize(main.size) + ' · ' + kOsNames[mainOs] : '');
+      meta.textContent = 'v' + versionOf(latest) + (latest.prerelease ? ' · ' + text('превью', 'preview') : '')
+        + (main ? ' · ' + formatSize(main.size) + ' · ' + kOsNames[mainOs] : '');
     });
 
     var note = '';
     if (kOs === 'linux' && !assets.linux) {
-      note = text('Сборка для Linux появится в следующем релизе.', 'A Linux build is coming in the next release.');
+      note = text('Для этой версии сборки под Linux нет.', 'This version has no Linux build.');
     } else if (kOs === 'mac') {
       note = text('Для macOS сборки нет.', 'There is no macOS build.');
     }
     if (main && assets[otherOs]) {
       note += (note ? ' ' : '') + text('Есть и ', 'There is also ') + assetLink(assets[otherOs], otherOs) + '.';
+    }
+    var stable = stableOf(releases);
+    var stableChoice = latest.prerelease && stable ? offer(stable) : null;
+    if (stableChoice && stableChoice.asset) {
+      note += (note ? ' ' : '') + text('Стабильная версия ', 'The stable version ') + escapeHtml(versionOf(stable)) + ': '
+        + assetLink(stableChoice.asset, stableChoice.os) + '.';
     }
 
     others.innerHTML = note;
@@ -306,7 +317,8 @@
     }
     counted = true;
 
-    var targets = { downloads: downloads || 0, stars: stars || 0, releases: releases.length };
+    var stableCount = releases.filter(function (release) { return !release.prerelease; }).length;
+    var targets = { downloads: downloads || 0, stars: stars || 0, releases: stableCount };
     forEach('[data-count]', function (el) {
       var target = targets[el.getAttribute('data-count')] || 0;
       if (kReducedMotion) {
@@ -376,13 +388,16 @@
     }
 
     var shown = showAll ? releases : releases.slice(0, kShownAtFirst);
+    var stable = stableOf(releases);
     container.innerHTML = shown.map(function (release, index) {
       var version = versionOf(release);
       var title = release.name && release.name.indexOf(version) === -1 ? release.name : '';
+      var badge = release.prerelease ? '<span class="badge preview">' + text('превью', 'preview') + '</span>'
+        : (release === stable ? '<span class="badge">' + text('стабильная', 'stable') + '</span>' : '');
       return '<article class="release' + (index === 0 ? ' latest' : '') + '" id="v' + escapeHtml(version) + '">'
         + '<div class="release-head">'
         + '<h3 class="release-version"><a href="#v' + escapeHtml(version) + '">' + escapeHtml(version) + '</a></h3>'
-        + (index === 0 ? '<span class="badge">' + text('актуальная', 'latest') + '</span>' : '')
+        + badge
         + '<span class="release-date">' + formatDate(release.published_at) + '</span>'
         + (title ? '<span class="release-title">' + escapeHtml(title) + '</span>' : '')
         + '</div>'
@@ -463,13 +478,20 @@
     });
   }
 
-  // only what the page shows is kept, so the cache stays small
+  // only what the page shows is kept, so the cache stays small; a preview stays only while it is newer
+  // than the last stable release, so the previews drop out once their version ships
   function trim(list) {
+    var stableSeen = false;
     return list.filter(function (release) {
-      return !release.draft && !release.prerelease;
+      if (release.draft || (release.prerelease && stableSeen)) {
+        return false;
+      }
+      stableSeen = stableSeen || !release.prerelease;
+      return true;
     }).map(function (release) {
       return {
         tag_name: release.tag_name,
+        prerelease: release.prerelease,
         name: release.name,
         body: release.body,
         html_url: release.html_url,
@@ -512,32 +534,173 @@
       });
   }
 
-  // the tour: a game window that stays in place while the steps scroll past it
+  // the tour: one board per step, staying in place while the steps scroll past it
 
   function initTour() {
-    var box = document.getElementById('lightbox');
-    var windowButton = document.getElementById('tour-window');
     var section = document.getElementById('tour');
-    if (!box || !section) {
+    var stage = document.getElementById('tour-boards');
+    var box = document.getElementById('lightbox');
+    if (!section || !stage || !box) {
       return;
     }
 
     var steps = Array.prototype.slice.call(section.querySelectorAll('.tour-step'));
-    var shots = Array.prototype.slice.call(section.querySelectorAll('.tour-shot'));
+    var boards = Array.prototype.slice.call(stage.querySelectorAll('.board'));
     var progress = document.getElementById('tour-progress');
-    var current = 0;
+    var home = stage.parentNode;
+    var slot = document.getElementById('lightbox-stage');
+    var caption = box.querySelector('.lightbox-caption');
+    var placeholder = document.createElement('div');
+    placeholder.className = 'tour-placeholder';
+    var shown = 0;
+    var scrolled = 0;
 
-    function activate(index) {
-      current = index;
-      steps.forEach(function (step, i) {
-        step.classList.toggle('active', i === index);
+    function show(index) {
+      shown = index;
+      boards.forEach(function (board, i) {
+        board.classList.toggle('active', i === index);
       });
-      shots.forEach(function (shot, i) {
-        shot.classList.toggle('active', i === index);
+      if (box.open) {
+        caption.innerHTML = '<b>' + steps[index].querySelector('h3').innerHTML + '</b> · ' + steps[index].querySelector('p').innerHTML;
+      }
+    }
+
+    // a board is laid out at 800x450 and scaled by --k; its notes are drawn outside the scaled view
+    // on whole pixels, from boxes given in the pixels of the shot they mark
+    function layout() {
+      var k = stage.clientWidth / 800;
+      stage.style.setProperty('--k', k.toFixed(4));
+      stage.classList.toggle('narrow', stage.clientWidth < 480);
+      boards.forEach(function (board) {
+        drawNotes(board, k);
       });
     }
 
+    function drawNotes(board, k) {
+      var layer = board.querySelector('.board-notes');
+      if (!layer) {
+        layer = document.createElement('div');
+        layer.className = 'board-notes';
+        board.appendChild(layer);
+      }
+      layer.textContent = '';
+      var width = stage.clientWidth;
+
+      function add(name, left, top, w, h) {
+        var el = document.createElement('i');
+        el.className = name;
+        el.style.left = left + 'px';
+        el.style.top = top + 'px';
+        if (w !== null) {
+          el.style.width = w + 'px';
+        }
+        if (h !== null) {
+          el.style.height = h + 'px';
+        }
+        layer.appendChild(el);
+        return el;
+      }
+
+      Array.prototype.forEach.call(board.querySelectorAll('.board-note'), function (note) {
+        var frame = note.closest('.board-frame');
+        if (frame && frame.hidden) {
+          return;
+        }
+        var shot = (frame || board).querySelector('[data-shot="' + note.getAttribute('data-on') + '"]');
+        var s = shot.offsetWidth / +shot.getAttribute('width');
+        var b = note.getAttribute('data-box').split(' ').map(Number);
+        // a little outside what it marks
+        var left = Math.round((shot.offsetLeft + b[0] * s) * k) - 3;
+        var top = Math.round((shot.offsetTop + b[1] * s) * k) - 3;
+        var right = Math.round((shot.offsetLeft + (b[0] + b[2]) * s) * k) + 3;
+        var bottom = Math.round((shot.offsetTop + (b[1] + b[3]) * s) * k) + 3;
+        add('note-box', left, top, right - left, bottom - top);
+
+        var tag = add('note-tag', 0, 0, null, null);
+        tag.innerHTML = note.innerHTML;
+        var w = tag.offsetWidth;
+        var h = tag.offsetHeight;
+        var at = Math.round(+note.getAttribute('data-at') * k);
+        var midX = Math.round((left + right) / 2);
+        var midY = Math.round((top + bottom) / 2);
+        var x = left;
+        var y = top;
+        switch (note.getAttribute('data-side')) {
+          case 'right':
+            // the tag stays on the board when the board is narrower than the layout assumed
+            x = Math.min(at, width - 8 - w);
+            add('note-line', right, midY, x - right, null);
+            y = midY - Math.round(h / 2);
+            break;
+          case 'left':
+            x = Math.max(8, at - w);
+            add('note-line', x + w, midY, left - x - w, null);
+            y = midY - Math.round(h / 2);
+            break;
+          case 'above':
+            add('note-line v', midX, at, null, top - at);
+            x = midX - Math.round(w / 2);
+            y = at - h;
+            break;
+          case 'below':
+            add('note-line v', midX, bottom, null, at - bottom);
+            x = midX - Math.round(w / 2);
+            y = at;
+            break;
+        }
+        tag.style.left = x + 'px';
+        tag.style.top = y + 'px';
+      });
+    }
+
+    boards.forEach(function (board) {
+      var chips = board.querySelector('.board-chips');
+      if (!chips) {
+        return;
+      }
+      chips.addEventListener('click', function (event) {
+        var button = event.target.closest('button');
+        if (!button) {
+          return;
+        }
+        var frame = button.getAttribute('data-frame');
+        Array.prototype.forEach.call(chips.querySelectorAll('button'), function (other) {
+          other.setAttribute('aria-pressed', other === button ? 'true' : 'false');
+        });
+        Array.prototype.forEach.call(board.querySelectorAll('.board-frame'), function (el) {
+          el.hidden = el.getAttribute('data-frame') !== frame;
+        });
+        drawNotes(board, stage.clientWidth / 800);
+      });
+    });
+
+    if ('ResizeObserver' in window) {
+      new ResizeObserver(layout).observe(stage);
+    } else {
+      window.addEventListener('resize', layout);
+    }
+    // a tag's width depends on the font and on the language shown
+    if (document.fonts) {
+      document.fonts.ready.then(layout);
+    }
+    new MutationObserver(layout).observe(document.documentElement, { attributes: true, attributeFilter: ['data-lang'] });
+    Array.prototype.forEach.call(stage.querySelectorAll('img'), function (img) {
+      if (!img.complete) {
+        img.addEventListener('load', layout);
+      }
+    });
+
     // the step that crosses the middle of the screen is the one shown
+    function activate(index) {
+      scrolled = index;
+      steps.forEach(function (step, i) {
+        step.classList.toggle('active', i === index);
+      });
+      if (!box.open) {
+        show(index);
+      }
+    }
+
     if ('IntersectionObserver' in window) {
       var observer = new IntersectionObserver(function (entries) {
         entries.forEach(function (entry) {
@@ -558,39 +721,32 @@
       progress.style.setProperty('--p', p.toFixed(4));
     });
 
-    // the full-size view
+    // the same boards, as large as the screen allows; the dialog's arrows walk the steps
 
-    var boxImage = box.querySelector('img');
-    var boxCaption = box.querySelector('.lightbox-caption');
-    var boxIndex = 0;
+    document.getElementById('tour-expand').addEventListener('click', function () {
+      home.insertBefore(placeholder, stage);
+      slot.appendChild(stage);
+      box.showModal();
+      show(shown);
+    });
+    box.addEventListener('close', function () {
+      home.insertBefore(stage, placeholder);
+      placeholder.remove();
+      show(scrolled);
+    });
 
-    function openBox(index) {
-      boxIndex = (index + steps.length) % steps.length;
-      var step = steps[boxIndex];
-      boxImage.src = step.querySelector('img').src;
-      boxCaption.innerHTML = '<b>' + step.querySelector('h3').innerHTML + '</b> · ' + step.querySelector('p').innerHTML;
-      if (!box.open) {
-        box.showModal();
-      }
+    function step(delta) {
+      show((shown + delta + steps.length) % steps.length);
     }
-
-    windowButton.addEventListener('click', function () {
-      openBox(current);
-    });
-    forEach('[data-open]', function (button) {
-      button.addEventListener('click', function () {
-        openBox(+button.getAttribute('data-open'));
-      });
-    });
 
     box.querySelector('.lightbox-close').addEventListener('click', function () {
       box.close();
     });
     box.querySelector('.lightbox-prev').addEventListener('click', function () {
-      openBox(boxIndex - 1);
+      step(-1);
     });
     box.querySelector('.lightbox-next').addEventListener('click', function () {
-      openBox(boxIndex + 1);
+      step(1);
     });
     box.addEventListener('click', function (event) {
       if (event.target === box) {
@@ -599,15 +755,15 @@
     });
     box.addEventListener('keydown', function (event) {
       if (event.key === 'ArrowLeft') {
-        openBox(boxIndex - 1);
+        step(-1);
       } else if (event.key === 'ArrowRight') {
-        openBox(boxIndex + 1);
+        step(1);
       }
     });
 
     var touchX = null;
     box.addEventListener('touchstart', function (event) {
-      touchX = event.touches[0].clientX;
+      touchX = event.target.closest('.board-chips') ? null : event.touches[0].clientX;
     }, { passive: true });
     box.addEventListener('touchend', function (event) {
       if (touchX === null) {
@@ -616,11 +772,12 @@
       var dx = event.changedTouches[0].clientX - touchX;
       touchX = null;
       if (Math.abs(dx) > 50) {
-        openBox(boxIndex + (dx < 0 ? 1 : -1));
+        step(dx < 0 ? 1 : -1);
       }
     });
 
-    tilt(windowButton, 5, 1400);
+    show(0);
+    layout();
   }
 
   // an element leans towards the pointer, like a card held in the hand
@@ -829,11 +986,32 @@
     document.documentElement.classList.add('reveal-ready');
   }
 
+  // the install steps open on the visitor's own system
+  function initInstall() {
+    var tabs = Array.prototype.slice.call(document.querySelectorAll('.os-tabs [data-os]'));
+
+    function select(os) {
+      tabs.forEach(function (tab) {
+        var on = tab.getAttribute('data-os') === os;
+        tab.setAttribute('aria-selected', on ? 'true' : 'false');
+        document.getElementById(tab.getAttribute('aria-controls')).hidden = !on;
+      });
+    }
+
+    tabs.forEach(function (tab) {
+      tab.addEventListener('click', function () {
+        select(tab.getAttribute('data-os'));
+      });
+    });
+    select(kOs === 'linux' ? 'linux' : 'windows');
+  }
+
   forEach('[data-tilt-card]', function (card) {
     tilt(card, 6, 900);
   });
 
   initTour();
+  initInstall();
   initParallax();
   initPage();
   initReveal();

@@ -1,4 +1,4 @@
-# Renders assets/og.png and assets/apple-touch-icon.png from assets/logo.svg; needs Pillow and the Ubuntu Sans font
+# Renders assets/og.jpg from tools/og-game.jpg and assets/logo.svg, and assets/apple-touch-icon.png from the logo; needs Pillow and the Ubuntu Sans font
 
 import os, re
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -56,28 +56,28 @@ def font(size, weight):
     return f
 
 def card():
+    # a frame from a real match behind, dark on the left where the text sits
     k = 2
     w, h = 1200 * k, 630 * k
-    img = Image.new('RGB', (w, h), '#ffffff')
+    img = Image.open(os.path.join(ROOT, 'tools', 'og-game.jpg')).convert('RGB').resize((w, h), Image.LANCZOS)
+    shade = Image.new('L', (w, h), 0)
+    sd = ImageDraw.Draw(shade)
+    for x in range(w):
+        t = max(0.0, 1 - x / (w * 0.72))
+        sd.line([(x, 0), (x, h)], fill=int(255 * (0.25 + 0.7 * t ** 0.8)))
+    img = Image.composite(Image.new('RGB', (w, h), '#0b0d10'), img, shade)
     d = ImageDraw.Draw(img)
-    # a soft blue disc behind the logo
-    glow = Image.new('L', (w, h), 0)
-    gd = ImageDraw.Draw(glow)
-    cx, cy, r = 880 * k, 315 * k, 300 * k
-    for i in range(60, 0, -1):
-        rr = r * i / 60
-        gd.ellipse([cx - rr, cy - rr, cx + rr, cy + rr], fill=int(70 * (1 - i / 60)))
-    img = Image.composite(Image.new('RGB', (w, h), '#cfe4fa'), img, glow)
-    draw_logo(img, cx - 220 * k, cy - 220 * k, 440 * k)
+    tile = 132 * k
+    d.rounded_rectangle([80 * k, 92 * k, 80 * k + tile, 92 * k + tile], radius=22 * k, fill='#ffffff')
+    draw_logo(img, 80 * k + 14 * k, 92 * k + 14 * k, tile - 28 * k)
     d = ImageDraw.Draw(img)
-    eyebrow = 'Counter-Strike 1.6 · Steam 8684'
-    eyebrow_font = font(22 * k, 700)
-    d.rounded_rectangle([80 * k, 150 * k, 80 * k + d.textlength(eyebrow, font=eyebrow_font) + 40 * k, 196 * k], radius=23 * k, fill='#eaf3fc')
-    d.text((100 * k, 160 * k), eyebrow, font=eyebrow_font, fill='#1468be')
-    d.text((76 * k, 225 * k), 'NextClient', font=font(104 * k, 850), fill='#0b0d10')
-    d.text((80 * k, 365 * k), 'Современный клиент CS 1.6', font=font(38 * k, 600), fill='#0b0d10')
-    d.text((80 * k, 420 * k), 'Новый интерфейс, защита и API для серверов', font=font(28 * k, 450), fill='#5d6675')
-    img.resize((1200, 630), Image.LANCZOS).save(OUT + 'og.png', optimize=True)
+    d.text((236 * k, 100 * k), 'NextClient', font=font(92 * k, 850), fill='#ffffff')
+    d.text((240 * k, 200 * k), 'Counter-Strike 1.6 · Windows & Linux', font=font(26 * k, 600), fill='#c1e0ff')
+    d.text((80 * k, 300 * k), 'Та самая 1.6.', font=font(64 * k, 800), fill='#ffffff')
+    d.text((80 * k, 372 * k), 'Только лучше.', font=font(64 * k, 800), fill='#5aa8f0')
+    d.text((80 * k, 478 * k), 'Радар, Discord, защита от вредных серверов', font=font(28 * k, 500), fill='#d5dce6')
+    d.text((80 * k, 518 * k), 'и API для серверов. Бесплатно, код на GitHub.', font=font(28 * k, 500), fill='#d5dce6')
+    img.resize((1200, 630), Image.LANCZOS).save(OUT + 'og.jpg', quality=86, optimize=True, progressive=True)
 
 def icon(size, name):
     k = 4
