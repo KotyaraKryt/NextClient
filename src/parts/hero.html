@@ -1,0 +1,22 @@
+    <section class="hero" id="top">
+      <div class="hero-text">
+        <p class="eyebrow">Steam build 8684 · Windows &amp; Linux</p>
+        <h1>{{ hero.title }}</h1>
+        <p class="lead">{{ hero.lead }}</p>
+        <div class="cta">
+          <a class="btn btn-primary" data-download href="https://github.com/CS-NextClient/NextClient/releases/latest">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v12M7 11l5 5 5-5M5 20h14"/></svg>
+            <span class="btn-text">
+              <span class="btn-label">{{ hero.download }}</span>
+              <span class="btn-meta" data-download-meta>{{ hero.latest }}</span>
+            </span>
+          </a>
+          <a class="btn btn-ghost" href="#tour">{{ hero.see }} <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+        </div>
+        <p class="other-downloads" id="other-downloads" hidden></p>
+        <p class="proof"><span>{{ hero.no_signup }}</span><span class="proof-stats" id="proof-stats" hidden></span></p>
+      </div>
+      <div class="hero-art" aria-hidden="true">
+        <img src="assets/logo.svg" alt="" width="360" height="360">
+      </div>
+    </section>

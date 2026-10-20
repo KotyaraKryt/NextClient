@@ -1,0 +1,120 @@
+    <section class="section tour" id="tour">
+      <div class="section-head">
+        <h2>{{ tour.title }}</h2>
+      </div>
+
+      <div class="tour-body">
+        <div class="tour-stage">
+          <div class="tour-boards" id="tour-boards">
+            <button class="tour-expand" type="button" id="tour-expand"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/></svg><span class="sr-only">{{ tour.expand }}</span></button>
+            <div class="tour-board-list">
+              <div class="board active">
+                <div class="board-view">
+                  <img class="board-shot shot-servers" data-shot="servers" src="assets/game/servers.webp" alt="" width="754" height="374" loading="lazy">
+                  <i class="board-note" data-on="servers" data-box="26 102 20 128" data-side="left" data-at="60">{{ tour.servers.flags }}</i>
+                  <i class="board-note" data-on="servers" data-box="442 82 85 148" data-side="above" data-at="32">{{ tour.servers.mode }}</i>
+                  <i class="board-note" data-on="servers" data-box="8 240 430 85" data-side="below" data-at="414">{{ tour.servers.filters }}</i>
+                </div>
+              </div>
+              <div class="board">
+                <div class="board-view">
+                  <img class="board-shape shot-ring" src="assets/game/radar.webp" alt="" width="235" height="235" loading="lazy">
+                  <span class="board-caption caption-ring">{{ tour.radar.in_game }}</span>
+                  <span class="board-key key-tab"><kbd>TAB</kbd><svg viewBox="0 0 30 14" aria-hidden="true"><path d="M0 7h27M21 1l6 6-6 6"/></svg></span>
+                  <img class="board-shot shot-map" src="assets/game/radar-full.webp" alt="" width="279" height="279" loading="lazy">
+                  <span class="board-caption caption-map">{{ tour.radar.whole_map }}</span>
+                </div>
+              </div>
+              <div class="board">
+                <div class="board-chips"><button type="button" aria-pressed="true" data-frame="status">{{ tour.discord.status }}</button><button type="button" aria-pressed="false" data-frame="ask">{{ tour.discord.ask }}</button><button type="button" aria-pressed="false" data-frame="invite">{{ tour.discord.invite }}</button></div>
+                <div class="board-view">
+                  <div class="board-frame" data-frame="status">
+                    <img class="board-shape shot-status" data-shot="status" src="assets/game/discord-status.webp" alt="" width="452" height="236" loading="lazy">
+                    <i class="board-note" data-on="status" data-box="135 134 199 33" data-side="right" data-at="640">{{ tour.discord.server_players }}</i>
+                    <i class="board-note" data-on="status" data-box="135 177 111 32" data-side="right" data-at="640">{{ tour.discord.join }}</i>
+                  </div>
+                  <div class="board-frame" data-frame="ask" hidden>
+                    <img class="board-shape shot-ask" data-shot="ask" src="assets/game/discord-ask.webp" alt="" width="343" height="311" loading="lazy">
+                    <i class="board-note" data-on="ask" data-box="88 283 241 11" data-side="right" data-at="604">{{ tour.discord.asks_in }}</i>
+                  </div>
+                  <div class="board-frame" data-frame="invite" hidden>
+                    <img class="board-shape shot-invite" data-shot="invite" src="assets/game/discord-invite.webp" alt="" width="343" height="325" loading="lazy">
+                    <i class="board-note" data-on="invite" data-box="89 258 190 13" data-side="right" data-at="612">{{ tour.discord.where }}</i>
+                    <i class="board-note" data-on="invite" data-box="89 297 181 16" data-side="right" data-at="612">{{ tour.discord.how_many }}</i>
+                  </div>
+                </div>
+              </div>
+              <div class="board">
+                <div class="board-view">
+                  <img class="board-shot shot-killfeed" src="assets/game/killfeed-full.webp" alt="" width="488" height="95" loading="lazy">
+                  <ul class="board-icons icons-killfeed">
+                    <li><img src="assets/game/rarity-domination.webp" alt="" width="48" height="48" loading="lazy">{{ tour.killfeed.domination }}</li>
+                    <li><img src="assets/game/rarity-air.webp" alt="" width="48" height="48" loading="lazy">{{ tour.killfeed.air }}</li>
+                    <li><img src="assets/game/rarity-revenge.webp" alt="" width="48" height="48" loading="lazy">{{ tour.killfeed.revenge }}</li>
+                    <li><img src="assets/game/rarity-noscope.webp" alt="" width="48" height="48" loading="lazy">{{ tour.killfeed.noscope }}</li>
+                    <li><img src="assets/game/rarity-blind.webp" alt="" width="48" height="48" loading="lazy">{{ tour.killfeed.blind }}</li>
+                    <li><img src="assets/game/rarity-smoke.webp" alt="" width="48" height="48" loading="lazy">{{ tour.killfeed.smoke }}</li>
+                    <li><b>+</b>{{ tour.killfeed.assist }}</li>
+                    <li><img src="assets/game/rarity-wall.webp" alt="" width="48" height="48" loading="lazy">{{ tour.killfeed.wall }}</li>
+                    <li><img src="assets/game/rarity-flash.webp" alt="" width="48" height="48" loading="lazy">{{ tour.killfeed.flash }}</li>
+                    <li><img src="assets/game/rarity-headshot.webp" alt="" width="48" height="48" loading="lazy">{{ tour.killfeed.headshot }}</li>
+                  </ul>
+                </div>
+              </div>
+              <div class="board">
+                <div class="board-chips"><button type="button" aria-pressed="true" data-frame="game">{{ tour.tuning.game }}</button><button type="button" aria-pressed="false" data-frame="share">{{ tour.tuning.share }}</button><button type="button" aria-pressed="false" data-frame="radar">{{ tour.tuning.radar }}</button></div>
+                <div class="board-view">
+                  <div class="board-frame" data-frame="game">
+                    <img class="board-shot shot-options" data-shot="options" src="assets/game/options.webp" alt="" width="599" height="466" loading="lazy">
+                    <i class="board-note" data-on="options" data-box="114 61 287 157" data-side="inside">{{ tour.tuning.preview }}</i>
+                    <i class="board-note" data-on="options" data-box="409 96 150 89" data-side="right" data-at="666">{{ tour.tuning.presets }}</i>
+                    <i class="board-note" data-on="options" data-box="107 398 81 24" data-side="right" data-at="322">{{ tour.tuning.share }}</i>
+                  </div>
+                  <div class="board-frame" data-frame="share" hidden>
+                    <img class="board-shot shot-share" data-shot="share" src="assets/game/share.webp" alt="" width="420" height="330" loading="lazy">
+                    <i class="board-note" data-on="share" data-box="12 58 268 24" data-side="left" data-at="170">{{ tour.tuning.your_code }}</i>
+                    <i class="board-note" data-on="share" data-box="12 122 396 24" data-side="left" data-at="170">{{ tour.tuning.friend_code }}</i>
+                    <i class="board-note" data-on="share" data-box="18 155 275 64" data-side="left" data-at="170">{{ tour.tuning.what_to_load }}</i>
+                  </div>
+                  <div class="board-frame" data-frame="radar" hidden>
+                    <img class="board-shot shot-radar" data-shot="radar" src="assets/game/radar-settings.webp" alt="" width="380" height="496" loading="lazy">
+                    <i class="board-note" data-on="radar" data-box="206 192 172 15" data-side="right" data-at="393">{{ tour.tuning.map_on_tab }}</i>
+                    <i class="board-note" data-on="radar" data-box="26 296 277 15" data-side="right" data-at="393">{{ tour.tuning.clear_radar }}</i>
+                    <i class="board-note" data-on="radar" data-box="26 356 298 40" data-side="right" data-at="393">{{ tour.tuning.names }}</i>
+                    <img class="board-shape shot-ring-small" src="assets/game/radar.webp" alt="" width="235" height="235" loading="lazy">
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <span class="tour-progress" aria-hidden="true"><span id="tour-progress"></span></span>
+        </div>
+        <div class="tour-steps">
+          <article class="tour-step active" data-step="0">
+            <span class="tour-index">01</span>
+            <h3>{{ tour.servers.title }}</h3>
+            <p>{{ tour.servers.text }}</p>
+          </article>
+          <article class="tour-step" data-step="1">
+            <span class="tour-index">02</span>
+            <h3>{{ tour.radar.title }}</h3>
+            <p>{{ tour.radar.text }}</p>
+          </article>
+          <article class="tour-step" data-step="2">
+            <span class="tour-index">03</span>
+            <h3>Discord</h3>
+            <p>{{ tour.discord.text }}</p>
+          </article>
+          <article class="tour-step" data-step="3">
+            <span class="tour-index">04</span>
+            <h3>{{ tour.killfeed.title }}</h3>
+            <p>{{ tour.killfeed.text }}</p>
+          </article>
+          <article class="tour-step" data-step="4">
+            <span class="tour-index">05</span>
+            <h3>{{ tour.tuning.title }}</h3>
+            <p>{{ tour.tuning.text }}</p>
+          </article>
+        </div>
+      </div>
+    </section>

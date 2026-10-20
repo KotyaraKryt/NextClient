@@ -1,0 +1,251 @@
+# Every text of the page, in Russian and in English, next to each other. A key here is {{ key }} in
+# src/page.html and src/parts/; tools/build.py puts both languages into index.html.
+# Texts may hold markup; '''…''' takes quotes and apostrophes as they are.
+
+[nav]
+tour.ru = '''Обзор'''
+tour.en = '''Tour'''
+features.ru = '''Возможности'''
+features.en = '''Features'''
+install.ru = '''Установка'''
+install.en = '''Install'''
+changelog.ru = '''Изменения'''
+changelog.en = '''Changelog'''
+download.ru = '''Скачать'''
+download.en = '''Download'''
+
+[hero]
+title.ru = '''Доработанный клиент <em>CS&nbsp;1.6</em>'''
+title.en = '''An improved <em>CS&nbsp;1.6</em> client'''
+lead.ru = '''Ставится в копию Steam-версии игры на Windows и Linux. Добавляет радар с картой уровня, защиту от вредных команд сервера, статус в Discord, быстрые загрузки и настройку модели оружия, а движок остаётся оригинальным.'''
+lead.en = '''It goes into a copy of the Steam version of the game, on Windows and Linux, and adds a radar with the level map, protection from harmful server commands, a Discord status, fast downloads and weapon model tuning, while the engine stays the original.'''
+download.ru = '''Скачать бесплатно'''
+download.en = '''Download for free'''
+latest.ru = '''последняя версия'''
+latest.en = '''latest version'''
+see.ru = '''Как это выглядит'''
+see.en = '''See it in the game'''
+no_signup.ru = '''Без регистрации'''
+no_signup.en = '''No sign-up'''
+
+[tour]
+title.ru = '''Как это выглядит в игре'''
+title.en = '''How it looks in the game'''
+expand.ru = '''Развернуть'''
+expand.en = '''Expand'''
+
+[tour.servers]
+title.ru = '''Браузер серверов'''
+title.en = '''Server browser'''
+text.ru = '''Флаги стран, режимы игры и фильтры, которые сразу показывают, сколько серверов останется. Избранное и история под рукой, мастер-сервер можно сменить.'''
+text.en = '''Country flags, game modes and filters that show at once how many servers will be left. Favorites and history at hand, and the master server can be changed.'''
+flags.ru = '''Флаги'''
+flags.en = '''Flags'''
+mode.ru = '''Режим'''
+mode.en = '''Mode'''
+filters.ru = '''Фильтры'''
+filters.en = '''Filters'''
+
+[tour.radar]
+title.ru = '''Радар'''
+title.en = '''Radar'''
+text.ru = '''Карта уровня строится сама, плоская или с текстурами, а слой выбирается по высоте, на которой вы стоите. Ники, здоровье союзников (если его передаёт сервер), следы движения и цели, а при открытой таблице счёта видна вся карта.'''
+text.en = '''The level map builds itself, flat or textured, and the layer follows the height you stand at. Names, teammates' health (when the server sends it), movement trails and objectives, and the whole map while the scoreboard is open.'''
+in_game.ru = '''В игре'''
+in_game.en = '''In game'''
+whole_map.ru = '''Вся карта'''
+whole_map.en = '''Whole map'''
+
+[tour.discord]
+text.ru = '''В статусе Discord видно, на каком сервере вы играете и сколько там игроков, а ещё когда вы подключаетесь или смотрите демо. Друзья заходят к вам через Discord, даже если игра у них ещё не запущена. Статус, имя сервера и вход к вам выключаются кварами <code>cl_discordrpc</code>, <code>cl_discordrpc_server</code> и <code>cl_discordrpc_join</code>.'''
+text.en = '''Your Discord status shows the server you play on and how many are there, and when you're connecting or watching a demo. Friends join you through Discord, even when their game isn't running yet. The status, the server's name and joining you turn off with <code>cl_discordrpc</code>, <code>cl_discordrpc_server</code> and <code>cl_discordrpc_join</code>.'''
+status.ru = '''Статус'''
+status.en = '''Status'''
+ask.ru = '''Запрос'''
+ask.en = '''Request'''
+invite.ru = '''Приглашение'''
+invite.en = '''Invite'''
+server_players.ru = '''Сервер и игроки'''
+server_players.en = '''Server, players'''
+join.ru = '''Зайти к вам'''
+join.en = '''Join you'''
+asks_in.ru = '''Друг просится к вам'''
+asks_in.en = '''A friend asks in'''
+where.ru = '''Куда зовут'''
+where.en = '''Where to join'''
+how_many.ru = '''Сколько уже играет'''
+how_many.en = '''How many play'''
+
+[tour.killfeed]
+title.ru = '''Расширенный килфид'''
+title.en = '''Extended killfeed'''
+text.ru = '''Видно, как именно убили: через стену, через дым, без прицела, в прыжке, вслепую, с помощью напарника. Работает на серверах с ReGameDLL 5.26 и новее, если там не выключен <code>mp_deathmsg_flags</code>.'''
+text.en = '''See how exactly a kill happened: through a wall, through smoke, without scoping, in the air, while blinded, with a teammate's assist. Works on servers with ReGameDLL 5.26 or later, unless they turn <code>mp_deathmsg_flags</code> off.'''
+domination.ru = '''Доминирование'''
+domination.en = '''Domination'''
+air.ru = '''Убийца в прыжке'''
+air.en = '''Killer in the air'''
+revenge.ru = '''Месть'''
+revenge.en = '''Revenge'''
+noscope.ru = '''Без прицела'''
+noscope.en = '''No scope'''
+blind.ru = '''Убийца был ослеплён'''
+blind.en = '''Killer was blind'''
+smoke.ru = '''Через дым'''
+smoke.en = '''Through smoke'''
+assist.ru = '''Помощь напарника'''
+assist.en = '''A teammate's assist'''
+wall.ru = '''Через стену'''
+wall.en = '''Through a wall'''
+flash.ru = '''Напарник ослепил флешкой'''
+flash.en = '''Flash assist'''
+headshot.ru = '''В голову'''
+headshot.en = '''Headshot'''
+
+[tour.tuning]
+title.ru = '''Тонкая настройка'''
+title.en = '''Fine tuning'''
+text.ru = '''Модель оружия, боббинг, инерция и камера настраиваются по отдельности: смещение и FOV модели, стиль покачивания с живым превью, пресеты от классики до CS:GO для быстрого старта, а своими настройками можно поделиться одним кодом. Многое здесь взято из <a href="https://github.com/mikkokko/csldr" target="_blank" rel="noopener">csldr</a>.'''
+text.en = '''The weapon model, bobbing, inertia and camera are tuned separately: model offset and FOV, a bob style with a live preview, presets from classic to CS:GO for a quick start, and a single code to share your settings. Much of it comes from <a href="https://github.com/mikkokko/csldr" target="_blank" rel="noopener">csldr</a>.'''
+game.ru = '''Игра'''
+game.en = '''Game'''
+share.ru = '''Поделиться'''
+share.en = '''Share'''
+radar.ru = '''Радар'''
+radar.en = '''Radar'''
+preview.ru = '''Живое превью'''
+preview.en = '''Live preview'''
+presets.ru = '''Пресеты'''
+presets.en = '''Presets'''
+your_code.ru = '''Ваш код'''
+your_code.en = '''Your code'''
+friend_code.ru = '''Код друга'''
+friend_code.en = '''A friend's code'''
+what_to_load.ru = '''Что загрузить'''
+what_to_load.en = '''What to load'''
+map_on_tab.ru = '''Вся карта по TAB'''
+map_on_tab.en = '''Whole map on TAB'''
+clear_radar.ru = '''Таблица не закрывает радар'''
+clear_radar.en = '''Scoreboard clears the radar'''
+names.ru = '''Ники, здоровье, следы'''
+names.en = '''Names, health, trails'''
+
+[extras]
+title.ru = '''Ещё в NextClient'''
+title.en = '''Also in NextClient'''
+
+[extras.protector]
+title.ru = '''Протектор'''
+title.en = '''Protector'''
+text.ru = '''Не даёт серверу выполнить на клиенте вредные команды и испортить конфиг.'''
+text.en = '''Stops servers from running harmful commands on the client and breaking its config.'''
+
+[extras.downloads]
+title.ru = '''Быстрые загрузки'''
+title.en = '''Fast downloads'''
+text.ru = '''При входе на сервер видно, сколько файлов осталось, их размер и скорость. FastDL не открывает новое соединение на каждый файл.'''
+text.en = '''On connect you see how many files are left, their size and the speed. FastDL doesn't open a new connection for every file.'''
+
+[extras.screen]
+title.ru = '''Экран и прицел'''
+title.en = '''Screen and crosshair'''
+text.ru = '''Правильный FOV на 16:9 и отдельный FOV для модели оружия. Новые прицелы: точка, T-образный и круг.'''
+text.en = '''The proper FOV on 16:9 and a separate FOV for the weapon model. New crosshairs: a dot, a T shape and a circle.'''
+
+[extras.interface]
+title.ru = '''Интерфейс'''
+title.en = '''Interface'''
+text.ru = '''Две схемы оформления, свои добавляются рядом со старыми. HTML-интерфейс на Windows, цветной чат в консоли.'''
+text.en = '''Two GUI schemes, and your own sit next to the old ones. An HTML interface on Windows, colored chat in the console.'''
+
+[extras.servers]
+title.ru = '''Для серверов'''
+title.en = '''For servers'''
+text.ru = '''API для AMX Mod X: песочница кваров, спрайты на экране, настройка килфида, проверка клиента и HWID, платформа игрока, здоровье больше 255.'''
+text.en = '''An AMX Mod X API: a cvar sandbox, on-screen sprites, killfeed customization, client verification and HWID, the player's platform, health above 255.'''
+
+[install]
+title.ru = '''Установка'''
+title.en = '''Installation'''
+warning.ru = '''Никогда не кладите файлы NextClient в папку игры внутри Steam: это приведёт к VAC-бану. Пиратские сборки не поддерживаются.'''
+warning.en = '''Never put the NextClient files into the game folder inside Steam: it leads to a VAC ban. Pirated copies are not supported.'''
+
+[install.windows]
+beta.ru = '''В Steam переключите CS&nbsp;1.6 на бету <b>steam_legacy</b>: NextClient работает с движком 8684.'''
+beta.en = '''In Steam, switch CS&nbsp;1.6 to the <b>steam_legacy</b> beta: NextClient works with engine 8684.'''
+copy.ru = '''Скопируйте папку Half-Life куда-нибудь вне папки Steam.'''
+copy.en = '''Copy the Half-Life folder somewhere outside the Steam folder.'''
+unpack.ru = '''Распакуйте в эту копию архив NextClient.'''
+unpack.en = '''Unpack the NextClient archive into that copy.'''
+start.ru = '''Запустите Steam, затем <code>cstrike.exe</code> из копии.'''
+start.en = '''Start Steam, then <code>cstrike.exe</code> from the copy.'''
+
+[install.linux]
+beta.ru = '''В Steam переключите CS&nbsp;1.6 на бету <b>steam_legacy</b> и установите Linux-версию игры.'''
+beta.en = '''In Steam, switch CS&nbsp;1.6 to the <b>steam_legacy</b> beta and install the Linux version of the game.'''
+libraries.ru = '''Нужны 32-битный glibc 2.43 или новее и 32-битные библиотеки C++, на Ubuntu так:'''
+libraries.en = '''You need 32-bit glibc 2.43 or later and the 32-bit C++ libraries, on Ubuntu like this:'''
+copy.ru = '''Скопируйте папку Half-Life вне папки Steam и распакуйте в копию архив NextClient с заменой файлов.'''
+copy.en = '''Copy the Half-Life folder outside the Steam folder and unpack the NextClient archive into the copy, replacing files.'''
+start.ru = '''Запустите Steam, затем в папке копии:'''
+start.en = '''Start Steam, then in the copy's folder:'''
+
+[faq]
+title.ru = '''Частые вопросы'''
+title.en = '''FAQ'''
+
+[faq.vac]
+question.ru = '''Не будет ли VAC-бана?'''
+question.en = '''Will I get a VAC ban?'''
+answer.ru = '''Играйте из копии игры вне папки Steam, как в разделе <a href="#install">Установка</a>. Класть файлы NextClient в папку игры внутри Steam нельзя: именно это приводит к VAC-бану.'''
+answer.en = '''Play from a copy of the game outside the Steam folder, as in <a href="#install">Installation</a>. Never put the NextClient files into the game folder inside Steam: that is what leads to a VAC ban.'''
+
+[faq.pirated]
+question.ru = '''Работает ли на пиратской версии?'''
+question.en = '''Does it work with a pirated copy?'''
+answer.ru = '''Нет. Нужна купленная CS&nbsp;1.6 в Steam на бете <b>steam_legacy</b> и запущенный Steam. Эмулятора Steam в NextClient нет.'''
+answer.en = '''No. You need a purchased CS&nbsp;1.6 on Steam on the <b>steam_legacy</b> beta, with Steam running. NextClient has no Steam emulator.'''
+
+[faq.antivirus]
+question.ru = '''Почему антивирус ругается?'''
+question.en = '''Why does my antivirus complain?'''
+answer.ru = '''NextClient перехватывает функции движка прямо в памяти, и некоторые антивирусы по эвристике принимают это за вредоносное поведение. С версии 2.5.1 официальные сборки собирает GitHub Actions из исходников этого репозитория и подписывает их происхождение. Проверить архив можно командой <code>gh attestation verify NextClient-&lt;версия&gt;.zip -R CS-NextClient/NextClient</code> или сверив его SHA-256 со страницей релиза. Как сообщить о ложном срабатывании, описано <a href="https://github.com/CS-NextClient/NextClient/blob/main/docs/reporting-av-false-positives.md" target="_blank" rel="noopener">здесь</a>.'''
+answer.en = '''NextClient detours engine functions in memory, and some antivirus engines take that for malicious behavior by heuristics. Since 2.5.1, official builds are made by GitHub Actions from the source code of this repository and carry a signed provenance attestation. You can check an archive with <code>gh attestation verify NextClient-&lt;version&gt;.zip -R CS-NextClient/NextClient</code> or by comparing its SHA-256 with the release page. How to report a false positive is described <a href="https://github.com/CS-NextClient/NextClient/blob/main/docs/reporting-av-false-positives.md" target="_blank" rel="noopener">here</a>.'''
+
+[faq.linux]
+question.ru = '''Есть ли версия для Linux?'''
+question.en = '''Is there a Linux version?'''
+answer.ru = '''Да, начиная с 2.6.0. Это родная сборка, она запускается через Steam Runtime скриптом <code>nextclient.sh</code> и работает с обычной и Snap-версией Steam. Нужны 32-битные glibc 2.43 или новее, библиотеки C++ и SDL2, а для расширенного радара — OpenGL 2.1 с поддержкой FBO. Кнопка «Скачать» сама предложит её, если вы зашли с Linux. HTML-интерфейс на CEF пока есть только на Windows.'''
+answer.en = '''Yes, since 2.6.0. It's a native build that runs through the Steam Runtime with the <code>nextclient.sh</code> script and works with the regular and the Snap Steam. It needs 32-bit glibc 2.43 or later, the C++ libraries and SDL2, and OpenGL 2.1 with framebuffer objects for the advanced radar. The Download button offers it by itself when you visit from Linux. The CEF-based HTML interface is Windows only for now.'''
+
+[faq.back]
+question.ru = '''Как вернуться к обычной CS?'''
+question.en = '''How do I go back to the regular CS?'''
+answer.ru = '''NextClient живёт в отдельной копии игры, а версия в Steam остаётся нетронутой: просто запустите игру из Steam. Чтобы удалить NextClient, удалите папку с копией.'''
+answer.en = '''NextClient lives in a separate copy of the game and the Steam one stays untouched: just start the game from Steam. To remove NextClient, delete the folder with the copy.'''
+
+[faq.server]
+question.ru = '''Нужно ли что-то ставить на сервер?'''
+question.en = '''Does the server need anything?'''
+answer.ru = '''Нет, NextClient играет на любых серверах. Модуль <a href="https://github.com/CS-NextClient/NextClientServerApi" target="_blank" rel="noopener">NextClientServerApi</a> нужен, только если сервер хочет пользоваться возможностями NextClient: песочницей кваров, спрайтами, килфидом и остальным.'''
+answer.en = '''No, NextClient plays on any server. The <a href="https://github.com/CS-NextClient/NextClientServerApi" target="_blank" rel="noopener">NextClientServerApi</a> module is only for servers that want NextClient's features: the cvar sandbox, sprites, the killfeed and the rest.'''
+
+[faq.master]
+question.ru = '''Как сменить мастер-сервер?'''
+question.en = '''How do I change the master server?'''
+answer.ru = '''В файле <code>platform/config/MasterServer.vdf</code>: <code>Selected</code> — номер сервера из списка <code>Servers</code>, считая с нуля. По умолчанию это <a href="https://tsarvar.com" target="_blank" rel="noopener">tsarvar.com</a>.'''
+answer.en = '''In <code>platform/config/MasterServer.vdf</code>: <code>Selected</code> is the number of a server from the <code>Servers</code> list, counting from zero. The default is <a href="https://tsarvar.com" target="_blank" rel="noopener">tsarvar.com</a>.'''
+
+[changelog]
+title.ru = '''Изменения'''
+title.en = '''Changelog'''
+more.ru = '''Показать все версии'''
+more.en = '''Show all versions'''
+
+[footer]
+releases.ru = '''Релизы'''
+releases.en = '''Releases'''
+report.ru = '''Сообщить об ошибке'''
+report.en = '''Report a bug'''
+disclaimer.ru = '''Не связан с Valve. Counter-Strike — товарный знак Valve Corporation.'''
+disclaimer.en = '''Not affiliated with Valve. Counter-Strike is a trademark of Valve Corporation.'''

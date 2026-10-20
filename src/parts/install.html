@@ -1,0 +1,30 @@
+    <section class="section" id="install">
+      <div class="section-head">
+        <h2>{{ install.title }}</h2>
+      </div>
+
+      <div class="os-tabs" role="tablist">
+        <button type="button" role="tab" id="os-tab-windows" data-os="windows" aria-controls="steps-windows" aria-selected="true">Windows</button>
+        <button type="button" role="tab" id="os-tab-linux" data-os="linux" aria-controls="steps-linux" aria-selected="false">Linux</button>
+      </div>
+      <div id="steps-windows" role="tabpanel" aria-labelledby="os-tab-windows">
+        <ol class="steps">
+          <li>{{ install.windows.beta }}</li>
+          <li>{{ install.windows.copy }}</li>
+          <li>{{ install.windows.unpack }}</li>
+          <li>{{ install.windows.start }}</li>
+        </ol>
+      </div>
+      <div id="steps-linux" role="tabpanel" aria-labelledby="os-tab-linux" hidden>
+        <ol class="steps">
+          <li>{{ install.linux.beta }}</li>
+          <li>{{ install.linux.libraries }} <code>sudo dpkg --add-architecture i386 &amp;&amp; sudo apt update &amp;&amp; sudo apt install libstdc++6:i386 libgcc-s1:i386</code></li>
+          <li>{{ install.linux.copy }}</li>
+          <li>{{ install.linux.start }} <code>chmod +x nextclient.sh cstrike.exe &amp;&amp; ./nextclient.sh</code></li>
+        </ol>
+      </div>
+      <div class="warning">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2 20h20L12 3Z"/><path d="M12 10v4M12 17h.01"/></svg>
+        <p>{{ install.warning }}</p>
+      </div>
+    </section>

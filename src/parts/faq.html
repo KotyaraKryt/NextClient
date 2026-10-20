@@ -1,0 +1,51 @@
+    <section class="section" id="faq">
+      <div class="section-head">
+        <h2>{{ faq.title }}</h2>
+      </div>
+
+      <div class="faq">
+        <details class="faq-item" id="faq-vac">
+          <summary>{{ faq.vac.question }}</summary>
+          <div class="faq-answer">
+            <p>{{ faq.vac.answer }}</p>
+          </div>
+        </details>
+        <details class="faq-item" id="faq-pirated">
+          <summary>{{ faq.pirated.question }}</summary>
+          <div class="faq-answer">
+            <p>{{ faq.pirated.answer }}</p>
+          </div>
+        </details>
+        <details class="faq-item" id="faq-antivirus">
+          <summary>{{ faq.antivirus.question }}</summary>
+          <div class="faq-answer">
+            <p>{{ faq.antivirus.answer }}</p>
+            <p class="checksum" id="checksum" hidden><span>SHA-256</span> <span id="checksum-file"></span> <button type="button" id="checksum-copy"></button></p>
+          </div>
+        </details>
+        <details class="faq-item" id="faq-linux">
+          <summary>{{ faq.linux.question }}</summary>
+          <div class="faq-answer">
+            <p>{{ faq.linux.answer }}</p>
+          </div>
+        </details>
+        <details class="faq-item" id="faq-back">
+          <summary>{{ faq.back.question }}</summary>
+          <div class="faq-answer">
+            <p>{{ faq.back.answer }}</p>
+          </div>
+        </details>
+        <details class="faq-item" id="faq-server">
+          <summary>{{ faq.server.question }}</summary>
+          <div class="faq-answer">
+            <p>{{ faq.server.answer }}</p>
+          </div>
+        </details>
+        <details class="faq-item" id="faq-master">
+          <summary>{{ faq.master.question }}</summary>
+          <div class="faq-answer">
+            <p>{{ faq.master.answer }}</p>
+          </div>
+        </details>
+      </div>
+    </section>
