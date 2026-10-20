@@ -25,16 +25,33 @@
       // or a CIS time zone, where an English browser still usually means a Russian-speaking player
       if (lang !== 'ru' && lang !== 'en') {
         var languages = navigator.languages && navigator.languages.length ? navigator.languages : [navigator.language || ''];
-        var zone = '';
-        try { zone = Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch (e) {}
         var speaks = languages.some(function (l) { return /^(ru|uk|be|kk)\b/i.test(l); });
+        // the first Intl call loads the time zone data and holds the page up on a phone,
+        // so it is made only when the languages do not settle it
+        var zone = '';
+        if (!speaks) {
+          try { zone = Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch (e) {}
+        }
         var cis = /^(Europe\/(Moscow|Kaliningrad|Samara|Ulyanovsk|Saratov|Volgograd|Astrakhan|Kirov|Simferopol|Kiev|Kyiv|Minsk|Chisinau)|Asia\/(Yekaterinburg|Omsk|Novosibirsk|Barnaul|Tomsk|Novokuznetsk|Krasnoyarsk|Irkutsk|Chita|Yakutsk|Khandyga|Vladivostok|Ust-Nera|Magadan|Sakhalin|Srednekolymsk|Kamchatka|Anadyr|Almaty|Qostanay|Qyzylorda|Aqtobe|Aqtau|Atyrau|Oral|Bishkek|Tashkent|Samarkand|Dushanbe|Ashgabat|Baku|Yerevan|Tbilisi))$/.test(zone);
         lang = speaks || cis ? 'ru' : 'en';
       }
       document.documentElement.setAttribute('data-lang', lang);
       document.documentElement.lang = lang;
+      // the Cyrillic Inter is of use only to the Russian page, so only that page preloads it
+      if (lang === 'ru') {
+        var font = document.createElement('link');
+        font.rel = 'preload';
+        font.as = 'font';
+        font.type = 'font/woff2';
+        font.crossOrigin = '';
+        font.href = 'assets/fonts/inter-cyrillic.woff2';
+        document.head.appendChild(font);
+      }
     })();
   </script>
+  <link rel="preload" href="assets/fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="assets/fonts/jetbrains-mono-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preconnect" href="https://api.github.com" crossorigin>
 </head>
 <body>
   <svg class="symbols" aria-hidden="true">
@@ -57,7 +74,7 @@
     </nav>
     <div class="actions">
       <a class="btn btn-primary btn-small header-cta" data-download href="https://github.com/CS-NextClient/NextClient/releases/latest"><span lang="ru">Скачать</span><span lang="en">Download</span></a>
-      <button class="lang-switch" type="button" id="lang-switch" aria-label="Switch language"><span lang="ru">EN</span><span lang="en">RU</span></button>
+      <button class="lang-switch" type="button" id="lang-switch"><span lang="ru">EN</span><span lang="en">RU</span></button>
       <a class="icon-link" href="https://github.com/CS-NextClient/NextClient" target="_blank" rel="noopener" aria-label="GitHub">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.71.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.56-.29-5.25-1.28-5.25-5.69 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.84 1.19 3.1 0 4.42-2.7 5.39-5.27 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5Z"/></svg>
       </a>
@@ -403,18 +420,22 @@
         <button type="button" role="tab" id="os-tab-windows" data-os="windows" aria-controls="steps-windows" aria-selected="true">Windows</button>
         <button type="button" role="tab" id="os-tab-linux" data-os="linux" aria-controls="steps-linux" aria-selected="false">Linux</button>
       </div>
-      <ol class="steps" id="steps-windows" role="tabpanel" aria-labelledby="os-tab-windows">
-        <li><span lang="ru">В Steam переключите CS&nbsp;1.6 на бету <b>steam_legacy</b>: NextClient работает с движком 8684.</span><span lang="en">In Steam, switch CS&nbsp;1.6 to the <b>steam_legacy</b> beta: NextClient works with engine 8684.</span></li>
-        <li><span lang="ru">Скопируйте папку Half-Life куда-нибудь вне папки Steam.</span><span lang="en">Copy the Half-Life folder somewhere outside the Steam folder.</span></li>
-        <li><span lang="ru">Распакуйте в эту копию архив NextClient.</span><span lang="en">Unpack the NextClient archive into that copy.</span></li>
-        <li><span lang="ru">Запустите Steam, затем <code>cstrike.exe</code> из копии.</span><span lang="en">Start Steam, then <code>cstrike.exe</code> from the copy.</span></li>
-      </ol>
-      <ol class="steps" id="steps-linux" role="tabpanel" aria-labelledby="os-tab-linux" hidden>
-        <li><span lang="ru">В Steam переключите CS&nbsp;1.6 на бету <b>steam_legacy</b> и установите Linux-версию игры.</span><span lang="en">In Steam, switch CS&nbsp;1.6 to the <b>steam_legacy</b> beta and install the Linux version of the game.</span></li>
-        <li><span lang="ru">Нужны 32-битный glibc 2.43 или новее и 32-битные библиотеки C++, на Ubuntu так:</span><span lang="en">You need 32-bit glibc 2.43 or later and the 32-bit C++ libraries, on Ubuntu like this:</span> <code>sudo dpkg --add-architecture i386 &amp;&amp; sudo apt update &amp;&amp; sudo apt install libstdc++6:i386 libgcc-s1:i386</code></li>
-        <li><span lang="ru">Скопируйте папку Half-Life вне папки Steam и распакуйте в копию архив NextClient с заменой файлов.</span><span lang="en">Copy the Half-Life folder outside the Steam folder and unpack the NextClient archive into the copy, replacing files.</span></li>
-        <li><span lang="ru">Запустите Steam, затем в папке копии:</span><span lang="en">Start Steam, then in the copy's folder:</span> <code>chmod +x nextclient.sh cstrike.exe &amp;&amp; ./nextclient.sh</code></li>
-      </ol>
+      <div id="steps-windows" role="tabpanel" aria-labelledby="os-tab-windows">
+        <ol class="steps">
+          <li><span lang="ru">В Steam переключите CS&nbsp;1.6 на бету <b>steam_legacy</b>: NextClient работает с движком 8684.</span><span lang="en">In Steam, switch CS&nbsp;1.6 to the <b>steam_legacy</b> beta: NextClient works with engine 8684.</span></li>
+          <li><span lang="ru">Скопируйте папку Half-Life куда-нибудь вне папки Steam.</span><span lang="en">Copy the Half-Life folder somewhere outside the Steam folder.</span></li>
+          <li><span lang="ru">Распакуйте в эту копию архив NextClient.</span><span lang="en">Unpack the NextClient archive into that copy.</span></li>
+          <li><span lang="ru">Запустите Steam, затем <code>cstrike.exe</code> из копии.</span><span lang="en">Start Steam, then <code>cstrike.exe</code> from the copy.</span></li>
+        </ol>
+      </div>
+      <div id="steps-linux" role="tabpanel" aria-labelledby="os-tab-linux" hidden>
+        <ol class="steps">
+          <li><span lang="ru">В Steam переключите CS&nbsp;1.6 на бету <b>steam_legacy</b> и установите Linux-версию игры.</span><span lang="en">In Steam, switch CS&nbsp;1.6 to the <b>steam_legacy</b> beta and install the Linux version of the game.</span></li>
+          <li><span lang="ru">Нужны 32-битный glibc 2.43 или новее и 32-битные библиотеки C++, на Ubuntu так:</span><span lang="en">You need 32-bit glibc 2.43 or later and the 32-bit C++ libraries, on Ubuntu like this:</span> <code>sudo dpkg --add-architecture i386 &amp;&amp; sudo apt update &amp;&amp; sudo apt install libstdc++6:i386 libgcc-s1:i386</code></li>
+          <li><span lang="ru">Скопируйте папку Half-Life вне папки Steam и распакуйте в копию архив NextClient с заменой файлов.</span><span lang="en">Copy the Half-Life folder outside the Steam folder and unpack the NextClient archive into the copy, replacing files.</span></li>
+          <li><span lang="ru">Запустите Steam, затем в папке копии:</span><span lang="en">Start Steam, then in the copy's folder:</span> <code>chmod +x nextclient.sh cstrike.exe &amp;&amp; ./nextclient.sh</code></li>
+        </ol>
+      </div>
       <div class="warning">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2 20h20L12 3Z"/><path d="M12 10v4M12 17h.01"/></svg>
         <p><span lang="ru">Никогда не кладите файлы NextClient в папку игры внутри Steam: это приведёт к VAC-бану. Пиратские сборки не поддерживаются.</span><span lang="en">Never put the NextClient files into the game folder inside Steam: it leads to a VAC ban. Pirated copies are not supported.</span></p>

@@ -48,7 +48,7 @@
   --blue-hover: #c1e0ff;
   --green: #1c7a43;
   --red: #b4372f;
-  --amber: #b26a00;
+  --amber: #a05f00;
   --amber-soft: #fff6e6;
   --mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Consolas, monospace;
   --shadow: 0 1px 2px rgba(11, 13, 16, 0.04), 0 10px 30px rgba(11, 13, 16, 0.07);
@@ -523,6 +523,7 @@ h1 em {
 }
 
 .proof .live {
+  position: relative;
   display: inline-flex;
   align-items: center;
   gap: 7px;
@@ -534,16 +535,29 @@ h1 em {
   height: 8px;
   border-radius: 50%;
   background: #22a85a;
-  box-shadow: 0 0 0 0 rgba(34, 168, 90, 0.5);
+}
+
+/* the ring that spreads from the dot is scaled rather than drawn as a growing shadow,
+   so it runs on the compositor instead of repainting the line every frame */
+.proof .live::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 0;
+  z-index: -1;
+  width: 8px;
+  height: 8px;
+  margin-top: -4px;
+  border-radius: 50%;
+  background: rgba(34, 168, 90, 0.5);
   animation: pulse 2s infinite;
 }
 
 @keyframes pulse {
-  70% {
-    box-shadow: 0 0 0 8px rgba(34, 168, 90, 0);
-  }
+  70%,
   100% {
-    box-shadow: 0 0 0 0 rgba(34, 168, 90, 0);
+    opacity: 0;
+    transform: scale(3);
   }
 }
 
@@ -1132,20 +1146,26 @@ h2 {
   min-height: 62vh;
   padding: 20px 0 20px 28px;
   border-left: 2px solid var(--line);
-  opacity: 0.3;
-  transition: opacity 0.4s, border-color 0.4s;
+  /* the steps around the shown one fade back by colour, not opacity, so their text stays readable */
+  color: #858e9b;
+  transition: color 0.4s, border-color 0.4s;
 }
 
 .tour-step.active {
   border-left-color: var(--blue);
-  opacity: 1;
+  color: var(--ink);
 }
 
 .tour-index {
-  color: var(--blue);
+  color: #6b7380;
   font-family: var(--mono);
   font-size: 14px;
   font-weight: 700;
+  transition: color 0.4s;
+}
+
+.tour-step.active .tour-index {
+  color: var(--blue);
 }
 
 .tour-step h3 {
@@ -1157,8 +1177,18 @@ h2 {
 
 .tour-step p {
   margin: 0;
-  color: var(--muted);
+  color: #6b7380;
   font-size: 17px;
+  transition: color 0.4s;
+}
+
+.tour-step.active p {
+  color: var(--muted);
+}
+
+.tour-step:not(.active) code {
+  background: #eef1f5;
+  color: var(--muted);
 }
 
 .sr-only {
@@ -1430,10 +1460,6 @@ html:not(.reveal-ready) .steps::before {
   font-family: var(--mono);
   font-weight: 700;
   font-size: 14px;
-}
-
-.steps[hidden] {
-  display: none;
 }
 
 .steps code {
@@ -1711,6 +1737,17 @@ html:not(.reveal-ready) .steps::before {
   margin-bottom: 6px;
 }
 
+/* the notes' links sit in body text, where colour alone would not tell them apart */
+.release-body a {
+  text-decoration: underline;
+  text-decoration-color: rgba(20, 104, 190, 0.4);
+  text-underline-offset: 2px;
+}
+
+.release-body a:hover {
+  text-decoration-color: currentColor;
+}
+
 .release-body li::marker {
   color: var(--blue);
   font-weight: 700;
@@ -1723,15 +1760,26 @@ html:not(.reveal-ready) .steps::before {
 }
 
 .release.skeleton {
+  position: relative;
+  overflow: hidden;
   height: 160px;
   border-color: transparent;
-  background: linear-gradient(90deg, var(--bg-soft) 25%, #eef2f7 50%, var(--bg-soft) 75%) 0 0 / 200% 100%;
+  background: var(--bg-soft);
+}
+
+/* the shimmer is a band moved across, not a background shifted under it, so it stays on the compositor */
+.release.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, #eef2f7 50%, transparent);
+  transform: translateX(-100%);
   animation: shimmer 1.4s linear infinite;
 }
 
 @keyframes shimmer {
   to {
-    background-position: -200% 0;
+    transform: translateX(100%);
   }
 }
 

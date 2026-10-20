@@ -30,16 +30,26 @@
     return lang() === 'ru' ? ru : en;
   }
 
+  var langSwitch = document.getElementById('lang-switch');
+
+  // the button shows the other language's code, which is also its name for a screen reader;
+  // the title names that language in it
+  function titleLangSwitch() {
+    langSwitch.title = text('Switch to English', 'Переключить на русский');
+  }
+
   function setLang(value) {
     document.documentElement.setAttribute('data-lang', value);
     document.documentElement.lang = value;
     try { localStorage.setItem('lang', value); } catch (e) {}
+    titleLangSwitch();
     render();
   }
 
-  document.getElementById('lang-switch').addEventListener('click', function () {
+  langSwitch.addEventListener('click', function () {
     setLang(lang() === 'ru' ? 'en' : 'ru');
   });
+  titleLangSwitch();
 
   document.getElementById('more').addEventListener('click', function () {
     showAll = true;
@@ -403,7 +413,8 @@
         + '</div>'
         + '<div class="release-body">' + markdown(notesFor(release.body, lang())) + '</div>'
         + '<div class="release-foot"><a href="' + release.html_url + '" target="_blank" rel="noopener">'
-        + text('Релиз на GitHub', 'Release on GitHub') + ' →</a></div>'
+        + text('Релиз', 'Release') + '<span class="sr-only"> ' + escapeHtml(version) + '</span> '
+        + text('на GitHub', 'on GitHub') + ' →</a></div>'
         + '</article>';
     }).join('');
 
@@ -674,10 +685,13 @@
       });
     });
 
+    // the observer's first call lays the boards out once the page has a layout of its own,
+    // instead of forcing one while the script starts
     if ('ResizeObserver' in window) {
       new ResizeObserver(layout).observe(stage);
     } else {
       window.addEventListener('resize', layout);
+      layout();
     }
     // a tag's width depends on the font and on the language shown
     if (document.fonts) {
@@ -777,7 +791,6 @@
     });
 
     show(0);
-    layout();
   }
 
   // an element leans towards the pointer, like a card held in the hand
@@ -1016,5 +1029,6 @@
   initPage();
   initReveal();
   load();
-  runScroll();
+  // the handlers read the layout, so their first run waits for the first frame
+  requestScroll();
 })();
