@@ -343,6 +343,8 @@ namespace nitroapi
         SayTextLine__Colorize,
         ScrollTextUp,
         CHudVGUI2Print__GetStringSize,
+        PM_FindTextureType,
+        PM_CatagorizeTextureType,
 
         // SDL2.dll
         SDL_DestroyWindow = 1500,

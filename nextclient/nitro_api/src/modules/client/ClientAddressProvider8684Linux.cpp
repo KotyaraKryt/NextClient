@@ -68,7 +68,9 @@ namespace nitroapi
         { StaticHookId::CHudSayText__EnsureTextFitsInOneLineAndWrapIfHaveTo,SearchConfig("_ZN11CHudSayText38EnsureTextFitsInOneLineAndWrapIfHaveToEi", SearchType::ExportFunc) },
         { StaticHookId::SayTextLine__Colorize,      SearchConfig("_ZN11SayTextLine8ColorizeEv", SearchType::ExportFunc) },
         { StaticHookId::ScrollTextUp,               SearchConfig("_Z12ScrollTextUpv", SearchType::ExportFunc) },
-        { StaticHookId::CHudVGUI2Print__GetStringSize,SearchConfig("_ZN14CHudVGUI2Print13GetStringSizeEPKwPiS2_", SearchType::ExportFunc) }
+        { StaticHookId::CHudVGUI2Print__GetStringSize,SearchConfig("_ZN14CHudVGUI2Print13GetStringSizeEPKwPiS2_", SearchType::ExportFunc) },
+        { StaticHookId::PM_FindTextureType,         SearchConfig("PM_FindTextureType", SearchType::ExportFunc) },
+        { StaticHookId::PM_CatagorizeTextureType,   SearchConfig("PM_CatagorizeTextureType", SearchType::ExportFunc) }
 
     };
 

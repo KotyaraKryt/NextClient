@@ -99,6 +99,8 @@ namespace nitroapi
         RegisterFuncCdecl<StaticHookId::HUD_VoiceStatus>(&client_data_->HUD_VoiceStatus);
         RegisterFuncCdecl<StaticHookId::HUD_DirectorMessage>(&client_data_->HUD_DirectorMessage);
         RegisterFuncCdecl<StaticHookId::HUD_GetStudioModelInterface>(&client_data_->HUD_GetStudioModelInterface);
+        RegisterFuncCdecl<StaticHookId::PM_FindTextureType>(&client_data_->PM_FindTextureType);
+        RegisterFuncCdecl<StaticHookId::PM_CatagorizeTextureType>(&client_data_->PM_CatagorizeTextureType);
 
         if (IsWindows()) {
             RegisterFuncThiscall<StaticHookId::CHudAmmo__DrawCrosshair>(&client_data_->CHudAmmo__DrawCrosshair);

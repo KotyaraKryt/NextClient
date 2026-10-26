@@ -179,5 +179,11 @@ namespace nitroapi
         NitroFunction<int> ScrollTextUp;
         // void CHudVGUI2Print::GetStringSize(goldsrc::cstrike::CHudVGUI2Print *const this, const wchar_t *text, int *width, int *height)
         NitroFunctionVoid<goldsrc::cstrike::CHudVGUI2Print* const, const wchar_t*, int*, int*> CHudVGUI2Print__GetStringSize;
+
+        // char PM_FindTextureType(char *name), the material letter of a texture from sound/materials.txt
+        NitroFunction<char, char*> PM_FindTextureType;
+        // void PM_CatagorizeTextureType(), sets pmove->chtexturetype from the texture under the player.
+        // The stock client inlines its own lookup here rather than calling PM_FindTextureType.
+        NitroFunctionVoid<> PM_CatagorizeTextureType;
     };
 }

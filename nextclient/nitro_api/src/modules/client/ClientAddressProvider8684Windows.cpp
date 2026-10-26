@@ -68,7 +68,9 @@ namespace nitroapi
         { StaticHookId::CHudSayText__EnsureTextFitsInOneLineAndWrapIfHaveTo,SearchConfig(0x647D0) },
         { StaticHookId::SayTextLine__Colorize,      SearchConfig(0x634E0) },
         { StaticHookId::ScrollTextUp,               SearchConfig(0x63C70) },
-        { StaticHookId::CHudVGUI2Print__GetStringSize,SearchConfig(0x57190) }
+        { StaticHookId::CHudVGUI2Print__GetStringSize,SearchConfig(0x57190) },
+        { StaticHookId::PM_FindTextureType,         SearchConfig(0x5D9B0) },
+        { StaticHookId::PM_CatagorizeTextureType,   SearchConfig(0x5E1F0) }
     };
 
     const std::unordered_map<std::string, SearchConfig> ClientAddressProvider8684Windows::addresses_str_
