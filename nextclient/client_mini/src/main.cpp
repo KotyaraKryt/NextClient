@@ -28,6 +28,7 @@
 #include "commands.h"
 #include "invert_mouse.h"
 #include "multi_button_binds.h"
+#include "map_materials.h"
 #include "hud/radar/integration/RadarHooks.h"
 #include "hud/radar/render/text/HudTextZone.h"
 
@@ -104,6 +105,7 @@ static void HUD_InitPost()
     FovInit();
     InspectInit();
     CommandsInit();
+    MapMaterials_Init();
     CameraInit();
     g_GameHud->Init();
 
@@ -351,6 +353,7 @@ public:
         g_Unsub.emplace_back(client_data->UserMsg_TextMsg |= UserMsg_TextMsgHandler);
         RadarHooks_Subscribe(nitro_api, g_Unsub);
         SayTextWrap_Subscribe(nitro_api, g_Unsub);
+        MapMaterials_Subscribe(nitro_api, g_Unsub);
         g_Unsub.emplace_back(client_data->UserMsg_ResetHUD |= UserMsg_ResetHUDHandler);
         g_Unsub.emplace_back(client_data->CL_CreateMove |= CL_CreateMoveHandler);
         g_Unsub.emplace_back(client_data->HUD_Key_Event |= MultiButtonBinds_KeyEvent);

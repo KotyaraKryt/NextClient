@@ -38,6 +38,8 @@ add_library(${PROJECT_NAME} SHARED
         src/invert_mouse.h
         src/multi_button_binds.cpp
         src/multi_button_binds.h
+        src/map_materials.cpp
+        src/map_materials.h
         src/hud/hud_sprite/sprite_rect.h
         src/hud/hud_sprite/sprite_color.h
         src/hud/hud_sprite/hud_sprite_state.h
@@ -214,6 +216,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
         cvars::cvars
         crosshair::crosshair
         key_binding::key_binding
+        texture_materials::texture_materials
         TaskCoro::TaskCoro
 )
 
