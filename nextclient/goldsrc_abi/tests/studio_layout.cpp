@@ -1,6 +1,7 @@
 #include <cstddef>
 
 #include <goldsrc/efx_api.h>
+#include <goldsrc/engine/sound.h>
 #include <goldsrc/entity.h>
 #include <goldsrc/format/studio.h>
 
@@ -58,3 +59,21 @@ static_assert(offsetof(goldsrc::dlight_t, decay) == 24);
 static_assert(offsetof(goldsrc::dlight_t, minlight) == 28);
 static_assert(offsetof(goldsrc::dlight_t, key) == 32);
 static_assert(offsetof(goldsrc::dlight_t, dark) == 36);
+
+static_assert(goldsrc::MAX_CHANNELS == 128);
+static_assert(sizeof(goldsrc::channel_t) == 64);
+static_assert(alignof(goldsrc::channel_t) == 4);
+static_assert(offsetof(goldsrc::channel_t, sfx) == 0);
+static_assert(offsetof(goldsrc::channel_t, leftvol) == 4);
+static_assert(offsetof(goldsrc::channel_t, rightvol) == 8);
+static_assert(offsetof(goldsrc::channel_t, end) == 12);
+static_assert(offsetof(goldsrc::channel_t, pos) == 16);
+static_assert(offsetof(goldsrc::channel_t, looping) == 20);
+static_assert(offsetof(goldsrc::channel_t, entnum) == 24);
+static_assert(offsetof(goldsrc::channel_t, entchannel) == 28);
+static_assert(offsetof(goldsrc::channel_t, origin) == 32);
+static_assert(offsetof(goldsrc::channel_t, dist_mult) == 44);
+static_assert(offsetof(goldsrc::channel_t, master_vol) == 48);
+static_assert(offsetof(goldsrc::channel_t, isentence) == 52);
+static_assert(offsetof(goldsrc::channel_t, iword) == 56);
+static_assert(offsetof(goldsrc::channel_t, pitch) == 60);

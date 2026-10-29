@@ -388,7 +388,7 @@ namespace nitroapi
 
         goldsrc::dma_t** shm = nullptr;
         goldsrc::wavstream_t** wavstreams = nullptr;
-        goldsrc::channel_t** channels = nullptr;
+        goldsrc::channel_t (*channels)[goldsrc::MAX_CHANNELS] = nullptr;
 
         // goldsrc::HSPRITE_t SPR_Load(const char *pTextureName);
         NitroFunction<goldsrc::HSPRITE_t, const char*> SPR_Load;
@@ -690,5 +690,6 @@ namespace nitroapi
         NitroFunctionVoid<const char*> Cbuf_AddFilteredText;
 
         goldsrc::dlight_t (*cl_elights)[64]{};
+        int* total_channels{};
     };
 }

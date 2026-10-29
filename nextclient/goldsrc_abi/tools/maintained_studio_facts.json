@@ -13,14 +13,16 @@
       "dlight_t": "28e3",
       "mstudiomodel_t": "79f44",
       "mstudiomesh_t": "7a01d",
-      "mstudiobonecontroller_t": "79a9b"
+      "mstudiobonecontroller_t": "79a9b",
+      "channel_t": "1de84d"
     },
     "stock_client_windows_sha256": "ef7a0f40989cb79ba95d40f528534da36866892ee871147ca82e133b7a5edc3d",
     "stock_client_linux_sha256": "40283f3e0c4b6bd21f9281304957ab93c04c60ce5f3d2794cdaf58b3c11ab798"
   },
   "constants": {
     "MAXSTUDIOBONES": 128,
-    "ET_NORMAL": 0
+    "ET_NORMAL": 0,
+    "MAX_CHANNELS": 128
   },
   "records": {
     "dlight_t": {
@@ -89,6 +91,26 @@
         "unused2": 100
       },
       "evidence": "client.so DWARF; client.dll StudioGetAnim confirms stride 104 and name offset 32"
+    },
+    "channel_t": {
+      "size": 64,
+      "align": 4,
+      "fields": {
+        "sfx": 0,
+        "leftvol": 4,
+        "rightvol": 8,
+        "end": 12,
+        "pos": 16,
+        "looping": 20,
+        "entnum": 24,
+        "entchannel": 28,
+        "origin": 32,
+        "dist_mult": 44,
+        "master_vol": 48,
+        "isentence": 52,
+        "iword": 56,
+        "pitch": 60
+      }
     }
   }
 }

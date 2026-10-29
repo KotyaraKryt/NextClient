@@ -128,6 +128,7 @@ namespace nitroapi
         RegisterVar(&engine_data_->vgui2_surface, "vgui2_surface");
         RegisterVar(&engine_data_->ip_sockets, "ip_sockets");
         RegisterVar(&engine_data_->ipx_sockets, "ipx_sockets");
+        RegisterVar(&engine_data_->total_channels, "total_channels");
 
         RegisterFuncCdecl<StaticHookId::Cbuf_AddText>(&engine_data_->Cbuf_AddText);
         RegisterFuncCdecl<StaticHookId::CL_QueueHTTPDownload>(&engine_data_->CL_QueueHTTPDownload);

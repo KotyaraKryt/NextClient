@@ -148,6 +148,8 @@ float* p_scr_con_current;
 goldsrc::keydest_t* p_key_dest;
 goldsrc::sfx_t** p_known_sfx;
 int* p_num_sfx;
+goldsrc::channel_t (*p_channels)[goldsrc::MAX_CHANNELS];
+int* p_total_channels;
 int* p_gHostSpawnCount;
 goldsrc::netadr_t* p_net_local_adr;
 int* p_ip_sockets;
@@ -279,6 +281,8 @@ static void EngineMiniUninitialize()
     p_key_dest = nullptr;
     p_known_sfx = nullptr;
     p_num_sfx = nullptr;
+    p_channels = nullptr;
+    p_total_channels = nullptr;
     p_gHostSpawnCount = nullptr;
     p_net_local_adr = nullptr;
     p_ip_sockets = nullptr;
@@ -460,6 +464,8 @@ static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, c
     v.Assign(p_key_dest, GET_VARIABLE_NAME(p_key_dest), eng()->key_dest);
     v.Assign(p_known_sfx, GET_VARIABLE_NAME(p_known_sfx), eng()->known_sfx);
     v.Assign(p_num_sfx, GET_VARIABLE_NAME(p_num_sfx), eng()->num_sfx);
+    v.Assign(p_channels, GET_VARIABLE_NAME(p_channels), eng()->channels);
+    v.Assign(p_total_channels, GET_VARIABLE_NAME(p_total_channels), eng()->total_channels);
     v.Assign(p_gHostSpawnCount, GET_VARIABLE_NAME(p_gHostSpawnCount), eng()->gHostSpawnCount);
     v.Assign(p_net_local_adr, GET_VARIABLE_NAME(p_net_local_adr), eng()->net_local_adr);
     v.Assign(p_ip_sockets, GET_VARIABLE_NAME(p_ip_sockets), eng()->ip_sockets);
@@ -607,6 +613,13 @@ static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, c
 
         CL_HTTPSetDownloadUrl(url);
         next->Invoke();
+    });
+
+    g_Unsubs.emplace_back(eng()->SVC_SetView |= [](const auto& next) {
+        int old_viewentity = cl->viewentity;
+        next->Invoke();
+
+        S_MoveViewEntitySounds(old_viewentity, cl->viewentity);
     });
 
     g_Unsubs.emplace_back(eng()->CL_HTTPCancel_f += []() {

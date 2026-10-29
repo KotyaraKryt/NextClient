@@ -19,6 +19,7 @@ void S_StartDynamicSoundHook(
 );
 
 void S_UnloadSounds(const std::unordered_set<std::string>& names);
+void S_MoveViewEntitySounds(int old_viewentity, int new_viewentity);
 
 goldsrc::sfx_t* S_PrecacheSound(char* sample);
 void S_StopAllSounds(goldsrc::qboolean clear);

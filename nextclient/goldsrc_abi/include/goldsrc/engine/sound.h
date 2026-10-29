@@ -16,11 +16,30 @@ namespace goldsrc
     inline constexpr int CHAN_NETWORKVOICE_END = 500;
     inline constexpr int CHAN_BOT = 501;
     inline constexpr int CVOXFILESENTENCEMAX = 1536;
+    inline constexpr int MAX_CHANNELS = 128;
 
     struct alignas(4) sfx_t
     {
         char name[64];
         cache_user_t cache;
         unsigned char unmodelled_[72 - (64 + sizeof(cache))];
+    };
+
+    struct channel_t
+    {
+        sfx_t* sfx;
+        int leftvol;
+        int rightvol;
+        int end;
+        int pos;
+        int looping;
+        int entnum;
+        int entchannel;
+        vec3_t origin;
+        vec_t dist_mult;
+        int master_vol;
+        int isentence;
+        int iword;
+        int pitch;
     };
 } // namespace goldsrc

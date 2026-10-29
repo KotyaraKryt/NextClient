@@ -343,5 +343,6 @@ namespace nitroapi
         { "vgui2_surface",                          SearchConfig(0x7E4CCC) },
         { "ip_sockets",                             SearchConfig(0x657F40) },
         { "ipx_sockets",                            SearchConfig(0x657F4C) },
+        { "total_channels",                         SearchConfig(0xA301EC) },
     };
 }

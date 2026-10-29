@@ -103,6 +103,8 @@ extern float* p_scr_con_current;
 extern goldsrc::keydest_t* p_key_dest;
 extern goldsrc::sfx_t** p_known_sfx;
 extern int* p_num_sfx;
+extern goldsrc::channel_t (*p_channels)[goldsrc::MAX_CHANNELS];
+extern int* p_total_channels;
 extern int* p_gHostSpawnCount;
 extern goldsrc::netadr_t* p_net_local_adr;
 extern int* p_ip_sockets;

@@ -130,3 +130,25 @@ void S_UnloadSounds(const std::unordered_set<std::string>& names)
         sfx->name[0] = '\0';
     }
 }
+
+// The engine starts and stops view-relative sounds, network voice included, on cl.viewentity.
+// A channel left on the previous view entity can no longer be stopped and keeps draining its stream.
+void S_MoveViewEntitySounds(int old_viewentity, int new_viewentity)
+{
+    if (old_viewentity == new_viewentity)
+    {
+        return;
+    }
+
+    int total_channels = *p_total_channels;
+
+    for (int i = 0; i < total_channels; i++)
+    {
+        goldsrc::channel_t& channel = (*p_channels)[i];
+
+        if (channel.sfx != nullptr && channel.entnum == old_viewentity)
+        {
+            channel.entnum = new_viewentity;
+        }
+    }
+}
